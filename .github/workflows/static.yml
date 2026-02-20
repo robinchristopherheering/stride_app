@@ -32,13 +32,13 @@ jobs:
           MFP_COOKIES: ${{ secrets.MFP_COOKIES }}
         run: python sync_mfp.py # Change this to your filename
 
-      - name: Commit Data
+- name: Commit Data
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add mfp_stats.json # Make sure your script saves as data.json
+          git add data.json
           git commit -m "Update MFP data" || echo "No changes to commit"
-          git push
+          git push || echo "Nothing to push"
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
