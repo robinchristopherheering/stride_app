@@ -1,12 +1,6 @@
-# Sensitive data
-cookies.txt
-*.env
-
-# Python junk
-__pycache__/
-*.py[cod]
-venv/
-.env/
-
-# Mac junk
+node_modules/
+dist/
 .DS_Store
+*.local
+sync/cookies.txt
+/tmp/
