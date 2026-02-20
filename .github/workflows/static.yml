@@ -1,0 +1,59 @@
+name: Sync MFP Data and Deploy
+on:
+  schedule:
+    # 3:30 AM UTC is 4:30 AM GMT+1
+    - cron: '30 3 * * *'
+    branches: ["main"]
+  workflow_dispatch: # Allows you to run it manually
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: pip install myfitnesspal # or whatever library you use
+
+      - name: Run Scraper
+        env:
+          MFP_COOKIES: ${{ secrets.MFP_COOKIES }}
+        run: python sync_mfp.py # Change this to your filename
+
+      - name: Commit Data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add mfp_stats.json # Make sure your script saves as data.json
+          git commit -m "Update MFP data" || echo "No changes to commit"
+          git push
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install and Build React
+        run: |
+          npm install
+          npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: ./build # or ./build depending on your React setup
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
