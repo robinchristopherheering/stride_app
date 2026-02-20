@@ -30,7 +30,7 @@ jobs:
       - name: Run Scraper
         env:
           MFP_COOKIES: ${{ secrets.MFP_COOKIES }}
-        run: python your_scraper_script.py # <--- MAKE SURE THIS FILENAME IS CORRECT
+        run: python sync_mfp.py # <--- MAKE SURE THIS FILENAME IS CORRECT
 
       - name: Commit Data
         run: |
