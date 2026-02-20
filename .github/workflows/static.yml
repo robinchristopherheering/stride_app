@@ -50,11 +50,11 @@ jobs:
           npm install
           npm run build
 
-- name: Upload artifact
-        uses: actions/upload-pages-artifact@v3 # This was likely v2 or v1
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          path: ./build # Ensure this matches your build folder (dist or build)
+          path: ./dist
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4 # This was likely v3 or v2
+        uses: actions/deploy-pages@v4
