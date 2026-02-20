@@ -50,11 +50,11 @@ jobs:
           npm install
           npm run build
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+- name: Upload artifact
+        uses: actions/upload-pages-artifact@v3 # This was likely v2 or v1
         with:
-          path: ./build # or ./build depending on your React setup
+          path: ./build # Ensure this matches your build folder (dist or build)
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4 # This was likely v3 or v2
