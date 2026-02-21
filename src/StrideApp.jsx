@@ -211,6 +211,17 @@ function InfoTip({ text }) {
   );
 }
 
+// CHART HOVER TOOLTIP
+function HoverTip({x,y,w,h,padT,padB,d}) {
+  const bw=30,bh=11,tx=Math.min(Math.max(x,bw/2+1),w-bw/2-1),ty=Math.max(2,y-16);
+  return (<>
+    <line x1={x} y1={padT} x2={x} y2={h-padB} stroke={C.mint} strokeWidth="0.3" strokeDasharray="1.5,2" opacity="0.2"/>
+    <rect x={tx-bw/2} y={ty} width={bw} height={bh} rx={3} fill={C.surfaceSolid} fillOpacity="0.9" stroke="rgba(184,255,87,0.08)" strokeWidth="0.3"/>
+    <text x={tx} y={ty+5} textAnchor="middle" style={{fontSize:4.5,fill:C.mint,fontFamily:'var(--mono)',fontWeight:600}}>{d.kg}kg</text>
+    <text x={tx} y={ty+9.5} textAnchor="middle" style={{fontSize:3,fill:C.text3,fontFamily:'var(--mono)'}}>W{d.week} · {d.date}</text>
+  </>);
+}
+
 // INTERACTIVE WEIGHT CHART (subtle version)
 function WeightChart({ data, w=300, h=100, visible=true }) {
   const svgRef = useRef(null);
@@ -242,23 +253,15 @@ function WeightChart({ data, w=300, h=100, visible=true }) {
       <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.mint} stopOpacity=".12"/><stop offset="100%" stopColor={C.mint} stopOpacity="0"/></linearGradient></defs>
       {pts.map((p,i)=><text key={i} x={p.x} y={h-2} textAnchor="middle" style={{fontSize:7,fill:C.text3,fontFamily:'var(--mono)',fontWeight:600}}>W{data[i].week}</text>)}
       <path d={fillPath} fill={`url(#${gid})`} style={{opacity:visible?1:0,transition:'opacity .8s ease .6s'}}/>
-      <path d={linePath} fill="none" stroke={C.mint} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.7}
+      <path d={linePath} fill="none" stroke={C.mint} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.6}
         style={{strokeDasharray:totalLen,strokeDashoffset:visible?0:totalLen,transition:'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)'}}/>
-      {pts.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r={hover?.idx===i?4:2}
-        fill={hover?.idx===i?C.mint:'rgba(184,255,87,0.35)'}
-        stroke={hover?.idx===i?'rgba(255,255,255,0.6)':'none'} strokeWidth={1}
+      {pts.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r={hover?.idx===i?2:1}
+        fill={hover?.idx===i?C.mint:'rgba(184,255,87,0.2)'}
+        stroke={hover?.idx===i?'rgba(255,255,255,0.3)':'none'} strokeWidth={0.5}
         style={{transition:'r .12s, fill .12s'}}>
-        {i===pts.length-1&&!hover&&<animate attributeName="r" values="2;3;2" dur="2.5s" repeatCount="indefinite"/>}
+        {i===pts.length-1&&!hover&&<animate attributeName="r" values="1;1.5;1" dur="2.5s" repeatCount="indefinite"/>}
       </circle>)}
-      {hover&&<>
-        <line x1={hover.x} y1={padT} x2={hover.x} y2={h-padB} stroke={C.mint} strokeWidth="0.5" strokeDasharray="2,2" opacity="0.35"/>
-        <rect x={Math.min(Math.max(hover.x-30,0),w-60)} y={Math.max(2,hover.y-30)} width={60} height={22} rx={6}
-          fill={C.surfaceSolid} stroke="rgba(184,255,87,0.15)" strokeWidth="0.5"/>
-        <text x={Math.min(Math.max(hover.x,30),w-30)} y={Math.max(2,hover.y-19)} textAnchor="middle"
-          style={{fontSize:9,fill:C.mint,fontFamily:'var(--mono)',fontWeight:600}}>{data[hover.idx].kg}kg</text>
-        <text x={Math.min(Math.max(hover.x,30),w-30)} y={Math.max(2,hover.y-11)} textAnchor="middle"
-          style={{fontSize:6.5,fill:C.text3,fontFamily:'var(--mono)'}}>W{data[hover.idx].week} {data[hover.idx].date}</text>
-      </>}
+      {hover&&<HoverTip x={hover.x} y={hover.y} w={w} h={h} padT={padT} padB={padB} d={data[hover.idx]}/>}
     </svg>
   );
 }
@@ -392,7 +395,7 @@ const I={
   bell:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>,
   collapse:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>,
   expand:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>,
-  sparkle:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M12 3v1m0 16v1m-7.07-2.93l.71-.71m12.72-12.72l.71-.71M3 12h1m16 0h1m-2.93 7.07l-.71-.71M5.64 5.64l-.71-.71"/><circle cx="12" cy="12" r="4"/></svg>,
+  sparkle:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4"/></svg>,
 };
 
 // DATA HELPERS
@@ -749,106 +752,141 @@ function TargetsTab({vis,isD,isT}) {
 
 // AI COACH TAB
 function CoachTab({vis,isD,isT,isM}) {
+  const [chatMsg, setChatMsg] = useState("");
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [tips, setTips] = useState(null);
-  const [error, setError] = useState(null);
+  const chatEnd = useRef(null);
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
+  const typeColor = {warning:C.orange,success:C.mint,action:C.blue};
+  const remaining = {cal:Math.max(0,1400-today.cal),pro:Math.max(0,140-today.pro),fib:Math.max(0,25-today.fib),steps:Math.max(0,8000-today.steps)};
 
-  const remaining = {
-    cal: Math.max(0, 1400 - today.cal),
-    pro: Math.max(0, 140 - today.pro),
-    fib: Math.max(0, 25 - today.fib),
-    steps: Math.max(0, 8000 - today.steps),
+  const contextPrompt = `You are a concise, expert fitness coach for Robin on a 14-week fat loss program. Phase 1 (current): aggressive fat loss while protecting muscle.
+CURRENT DATA: Today: ${today.cal} cal, ${today.pro}g protein, ${today.carb}g carbs, ${today.fat}g fat, ${today.fib}g fiber, ${today.sug}g sugar, ${today.steps} steps, ${today.sleep}h sleep, gym: ${today.gym?"yes":"no"}.
+Targets: 1300-1500 cal, 130-160g protein, 40-70g carbs, 40-55g fat, 20-30g fiber, <20g sugar, 8000+ steps.
+Weight: ${lastW.kg}kg (started 80.5, goal 68, lost ${lost}kg). Week ${lastW.week+1}/14. Velocity: -${insights.velocity}kg/wk.
+Week 6 avgs: ${W_NUTR[5].cal} cal, ${W_NUTR[5].pro}g pro. Streak: ${insights.streak}d. Protein rate: ${insights.proteinRate}%.
+Most eaten: ${POPULAR_FOODS.slice(0,5).map(f=>f.name).join(', ')}.
+Be concise (2-4 sentences), practical, reference actual numbers. Suggest specific foods with macros when relevant.`;
+
+  useEffect(() => { chatEnd.current?.scrollIntoView({behavior:'smooth'}); }, [messages]);
+
+  const getOfflineTip = (q) => {
+    const ql = q.toLowerCase();
+    if (ql.includes("eat")||ql.includes("dinner")||ql.includes("meal")||ql.includes("food")||ql.includes("lunch")||ql.includes("snack")||ql.includes("breakfast"))
+      return `You still need ~${remaining.cal} cal and ${remaining.pro}g protein today. Try: 150g salmon (280cal, 30g pro) + 200g broccoli (68cal, 6g fiber) + 100g lentils (116cal, 9g pro, 8g fiber). That closes your macro gaps nicely.`;
+    if (ql.includes("protein"))
+      return `You're at ${today.pro}g protein (target: 130-160g). ${today.pro>=130?"On track! Keep going.":"Add a whey shake (+24g) or 150g chicken (+47g) to close the gap."}`;
+    if (ql.includes("step")||ql.includes("walk")||ql.includes("cardio"))
+      return `${today.steps.toLocaleString()} steps today. ${today.steps>=8000?"Target hit! Great work.":"Need "+remaining.steps+" more. A brisk 20-min walk adds ~2,500 steps. Try after dinner."}`;
+    if (ql.includes("weight")||ql.includes("progress")||ql.includes("how am i"))
+      return `You've lost ${lost}kg in ${lastW.week+1} weeks (${lostPct}% of starting weight). At -${insights.velocity}kg/week, you're on pace to reach 68kg in ~${Math.ceil((lastW.kg-68)/parseFloat(insights.velocity||0.8))} more weeks. That's solid progress.`;
+    if (ql.includes("sleep"))
+      return `${today.sleep}h sleep today. ${today.sleep>=7?"Good — sleep above 7h keeps cortisol low and recovery high.":"Below 7h target. Poor sleep raises cortisol and stalls fat loss. Try: no screens 30min before bed, consistent bedtime, cool room."}`;
+    if (ql.includes("fiber"))
+      return `${today.fib}g fiber today (target: 20-30g). ${today.fib>=20?"On track!":"Add: 200g broccoli (+5g), 1 tbsp chia seeds (+5g), or 100g lentils (+8g). Fiber aids digestion and reduces bloating."}`;
+    if (ql.includes("sugar"))
+      return `${today.sug}g sugar today (target: <20g). ${today.sug<=20?"Well controlled!":"Over target. Check for hidden sugars in sauces, flavored yogurt, and fruit juice. Stick to whole fruits instead."}`;
+    if (ql.includes("calorie")||ql.includes("cal"))
+      return `${today.cal} calories today (target: 1,300-1,500). ${today.cal>=1300&&today.cal<=1500?"Right on target.":today.cal<1300?"Slightly under — make sure you're eating enough to protect muscle. Add a protein-rich snack.":"Slightly over. Not a disaster, but watch portions at dinner."}`;
+    if (ql.includes("gym")||ql.includes("train")||ql.includes("workout")||ql.includes("exercise"))
+      return `${today.gym?"You trained today — great!":"Rest day today."} Phase 1 calls for 3x strength + rope per week. Focus on compound lifts (squat, deadlift, bench, row) to preserve muscle in a deficit. Keep rest periods 60-90s.`;
+    if (ql.includes("target")||ql.includes("hit")||ql.includes("score")||ql.includes("compliance"))
+      return `Compliance today: ${today.comp}/100. ${today.comp>=90?"Excellent execution!":today.comp>=70?"Good but room to improve.":"Below 70 — focus on protein and fiber."} Your streak is ${insights.streak} days \u226570. Protein hit rate: ${insights.proteinRate}% of all days.`;
+    if (ql.includes("cheat")||ql.includes("break")||ql.includes("off day"))
+      return `One off day won't ruin your progress. You've lost ${lost}kg already. The key is consistency: your ${insights.streak}-day streak shows commitment. If you go over, just get back on track tomorrow. Don't compensate by under-eating.`;
+    if (ql.includes("plateau")||ql.includes("stuck")||ql.includes("stall"))
+      return `At -${insights.velocity}kg/week, you're still losing well. Plateaus usually last 1-2 weeks and break naturally. Keep hitting protein (${insights.proteinRate}% hit rate), stay consistent, and trust the process. If it persists 3+ weeks, consider a 2-day refeed at maintenance calories.`;
+    return `Today: ${today.cal} cal (${today.cal>=1300&&today.cal<=1500?"on target":"needs attention"}), ${today.pro}g protein (${today.pro>=130?"good":"low"}), ${today.fib}g fiber (${today.fib>=20?"ok":"add veg"}), ${today.steps} steps (${today.steps>=8000?"hit":"need more"}). Compliance: ${today.comp}/100. Streak: ${insights.streak} days. You're doing well — keep at it.`;
   };
 
-  const fetchCoach = async () => {
-    setLoading(true); setError(null);
+  const sendMessage = async (text) => {
+    if (!text.trim()) return;
+    const userMsg = {role:"user",content:text};
+    setMessages(prev => [...prev, userMsg]);
+    setChatMsg(""); setLoading(true);
+    // Try API with short timeout, fall back to smart offline tips
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
     try {
       const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{
-            role: "user",
-            content: `You are a concise fitness coach. Based on this data, give exactly 5 short tips (JSON array of {title, tip, type} where type is "warning"|"success"|"action"). 
-Today: ${today.cal} cal, ${today.pro}g protein, ${today.fib}g fiber, ${today.sug}g sugar, ${today.steps} steps, sleep ${today.sleep}h, gym: ${today.gym}.
-Targets: 1300-1500 cal, 130-160g protein, 20-30g fiber, <20g sugar, 8000+ steps.
-Week averages: ${W_NUTR[5].cal} cal, ${W_NUTR[5].pro}g pro.
-Weight: ${lastW.kg}kg, started 80.5kg.
-Most eaten: ${POPULAR_FOODS.slice(0,5).map(f=>f.name).join(', ')}.
-Respond ONLY with a JSON array, no markdown.`
-          }],
-        }),
+        method:"POST", headers:{"Content-Type":"application/json"}, signal: controller.signal,
+        body: JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:contextPrompt,
+          messages:[...messages,userMsg].map(m=>({role:m.role,content:m.content}))}),
       });
+      clearTimeout(timeout);
       const data = await resp.json();
-      const text = data.content?.map(i=>i.text||"").join("") || "";
-      const clean = text.replace(/\`\`\`json|\`\`\`/g, "").trim();
-      setTips(JSON.parse(clean));
-    } catch (e) { setError("Could not reach AI coach. Check network settings."); }
+      const reply = data.content?.map(i=>i.text||"").join("");
+      if (reply) { setMessages(prev => [...prev, {role:"assistant",content:reply}]); }
+      else { setMessages(prev => [...prev, {role:"assistant",content:getOfflineTip(text)}]); }
+    } catch (e) {
+      clearTimeout(timeout);
+      setMessages(prev => [...prev, {role:"assistant",content:getOfflineTip(text)}]);
+    }
     setLoading(false);
   };
 
-  // Static tips as fallback
   const staticTips = [
-    {title:"Fiber Gap",tip:`You're at ${today.fib}g fiber today — add 200g broccoli (+5g) or a tbsp chia seeds (+5g) to close the gap to 20g.`,type:"action"},
-    {title:"Protein Strong",tip:`${today.pro}g protein today is ${today.pro>=130?"on target — keep it up!":"below 130g — add a protein shake or 150g chicken."}`,type:today.pro>=130?"success":"warning"},
-    {title:"Step Count",tip:`${today.steps.toLocaleString()} steps so far. ${today.steps>=8000?"Great job hitting your target!":"A 20-min evening walk adds ~2,500 steps."}`,type:today.steps>=8000?"success":"action"},
-    {title:"Sugar Watch",tip:`${today.sug}g sugar today${today.sug>20?" exceeds your 20g limit. Check for hidden sugars in sauces and yogurt.":". Well controlled!"}`,type:today.sug>20?"warning":"success"},
-    {title:"Weekly Trend",tip:`Compliance trending at ${W_NUTR[5].comp}/100 this week. ${W_NUTR[5].comp>=75?"Solid execution.":"Focus on hitting protein and fiber consistently."}`,type:W_NUTR[5].comp>=75?"success":"action"},
+    {title:"Fiber Gap",tip:`At ${today.fib}g fiber \u2014 add broccoli or chia seeds to reach 20g.`,type:"action"},
+    {title:today.pro>=130?"Protein On Track":"Protein Low",tip:today.pro>=130?`${today.pro}g protein \u2014 solid.`:`${today.pro}g protein \u2014 below 130g, add a shake.`,type:today.pro>=130?"success":"warning"},
+    {title:"Step Check",tip:`${today.steps.toLocaleString()} steps. ${today.steps>=8000?"Target hit!":"Walk 20 min to close gap."}`,type:today.steps>=8000?"success":"action"},
+    {title:"Sugar Watch",tip:`${today.sug}g sugar${today.sug>20?" \u2014 over 20g limit.":" \u2014 controlled."}`,type:today.sug>20?"warning":"success"},
+    {title:"Weekly Trend",tip:`Compliance at ${W_NUTR[5].comp}/100. ${W_NUTR[5].comp>=75?"Strong.":"Focus protein & fiber."}`,type:W_NUTR[5].comp>=75?"success":"action"},
   ];
-
-  const displayTips = tips || staticTips;
-  const typeColor = {warning:C.orange,success:C.mint,action:C.blue};
+  const quickQ = ["What should I eat for dinner?","How's my progress?","Am I hitting my targets?","Tips for better sleep"];
 
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
-      <AnimCard style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-          <div>
-            <Lbl>AI Coach</Lbl>
-            <div style={{fontSize:12,color:C.text2,marginTop:-6}}>Personalized tips based on your data</div></div>
-          <button onClick={fetchCoach} disabled={loading} style={{padding:'8px 16px',borderRadius:10,border:'none',cursor:'pointer',
-            background:loading?C.border:`linear-gradient(135deg,${C.mint},${C.cyan})`,color:C.bg,fontSize:11,fontWeight:700,fontFamily:'var(--sans)',
-            opacity:loading?0.5:1,transition:'opacity .2s'}}>
-            {loading?"Thinking...":tips?"↻ Refresh":"Ask AI Coach"}</button></div>
-        {error&&<div style={{padding:12,borderRadius:10,background:C.redSoft,color:C.red,fontSize:12,marginBottom:12}}>{error}</div>}
-        <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          {displayTips.map((t,i)=>(<div key={i} style={{padding:'14px 16px',borderRadius:14,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`,borderLeft:`3px solid ${typeColor[t.type]||C.mint}`,
-            opacity:vis?1:0,transform:vis?'translateX(0)':'translateX(-8px)',transition:`all .35s ease ${i*.06}s`}}>
-            <div style={{fontSize:12,fontWeight:700,color:typeColor[t.type]||C.mint,marginBottom:4}}>{t.title}</div>
-            <div style={{fontSize:12,color:C.text2,lineHeight:1.5}}>{t.tip}</div>
-          </div>))}</div>
+      <AnimCard style={{gridColumn:isD?'1/2':isT?'1/3':'1',display:'flex',flexDirection:'column',minHeight:isM?360:440}}>
+        <Lbl>Chat with Coach</Lbl>
+        <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:8,marginBottom:12,paddingRight:4}}>
+          {messages.length===0&&<div style={{fontSize:11,color:C.text3,lineHeight:1.5,padding:'8px 0'}}>Ask me anything about your nutrition, training, or progress. I have full context on your data.</div>}
+          {messages.map((m,i)=>(
+            <div key={i} style={{alignSelf:m.role==="user"?'flex-end':'flex-start',maxWidth:'85%',padding:'10px 14px',borderRadius:m.role==="user"?'14px 14px 4px 14px':'14px 14px 14px 4px',
+              background:m.role==="user"?C.mintSoft:'rgba(255,255,255,0.03)',border:`1px solid ${m.role==="user"?C.mintMed:C.border}`,
+              fontSize:12,lineHeight:1.5,color:m.role==="user"?C.mint:C.text2,whiteSpace:'pre-wrap'}}>{m.content}</div>
+          ))}
+          {loading&&<div style={{alignSelf:'flex-start',padding:'10px 14px',borderRadius:14,background:'rgba(255,255,255,0.03)',fontSize:12,color:C.text3}}>Thinking...</div>}
+          <div ref={chatEnd}/>
+        </div>
+        {messages.length===0&&<div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
+          {quickQ.map(q=>(<button key={q} onClick={()=>sendMessage(q)} style={{padding:'6px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.02)',color:C.text2,fontSize:10,fontWeight:500,cursor:'pointer',fontFamily:'var(--sans)',transition:'border-color .2s'}}
+            onMouseEnter={e=>e.currentTarget.style.borderColor=C.mintMed} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>{q}</button>))}</div>}
+        <div style={{display:'flex',gap:8}}>
+          <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage(chatMsg);}}}
+            placeholder="Ask your coach..." style={{flex:1,padding:'10px 14px',borderRadius:12,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.03)',color:C.text,fontSize:12,fontFamily:'var(--sans)',outline:'none'}}/>
+          <button onClick={()=>sendMessage(chatMsg)} disabled={loading||!chatMsg.trim()} style={{padding:'10px 16px',borderRadius:12,border:'none',cursor:'pointer',
+            background:chatMsg.trim()?`linear-gradient(135deg,${C.mint},${C.cyan})`:C.border,color:C.bg,fontSize:11,fontWeight:700,fontFamily:'var(--sans)',opacity:loading?0.5:1}}>Send</button>
+        </div>
       </AnimCard>
-      <AnimCard delay={0.1} style={{gridColumn:isD?'1/2':'1'}}>
+      <AnimCard delay={0.05} style={{gridColumn:isD?'2/4':isT?'1/3':'1'}}>
+        <Lbl>Today's Analysis</Lbl>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {staticTips.map((t,i)=>(<div key={i} style={{padding:'12px 14px',borderRadius:12,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`,borderLeft:`3px solid ${typeColor[t.type]||C.mint}`,
+            opacity:vis?1:0,transform:vis?'translateX(0)':'translateX(-8px)',transition:`all .35s ease ${i*.06}s`}}>
+            <div style={{fontSize:11,fontWeight:700,color:typeColor[t.type]||C.mint,marginBottom:3}}>{t.title}</div>
+            <div style={{fontSize:11,color:C.text2,lineHeight:1.4}}>{t.tip}</div></div>))}</div>
+      </AnimCard>
+      <AnimCard delay={0.1}>
         <Lbl>Remaining Today</Lbl>
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           {[{l:"Calories",v:remaining.cal,u:"kcal",c:C.mint,max:200},{l:"Protein",v:remaining.pro,u:"g",c:C.mint,max:30},{l:"Fiber",v:remaining.fib,u:"g",c:C.cyan,max:17},{l:"Steps",v:remaining.steps,u:"",c:C.blue,max:2100}].map(r=>(
-            <div key={r.l}>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:3}}>
-                <span style={{color:C.text2,fontWeight:600}}>{r.l}</span>
-                <span style={{fontFamily:'var(--mono)',fontWeight:700,color:r.v<=0?C.mint:C.text}}>{r.v<=0?"✓ Done":r.v.toLocaleString()+" "+r.u+" left"}</span></div>
+            <div key={r.l}><div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:3}}>
+              <span style={{color:C.text2,fontWeight:600}}>{r.l}</span>
+              <span style={{fontFamily:'var(--mono)',fontWeight:700,color:r.v<=0?C.mint:C.text}}>{r.v<=0?"\u2713 Done":r.v.toLocaleString()+" "+r.u+" left"}</span></div>
               <div style={{height:4,borderRadius:2,background:C.border,overflow:'hidden'}}>
-                <div style={{height:'100%',width:`${Math.min(100,100-r.v/r.max*100)}%`,borderRadius:2,background:r.v<=0?C.mint:`${r.c}88`,transition:'width .8s ease'}}/></div>
-            </div>))}</div>
+                <div style={{height:'100%',width:`${Math.min(100,100-r.v/r.max*100)}%`,borderRadius:2,background:r.v<=0?C.mint:`${r.c}88`,transition:'width .8s ease'}}/></div></div>))}</div>
       </AnimCard>
       <AnimCard delay={0.15}>
         <Lbl>Meal Suggestion</Lbl>
-        <div style={{fontSize:12,color:C.text2,lineHeight:1.6}}>
-          <div style={{fontWeight:700,color:C.mint,marginBottom:8}}>To hit all targets tonight:</div>
-          <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.02)',marginBottom:6}}>
-            <div style={{fontWeight:600,color:C.text}}>150g Salmon Fillet</div>
-            <div style={{fontSize:10,color:C.text3}}>280 cal · 30g protein · 17g fat</div></div>
-          <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.02)',marginBottom:6}}>
-            <div style={{fontWeight:600,color:C.text}}>200g Steamed Broccoli</div>
-            <div style={{fontSize:10,color:C.text3}}>68 cal · 5.6g protein · 6g fiber</div></div>
-          <div style={{padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.02)'}}>
-            <div style={{fontWeight:600,color:C.text}}>100g Lentils</div>
-            <div style={{fontSize:10,color:C.text3}}>116 cal · 9g protein · 8g fiber</div></div>
-          <div style={{marginTop:10,fontSize:10,color:C.text3}}>This adds ~464 cal, 45g protein, 14g fiber</div>
-        </div>
-      </AnimCard></div>);
+        <div style={{fontSize:11,color:C.text2,lineHeight:1.5}}>
+          <div style={{fontWeight:700,color:C.mint,marginBottom:8}}>To hit targets tonight:</div>
+          {[{n:"150g Salmon Fillet",m:"280 cal \u00b7 30g pro \u00b7 17g fat"},{n:"200g Steamed Broccoli",m:"68 cal \u00b7 6g pro \u00b7 6g fiber"},{n:"100g Lentils",m:"116 cal \u00b7 9g pro \u00b7 8g fiber"}].map(f=>(
+            <div key={f.n} style={{padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.02)',marginBottom:4}}>
+              <div style={{fontWeight:600,color:C.text,fontSize:11}}>{f.n}</div>
+              <div style={{fontSize:9,color:C.text3}}>{f.m}</div></div>))}
+          <div style={{marginTop:8,fontSize:9,color:C.text3}}>Adds ~464 cal, 45g protein, 14g fiber</div></div>
+      </AnimCard>
+    </div>);
 }
 
 // MAIN APP
@@ -859,6 +897,7 @@ export default function Stride() {
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifRead, setNotifRead] = useState({});
   const notifRef = useRef(null);
+  const bellRef = useRef(null);
   const vis = useAnimateOnMount(tab);
   useEffect(()=>{const h=()=>setWw(window.innerWidth);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);},[]);
 
@@ -873,7 +912,7 @@ export default function Stride() {
 
   useEffect(() => {
     if (!notifOpen) return;
-    const handler = (e) => { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false); };
+    const handler = (e) => { if (notifRef.current && !notifRef.current.contains(e.target) && bellRef.current && !bellRef.current.contains(e.target)) setNotifOpen(false); };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [notifOpen]);
@@ -984,7 +1023,7 @@ export default function Stride() {
               <div><div style={{fontSize:10,color:C.text3,fontWeight:600}}>Week 7 · Phase 1</div><div style={{fontSize:16,fontWeight:800,letterSpacing:-.3}}>Stride</div></div>
             </div>
             <div style={{position:'relative'}}>
-              <button onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
+              <button ref={bellRef} onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
                 {I.bell}{unreadCount>0&&<div style={{position:'absolute',top:5,right:5,minWidth:14,height:14,borderRadius:7,background:C.red,border:`2px solid ${C.bg}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:800,color:'#fff',padding:'0 3px'}}>{unreadCount}</div>}
               </button>
               {notifOpen&&<NotifPanel/>}
@@ -1000,8 +1039,12 @@ export default function Stride() {
             </div>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               <div style={{padding:'8px 14px',borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,fontSize:12,fontWeight:600,color:C.text2}}>Phase 1 — Fat Loss</div>
+              <button onClick={()=>window.location.reload()} title="Refresh stats" style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,cursor:'pointer',transition:'color .2s'}}
+                onMouseEnter={e=>e.currentTarget.style.color=C.mint} onMouseLeave={e=>e.currentTarget.style.color=C.text2}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              </button>
               <div style={{position:'relative'}}>
-                <button onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
+                <button ref={bellRef} onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
                   {I.bell}{unreadCount>0&&<div style={{position:'absolute',top:5,right:5,minWidth:14,height:14,borderRadius:7,background:C.red,border:`2px solid ${C.bg}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:800,color:'#fff',padding:'0 3px'}}>{unreadCount}</div>}
                 </button>
                 {notifOpen&&<NotifPanel/>}
