@@ -187,40 +187,64 @@ def scrape_mfp_web(cookie_jar, username, target_date):
 
 
 def parse_diary_html(html):
-    """Extract totals row from MFP diary HTML page — handles current MFP layout."""
+    """Extract totals row from MFP diary HTML page — handles current MFP layout.
+    
+    MFP table columns (as of Feb 2026):
+    [Label] | Calories | Carbs(Fiber) | Fat(SatFat) | Protein | Sodium | Sugar
+    
+    Sub-values appear inline (e.g., "70\\n21" = 70g carbs, 21g fiber).
+    """
     import re
     totals = {}
 
-    # MFP diary page has a totals row with class "total"
-    # Try multiple patterns to be robust against layout changes
-    
-    # Pattern 1: JSON data embedded in page (newer MFP)
-    json_match = re.search(r'"nutritionSummary"\s*:\s*\{([^}]+)\}', html)
-    if json_match:
-        block = json_match.group(1)
-        for key, mfp_key in [("calories","calories"),("protein","protein"),("carbs","totalCarbs"),
-                              ("fat","totalFat"),("fiber","fiber"),("sugar","sugar")]:
-            m = re.search(rf'"{mfp_key}"\s*:\s*(\d+\.?\d*)', block)
-            if m: totals[key] = round(float(m.group(1)))
+    # Pattern 1: Find the totals row and extract cell values
+    total_match = re.search(r'class=["\']?total["\']?[^>]*>[\s\S]*?</tr>', html, re.IGNORECASE)
+    if total_match:
+        # Get all <td> cell contents
+        cells = re.findall(r'<td[^>]*>([\s\S]*?)</td>', total_match.group(), re.IGNORECASE)
+        # Extract main number (first number) from each cell
+        vals = []
+        subs = []
+        for cell in cells:
+            clean = re.sub(r'<[^>]+>', '', cell).strip()
+            numbers = re.findall(r'[\d,]+', clean)
+            main = int(numbers[0].replace(',', '')) if numbers else 0
+            sub = int(numbers[1].replace(',', '')) if len(numbers) > 1 else 0
+            vals.append(main)
+            subs.append(sub)
+        
+        # MFP column order (skip "Totals" label which has no number):
+        # Cell with first large number = Calories
+        # Then: Carbs, Fat, Protein, Sodium, Sugar
+        data_vals = [(v, s) for v, s in zip(vals, subs) if v > 0 or s > 0]
+        
+        if len(data_vals) >= 6:
+            totals["calories"] = data_vals[0][0]
+            totals["carbs"] = data_vals[1][0]
+            totals["fiber"] = data_vals[1][1]  # Sub-value of carbs
+            totals["fat"] = data_vals[2][0]
+            totals["protein"] = data_vals[3][0]
+            # data_vals[4] = sodium (skip)
+            totals["sugar"] = data_vals[5][0]
+        elif len(data_vals) >= 4:
+            # Minimal columns: Cal, Carbs, Fat, Protein
+            totals["calories"] = data_vals[0][0]
+            totals["carbs"] = data_vals[1][0]
+            totals["fat"] = data_vals[2][0]
+            totals["protein"] = data_vals[3][0]
 
-    # Pattern 2: Table row totals (older MFP layout)
+    # Pattern 2: JSON data embedded in page (newer MFP React)
     if not totals:
-        total_section = re.search(r'(?:total|Totals).*?</tr>', html, re.IGNORECASE | re.DOTALL)
-        if total_section:
-            numbers = re.findall(r'>\s*([\d,]+)\s*<', total_section.group())
-            if len(numbers) >= 6:
-                keys = ["calories", "fat", "carbs", "protein", "sugar", "fiber"]
-                for key, val in zip(keys, numbers):
-                    totals[key] = int(val.replace(",", ""))
-
-    # Pattern 3: aria-label or data attributes
-    if not totals:
-        for key in ["calories", "protein", "carbs", "fat", "fiber", "sugar"]:
-            m = re.search(rf'(?:total|Totals).*?{key}.*?(\d[\d,]*)', html, re.IGNORECASE | re.DOTALL)
-            if m:
-                totals[key] = int(m.group(1).replace(",", ""))
+        json_match = re.search(r'"nutritionSummary"\s*:\s*\{([^}]+)\}', html)
+        if json_match:
+            block = json_match.group(1)
+            for key, mfp_key in [("calories","calories"),("protein","protein"),("carbs","totalCarbs"),
+                                  ("fat","totalFat"),("fiber","fiber"),("sugar","sugar")]:
+                m = re.search(rf'"{mfp_key}"\s*:\s*(\d+\.?\d*)', block)
+                if m: totals[key] = round(float(m.group(1)))
 
     return totals if totals.get("calories", 0) > 0 else None
+
 def pull_day_data_library(client, target_date):
     """Pull a single day's data using the python-myfitnesspal library."""
     try:
