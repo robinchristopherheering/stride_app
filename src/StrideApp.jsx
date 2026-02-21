@@ -339,10 +339,11 @@ function useGymSleep() {
   const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
   const [data, setData] = useState(load);
   const save = (d) => { setData(d); localStorage.setItem(KEY, JSON.stringify(d)); };
-  const getDay = (dateStr) => data[dateStr] || { gym: false, sleep: 0 };
-  const setGym = (dateStr, val) => { const d = {...data}; d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0}), gym: val}; save(d); };
-  const setSleep = (dateStr, val) => { const d = {...data}; d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0}), sleep: parseFloat(val)||0}; save(d); };
-  return { getDay, setGym, setSleep, data };
+  const getDay = (dateStr) => data[dateStr] || { gym: false, sleep: 0, steps: 0 };
+  const setGym = (dateStr, val) => { const d = {...data}; d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0,steps:0}), gym: val}; save(d); };
+  const setSleep = (dateStr, val) => { const d = {...data}; d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0,steps:0}), sleep: parseFloat(val)||0}; save(d); };
+  const setSteps = (dateStr, val) => { const d = {...data}; d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0,steps:0}), steps: parseInt(val)||0}; save(d); };
+  return { getDay, setGym, setSleep, setSteps, data };
 }
 
 function GymSleepEditor({ days, gymSleep, currentWeek }) {
@@ -384,6 +385,14 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
                 onChange={e=>gymSleep.setSleep(dateStr,e.target.value)}
                 style={{width:36,padding:'4px 2px',borderRadius:6,border:`1px solid rgba(255,255,255,0.1)`,
                   background:'rgba(255,255,255,0.04)',color:C.text,fontSize:12,textAlign:'center',
+                  fontFamily:'var(--mono)',outline:'none'}}/>
+            </div>
+            <div style={{marginTop:8}}>
+              <div style={{fontSize:8,color:C.text3,textTransform:'uppercase',letterSpacing:0.5,marginBottom:3}}>Steps</div>
+              <input type="number" min="0" max="99999" step="100" value={dayData.steps||''} placeholder="0"
+                onChange={e=>gymSleep.setSteps(dateStr,e.target.value)}
+                style={{width:44,padding:'4px 2px',borderRadius:6,border:`1px solid rgba(255,255,255,0.1)`,
+                  background:'rgba(255,255,255,0.04)',color:C.text,fontSize:11,textAlign:'center',
                   fontFamily:'var(--mono)',outline:'none'}}/>
             </div>
           </div>
@@ -510,7 +519,7 @@ function WeightChart({ data, w=300, h=100, visible=true }) {
       onTouchMove={e=>{e.preventDefault();handleMove(e.touches[0].clientX);}}
       onTouchEnd={()=>setTimeout(()=>setHover(null),1500)}>
       <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.mint} stopOpacity=".12"/><stop offset="100%" stopColor={C.mint} stopOpacity="0"/></linearGradient></defs>
-      {pts.map((p,i)=><text key={i} x={p.x} y={h-2} textAnchor="middle" style={{fontSize:7,fill:C.text3,fontFamily:'var(--mono)',fontWeight:600}}>W{data[i].week}</text>)}
+      {pts.map((p,i)=>{const wk=data[i].week;const isFirst=i===0||data[i-1].week!==wk;return isFirst?<text key={i} x={p.x} y={h-1} textAnchor="middle" style={{fontSize:5,fill:C.text3,fontFamily:'var(--mono)',fontWeight:500,opacity:0.6}}>W{wk}</text>:null;})}
       <path d={fillPath} fill={`url(#${gid})`} style={{opacity:visible?1:0,transition:'opacity .8s ease .6s'}}/>
       <path d={linePath} fill="none" stroke={C.mint} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.6}
         style={{strokeDasharray:totalLen,strokeDashoffset:visible?0:totalLen,transition:'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)'}}/>
@@ -907,8 +916,8 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep}) {
         </div>
       </AnimCard>
       <AnimCard delay={0.2} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
-        <Lbl>Log Gym & Sleep</Lbl>
-        <div style={{fontSize:11,color:C.text3,marginBottom:10}}>Tap to toggle gym days, enter sleep hours</div>
+        <Lbl>Log Gym, Sleep & Steps</Lbl>
+        <div style={{fontSize:11,color:C.text3,marginBottom:10}}>Tap gym days, enter sleep hours and daily steps</div>
         <GymSleepEditor days={D.DAILY_W7} gymSleep={gymSleep} currentWeek={D.currentWeek}/>
       </AnimCard></div>);
 }
@@ -1270,7 +1279,7 @@ export default function Stride() {
         dt.setDate(today.getDate() - dayOfWeek + 1 + i); // Mon=0 offset
         const dateStr = dt.toISOString().split('T')[0];
         const gs = gsData[dateStr];
-        if (gs) { d.gym = gs.gym || false; d.sleep = gs.sleep || 0; }
+        if (gs) { d.gym = gs.gym || false; d.sleep = gs.sleep || 0; d.steps = gs.steps || d.steps || 0; }
       });
       base.DAILY_ALL.forEach(d => {
         // Match by dt format "Mon DD" — find the date string
@@ -1278,7 +1287,7 @@ export default function Stride() {
           const mm = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
           const dd = new Date(dateStr+"T00:00:00");
           const fmtD = `${mm[dd.getMonth()]} ${dd.getDate()}`;
-          if (d.dt === fmtD) { d.gym = gsData[dateStr].gym || d.gym; d.sleep = gsData[dateStr].sleep || d.sleep; }
+          if (d.dt === fmtD) { d.gym = gsData[dateStr].gym || d.gym; d.sleep = gsData[dateStr].sleep || d.sleep; d.steps = gsData[dateStr].steps || d.steps; }
         });
       });
       console.log('[Stride] Using', liveData ? 'LIVE' : 'FALLBACK', '| today:', base.today?.cal, 'cal | weight:', base.lastW?.kg, 'kg | W7 days:', base.DAILY_W7?.length);
