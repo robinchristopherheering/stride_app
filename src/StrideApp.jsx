@@ -17,13 +17,12 @@ const C = {
   border: "rgba(255,255,255,0.04)",
 };
 
-// DATA
-const WEIGHTS = [
+// DATA — Hardcoded fallback (used when stride-data.json is unavailable)
+const FALLBACK_WEIGHTS = [
   {week:0,kg:80.5,date:"Jan 5"},{week:1,kg:77.6,date:"Jan 12"},{week:2,kg:76.2,date:"Jan 19"},
   {week:3,kg:74.9,date:"Jan 26"},{week:4,kg:73.7,date:"Feb 2"},{week:5,kg:73.2,date:"Feb 9"},{week:6,kg:71.8,date:"Feb 16"},
 ];
-const W_STEPS = [{w:1,v:3728},{w:2,v:5547},{w:3,v:6784},{w:4,v:5262},{w:5,v:7000},{w:6,v:8362}];
-const W_NUTR = [
+const FALLBACK_W_NUTR = [
   {w:1,cal:747,pro:72,carb:76,fat:18,fib:9,sug:24,calF:"Low",fibF:"Low",comp:48,flat:46},
   {w:2,cal:968,pro:134,carb:44,fat:28,fib:9,sug:14,calF:"Low",fibF:"Low",comp:65,flat:64},
   {w:3,cal:1154,pro:163,carb:39,fat:39,fib:7,sug:17,calF:"Low",fibF:"Low",comp:71,flat:69},
@@ -31,13 +30,7 @@ const W_NUTR = [
   {w:5,cal:1226,pro:165,carb:59,fat:36,fib:10,sug:20,calF:"On target",fibF:"Low",comp:76,flat:74},
   {w:6,cal:1370,pro:160,carb:83,fat:48,fib:15,sug:44,calF:"On target",fibF:"Low",comp:76,flat:74},
 ];
-const DAILY_W7 = [
-  {day:"Mon",dt:"Feb 16",cal:1275,pro:159,carb:76,fat:35,fib:17,sug:35,comp:86,flat:83,steps:5988,sleep:7,gym:true,wt:71.8},
-  {day:"Tue",dt:"Feb 17",cal:1319,pro:153,carb:102,fat:33,fib:22,sug:47,comp:91,flat:88,steps:470,sleep:7,gym:false,wt:null},
-  {day:"Wed",dt:"Feb 18",cal:1238,pro:176,carb:64,fat:31,fib:11,sug:25,comp:79,flat:77,steps:2153,sleep:6.5,gym:true,wt:null},
-  {day:"Thu",dt:"Feb 19",cal:1208,pro:163,carb:70,fat:30,fib:8,sug:29,comp:76,flat:74,steps:5903,sleep:6.5,gym:false,wt:null},
-];
-const DAILY_ALL = [
+const FALLBACK_DAILY_ALL = [
   {w:1,d:"Mon",dt:"Jan 6",cal:879,pro:98,carb:95,fat:20,fib:8,sug:30,steps:1281,comp:58,gym:true,sleep:5},
   {w:1,d:"Tue",dt:"Jan 7",cal:797,pro:72,carb:88,fat:16,fib:7,sug:22,steps:4306,comp:56,gym:false,sleep:6},
   {w:1,d:"Wed",dt:"Jan 8",cal:682,pro:77,carb:68,fat:14,fib:9,sug:18,steps:2882,comp:50,gym:true,sleep:5.5},
@@ -81,58 +74,136 @@ const DAILY_ALL = [
   {w:6,d:"Sat",dt:"Feb 15",cal:907,pro:93,carb:72,fat:32,fib:10,sug:48,steps:6845,comp:56,gym:false,sleep:7},
   {w:6,d:"Sun",dt:"Feb 16",cal:1426,pro:187,carb:102,fat:48,fib:18,sug:58,steps:9033,comp:81,gym:false,sleep:7},
 ];
+const FALLBACK_DAILY_W7 = [
+  {day:"Mon",dt:"Feb 16",cal:1275,pro:159,carb:76,fat:35,fib:17,sug:35,comp:86,flat:83,steps:5988,sleep:7,gym:true,wt:71.8},
+  {day:"Tue",dt:"Feb 17",cal:1319,pro:153,carb:102,fat:33,fib:22,sug:47,comp:91,flat:88,steps:470,sleep:7,gym:false,wt:null},
+  {day:"Wed",dt:"Feb 18",cal:1238,pro:176,carb:64,fat:31,fib:11,sug:25,comp:79,flat:77,steps:2153,sleep:6.5,gym:true,wt:null},
+  {day:"Thu",dt:"Feb 19",cal:1208,pro:163,carb:70,fat:30,fib:8,sug:29,comp:76,flat:74,steps:5903,sleep:6.5,gym:false,wt:null},
+];
 
-// FOOD LOG - Meal-categorized
-const FOOD_LOG = {
+// FOOD LOG fallback
+const FALLBACK_FOOD_LOG = {
   "Feb 19": {
     breakfast: [{name:"Greek Yogurt 0% Fat",amount:"200g",cal:118,pro:20,carb:8,fat:0},{name:"Almonds",amount:"20g",cal:116,pro:4,carb:4,fat:10}],
     lunch: [{name:"Grilled Chicken Breast",amount:"200g",cal:330,pro:62,carb:0,fat:7},{name:"Brown Rice",amount:"100g cooked",cal:112,pro:2.6,carb:24,fat:0.9},{name:"Mixed Salad w/ Olive Oil",amount:"1 bowl",cal:185,pro:4,carb:12,fat:14}],
     snack: [{name:"Whey Protein Shake",amount:"1 scoop",cal:120,pro:24,carb:3,fat:1},{name:"Apple",amount:"1 medium",cal:95,pro:0.5,carb:25,fat:0.3}],
     dinner: [{name:"Cottage Cheese",amount:"150g",cal:148,pro:18,carb:6,fat:5}],
   },
-  "Feb 18": {
-    breakfast: [{name:"Scrambled Eggs (3)",amount:"3 large",cal:220,pro:18,carb:2,fat:15}],
-    lunch: [{name:"Grilled Chicken Breast",amount:"250g",cal:412,pro:78,carb:0,fat:9},{name:"Broccoli steamed",amount:"200g",cal:68,pro:5.6,carb:14,fat:0.8}],
-    snack: [{name:"Whey Protein Shake",amount:"1 scoop",cal:120,pro:24,carb:3,fat:1},{name:"Cottage Cheese",amount:"150g",cal:148,pro:18,carb:6,fat:5}],
-    dinner: [{name:"Tuna in Water",amount:"1 can",cal:120,pro:28,carb:0,fat:1},{name:"Sweet Potato",amount:"150g",cal:135,pro:2,carb:32,fat:0.2}],
-  },
-  "Feb 17": {
-    breakfast: [{name:"Overnight Oats w/ Protein",amount:"1 serving",cal:340,pro:32,carb:42,fat:6}],
-    lunch: [{name:"Grilled Chicken Breast",amount:"200g",cal:330,pro:62,carb:0,fat:7},{name:"Mixed Vegetables",amount:"200g",cal:80,pro:4,carb:16,fat:0.5}],
-    snack: [{name:"Greek Yogurt 0% Fat",amount:"170g",cal:100,pro:17,carb:7,fat:0},{name:"Banana",amount:"1 medium",cal:105,pro:1.3,carb:27,fat:0.4}],
-    dinner: [{name:"Salmon Fillet",amount:"150g",cal:280,pro:30,carb:0,fat:17},{name:"Protein Bar",amount:"1 bar",cal:200,pro:20,carb:22,fat:8}],
-  },
-  "Feb 16": {
-    breakfast: [{name:"Whey Protein Shake",amount:"2 scoops",cal:240,pro:48,carb:6,fat:2},{name:"Greek Yogurt 0% Fat",amount:"200g",cal:118,pro:20,carb:8,fat:0}],
-    lunch: [{name:"Grilled Chicken Breast",amount:"200g",cal:330,pro:62,carb:0,fat:7},{name:"Brown Rice",amount:"150g cooked",cal:168,pro:3.9,carb:36,fat:1.4}],
-    snack: [{name:"Avocado",amount:"half",cal:120,pro:1.5,carb:6,fat:11}],
-    dinner: [{name:"Tuna in Water",amount:"1 can",cal:120,pro:28,carb:0,fat:1},{name:"Mixed Salad w/ Olive Oil",amount:"1 bowl",cal:185,pro:4,carb:12,fat:14}],
-  },
 };
 
-const ALL_FOODS = Object.values(FOOD_LOG).flatMap(m => [...(m.breakfast||[]),...(m.lunch||[]),...(m.snack||[]),...(m.dinner||[])]);
-const POPULAR_FOODS = (() => {
+// Transform JSON from sync → app format
+function transformSyncData(json) {
+  if (!json || !json.daily || json.daily.length === 0) return null;
+  const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmt = (iso) => { const d=new Date(iso+"T00:00:00"); return `${m[d.getMonth()]} ${d.getDate()}`; };
+
+  // Current week
+  const currentWeek = json.meta?.currentWeek || 7;
+
+  // Transform daily → DAILY_ALL format
+  const dailyAll = json.daily.filter(d=>d.calories>0).map(d => ({
+    w: d.week, d: d.day, dt: fmt(d.date),
+    cal: d.calories||0, pro: d.protein||0, carb: d.carbs||0, fat: d.fat||0,
+    fib: d.fiber||0, sug: d.sugar||0, steps: d.steps||0,
+    comp: d.compliance||0, flat: d.flatStomach||0,
+    gym: d.gym||false, sleep: d.sleep||0,
+  }));
+
+  // Current week days → DAILY_W7
+  const dailyW7 = json.daily.filter(d => d.week === currentWeek && d.calories > 0).map(d => ({
+    day: d.day, dt: fmt(d.date),
+    cal: d.calories||0, pro: d.protein||0, carb: d.carbs||0, fat: d.fat||0,
+    fib: d.fiber||0, sug: d.sugar||0,
+    comp: d.compliance||0, flat: d.flatStomach||0,
+    steps: d.steps||0, sleep: d.sleep||0, gym: d.gym||false, wt: null,
+  }));
+
+  // Weights
+  const weights = (json.weight?.timeline || []).map(w => ({
+    week: w.week, kg: w.weight, date: fmt(w.date),
+  }));
+  // Ensure week 0 start weight exists
+  if (weights.length === 0 || weights[0].week !== 0) {
+    weights.unshift({ week: 0, kg: json.meta?.startWeight || 80.5, date: fmt(json.meta?.programStart || "2026-01-05") });
+  }
+
+  // Weekly nutrition
+  const wNutr = (json.weekly || []).filter(w => w.daysLogged > 0).map(w => ({
+    w: w.week, cal: w.cal, pro: w.protein, carb: w.carbs, fat: w.fat, fib: w.fiber, sug: w.sugar,
+    calF: w.calFlag||"", fibF: w.fiberFlag||"",
+    comp: w.compliance, flat: w.flatStomach,
+  }));
+
+  // Weekly steps
+  const wSteps = (json.weekly || []).filter(w => w.steps).map(w => ({ w: w.week, v: w.steps }));
+
+  // Averages
+  const avgs = json.runningAverages || {};
+  const averages = {
+    cal: avgs.calories||0, pro: avgs.protein||0, carb: avgs.carbs||0,
+    fat: avgs.fat||0, fib: avgs.fiber||0, sug: avgs.sugar||0,
+  };
+
+  // Derived
+  const lastWeight = weights[weights.length - 1] || { kg: 80.5, week: 0 };
+  const startKg = json.meta?.startWeight || 80.5;
+  const totalLost = (startKg - lastWeight.kg).toFixed(1);
+  const lostPct = ((startKg - lastWeight.kg) / startKg * 100).toFixed(1);
+  const todayData = dailyW7[dailyW7.length - 1] || dailyAll[dailyAll.length - 1] || FALLBACK_DAILY_W7[FALLBACK_DAILY_W7.length-1];
+
+  return {
+    WEIGHTS: weights, W_STEPS: wSteps, W_NUTR: wNutr,
+    DAILY_ALL: dailyAll, DAILY_W7: dailyW7,
+    AVGS: averages, FOOD_LOG: FALLBACK_FOOD_LOG, // food log still from fallback until sync supports it
+    today: todayData, lastW: lastWeight,
+    lost: totalLost, lostPct: lostPct,
+    startKg, currentWeek,
+  };
+}
+
+// Build fallback data object (same shape as transformed)
+function buildFallbackData() {
+  const lastW = FALLBACK_WEIGHTS[FALLBACK_WEIGHTS.length-1];
+  const todayData = FALLBACK_DAILY_W7[FALLBACK_DAILY_W7.length-1];
+  return {
+    WEIGHTS: FALLBACK_WEIGHTS,
+    W_STEPS: [{w:1,v:3728},{w:2,v:5547},{w:3,v:6784},{w:4,v:5262},{w:5,v:7000},{w:6,v:8362}],
+    W_NUTR: FALLBACK_W_NUTR,
+    DAILY_ALL: FALLBACK_DAILY_ALL,
+    DAILY_W7: FALLBACK_DAILY_W7,
+    AVGS: {cal:1124,pro:145,carb:60,fat:34,fib:11,sug:24},
+    FOOD_LOG: FALLBACK_FOOD_LOG,
+    today: todayData, lastW: lastW,
+    lost: (80.5-lastW.kg).toFixed(1),
+    lostPct: ((80.5-lastW.kg)/80.5*100).toFixed(1),
+    startKg: 80.5, currentWeek: 7,
+  };
+}
+
+// Compute popular foods from food log
+function computePopularFoods(foodLog) {
+  const allFoods = Object.values(foodLog).flatMap(m => [...(m.breakfast||[]),...(m.lunch||[]),...(m.snack||[]),...(m.dinner||[])]);
   const freq = {};
-  ALL_FOODS.forEach(f => {
+  allFoods.forEach(f => {
     if (!freq[f.name]) freq[f.name] = {...f,count:0,totalCal:0,totalPro:0};
     freq[f.name].count++; freq[f.name].totalCal+=f.cal; freq[f.name].totalPro+=f.pro;
   });
   return Object.values(freq).sort((a,b)=>b.count-a.count).slice(0,8).map(f=>({...f,avgCal:Math.round(f.totalCal/f.count),avgPro:Math.round(f.totalPro/f.count)}));
-})();
+}
 
-const AVGS = {cal:1124,pro:145,carb:60,fat:34,fib:11,sug:24};
-const today = DAILY_W7[3];
-const lastW = WEIGHTS[WEIGHTS.length-1];
-const lost = (80.5-lastW.kg).toFixed(1);
-const lostPct = ((80.5-lastW.kg)/80.5*100).toFixed(1);
-
-// TOOLTIP DEFINITIONS
-const TIPS = {
-  compliance: "Measures adherence to Phase 1 targets. Average of progress toward Calories (1,200 kcal), Protein (140g), and Fiber (30g), each capped at 100%. ≥ 90% = perfect execution. < 70% = risk of muscle loss.",
-  flatStomach: "Focuses on digestive health and bloating reduction. Same as Compliance but with a stricter Fiber target (35g vs 30g) for gut clearance. ≥ 90% = optimal digestion. < 70% = likely under 20g fiber, expect bloating.",
-  steps: "Daily step target for Phase 1: 8,000–10,000. Walking burns fat without increasing cortisol like intense cardio.",
-  protein: "130–160g daily to preserve muscle during a caloric deficit. Protein is the most important macro for body composition.",
-};
+// Compute insights from data
+function computeInsights(data) {
+  const allDays = [...data.DAILY_ALL, ...data.DAILY_W7.map(d=>({...d,w:data.currentWeek}))];
+  const reversed = [...allDays].reverse(); let streak=0;
+  for (const d of reversed) { if (d.comp>=70) streak++; else break; }
+  const recentW = data.WEIGHTS.slice(-3);
+  const velocity = recentW.length>1 ? ((recentW[0].kg-recentW[recentW.length-1].kg)/(recentW.length-1)).toFixed(1) : "0.8";
+  const proteinRate = Math.round(allDays.filter(d=>d.pro>=130).length/allDays.length*100);
+  const dayTotals = {};
+  allDays.forEach(d => { const day=d.day||d.d; if(!dayTotals[day]) dayTotals[day]={s:0,c:0}; dayTotals[day].s+=d.steps; dayTotals[day].c++; });
+  const mostActive = Object.entries(dayTotals).map(([day,v])=>({day,avg:Math.round(v.s/v.c)})).sort((a,b)=>b.avg-a.avg)[0] || {day:"Sun",avg:0};
+  return { streak, velocity, proteinRate, mostActive };
+}
 
 // HOOKS
 function useInView(threshold = 0.15) {
@@ -399,37 +470,25 @@ const I={
 };
 
 // DATA HELPERS
-function getPeriod(period, dayIdx=0) {
-  if (period==="today") return DAILY_W7[DAILY_W7.length-1];
-  if (period==="day") return DAILY_W7[dayIdx]||DAILY_W7[0];
+function getPeriod(period, dayIdx=0, D) {
+  if (!D) return {};
+  if (period==="today") return D.DAILY_W7[D.DAILY_W7.length-1] || D.today;
+  if (period==="day") return D.DAILY_W7[dayIdx] || D.DAILY_W7[0] || D.today;
   const avg=(arr,key)=>Math.round(arr.reduce((a,d)=>a+(d[key]||0),0)/arr.length);
   const avgF=(arr,key)=>+(arr.reduce((a,d)=>a+(d[key]||0),0)/arr.length).toFixed(1);
-  if (period==="thisWeek") {const d=DAILY_W7;return{day:"Week 7",dt:"Feb 16–19",cal:avg(d,'cal'),pro:avg(d,'pro'),carb:avg(d,'carb'),fat:avg(d,'fat'),fib:avg(d,'fib'),sug:avg(d,'sug'),comp:avg(d,'comp'),flat:avg(d,'flat'),steps:avg(d,'steps'),sleep:avgF(d,'sleep'),gym:d.filter(x=>x.gym).length};}
-  if (period==="lastWeek") {const d=DAILY_ALL.filter(x=>x.w===6);return{day:"Week 6",dt:"Feb 10–16",cal:avg(d,'cal'),pro:avg(d,'pro'),carb:avg(d,'carb'),fat:avg(d,'fat'),fib:avg(d,'fib'),sug:avg(d,'sug'),comp:avg(d,'comp'),flat:avg(d,'comp')-2,steps:avg(d,'steps'),sleep:avgF(d,'sleep'),gym:d.filter(x=>x.gym).length};}
-  if (period==="month") {const d=DAILY_ALL.filter(x=>x.w>=3);return{day:"Last 4 wks",dt:"Jan 20–Feb 19",cal:avg(d,'cal'),pro:avg(d,'pro'),carb:avg(d,'carb'),fat:avg(d,'fat'),fib:avg(d,'fib'),sug:avg(d,'sug'),comp:avg(d,'comp'),flat:avg(d,'comp')-2,steps:avg(d,'steps'),sleep:avgF(d,'sleep'),gym:d.filter(x=>x.gym).length};}
-  return today;
+  if (period==="thisWeek") {const d=D.DAILY_W7;if(!d.length)return D.today;return{day:`Week ${D.currentWeek}`,dt:"This Week",cal:avg(d,'cal'),pro:avg(d,'pro'),carb:avg(d,'carb'),fat:avg(d,'fat'),fib:avg(d,'fib'),sug:avg(d,'sug'),comp:avg(d,'comp'),flat:avg(d,'flat')||avg(d,'comp')-2,steps:avg(d,'steps'),sleep:avgF(d,'sleep'),gym:d.filter(x=>x.gym).length};}
+  if (period==="lastWeek") {const lw=D.currentWeek-1;const d=D.DAILY_ALL.filter(x=>x.w===lw);if(!d.length)return D.today;return{day:`Week ${lw}`,dt:"Last Week",cal:avg(d,'cal'),pro:avg(d,'pro'),carb:avg(d,'carb'),fat:avg(d,'fat'),fib:avg(d,'fib'),sug:avg(d,'sug'),comp:avg(d,'comp'),flat:avg(d,'comp')-2,steps:avg(d,'steps'),sleep:avgF(d,'sleep'),gym:d.filter(x=>x.gym).length};}
+  if (period==="month") {const cutoff=Math.max(1,D.currentWeek-4);const d=D.DAILY_ALL.filter(x=>x.w>=cutoff);if(!d.length)return D.today;return{day:"Last 4 wks",dt:"Month",cal:avg(d,'cal'),pro:avg(d,'pro'),carb:avg(d,'carb'),fat:avg(d,'fat'),fib:avg(d,'fib'),sug:avg(d,'sug'),comp:avg(d,'comp'),flat:avg(d,'comp')-2,steps:avg(d,'steps'),sleep:avgF(d,'sleep'),gym:d.filter(x=>x.gym).length};}
+  return D.today;
 }
-
-const insights = (() => {
-  const allDays=[...DAILY_ALL,...DAILY_W7.map(d=>({...d,w:7}))];
-  const reversed=[...allDays].reverse(); let streak=0; for(const d of reversed){if(d.comp>=70)streak++;else break;}
-  const recentW=WEIGHTS.slice(-3);
-  const velocity=recentW.length>1?((recentW[0].kg-recentW[recentW.length-1].kg)/(recentW.length-1)).toFixed(1):0;
-  const proteinRate=Math.round(allDays.filter(d=>d.pro>=130).length/allDays.length*100);
-  const dayTotals={};
-  allDays.forEach(d=>{const day=d.day||d.d;if(!dayTotals[day])dayTotals[day]={s:0,c:0};dayTotals[day].s+=d.steps;dayTotals[day].c++;});
-  const mostActive=Object.entries(dayTotals).map(([day,v])=>({day,avg:Math.round(v.s/v.c)})).sort((a,b)=>b.avg-a.avg)[0];
-  return {streak,velocity,proteinRate,mostActive};
-})();
-
 // TAB RENDERERS
-function OverviewTab({vis,isD,isT,isM}) {
+function OverviewTab({vis,isD,isT,isM,D}) {
   const [period, setPeriod] = useState("today");
-  const [dayIdx, setDayIdx] = useState(DAILY_W7.length-1);
+  const [dayIdx, setDayIdx] = useState(D.DAILY_W7.length-1);
   const localVis = useAnimateOnMount(`${period}-${dayIdx}`);
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const d=period==="day"?getPeriod("day",dayIdx):getPeriod(period);
+  const d=period==="day"?getPeriod("day",dayIdx,D):getPeriod(period,0,D);
   const isAvg=period!=="today"&&period!=="day";
   const label=period==="today"?"Today":period==="day"?d.dt:period==="thisWeek"?"This Week Avg":period==="lastWeek"?"Last Week Avg":"Month Avg";
   const checks=[
@@ -445,24 +504,24 @@ function OverviewTab({vis,isD,isT,isM}) {
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       <div style={{gridColumn:isD?'1/4':isT?'1/3':'1',display:'flex',flexDirection:'column',gap:8}}>
         <TimePicker value={period} onChange={setPeriod}/>
-        {period==="day"&&<DayPicker days={DAILY_W7} selected={dayIdx} onSelect={setDayIdx}/>}</div>
+        {period==="day"&&<DayPicker days={D.DAILY_W7} selected={dayIdx} onSelect={setDayIdx}/>}</div>
       <AnimCard glow style={{gridColumn:isD?'1/4':isT?'1/3':'1',padding:isD?28:22}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:12}}>
           <div>
             <Lbl>Current Weight</Lbl>
             <div style={{display:'flex',alignItems:'baseline',gap:6}}>
-              <CountUp to={lastW.kg} decimals={1} style={{fontSize:isM?36:46,letterSpacing:-2,lineHeight:1}} color={C.text}/>
+              <CountUp to={D.lastW.kg} decimals={1} style={{fontSize:isM?36:46,letterSpacing:-2,lineHeight:1}} color={C.text}/>
               <span style={{fontSize:16,color:C.text2,fontWeight:600}}>kg</span></div>
             <div style={{display:'flex',gap:8,marginTop:10,flexWrap:'wrap'}}>
-              <Tag color={C.mint}>{I.down} {lost} kg lost</Tag>
-              <Tag color={C.text2} bg="rgba(255,255,255,0.04)">{lostPct}% total</Tag></div></div>
+              <Tag color={C.mint}>{I.down} {D.lost} kg D.lost</Tag>
+              <Tag color={C.text2} bg="rgba(255,255,255,0.04)">{D.lostPct}% total</Tag></div></div>
           <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-            {[{l:"Start",v:"80.5",s:"Jan 5"},{l:"Now",v:String(lastW.kg),s:`Wk ${lastW.week}`},{l:"Goal",v:"68.0",s:"~15% BF"}].map(m=>(
+            {[{l:"Start",v:"80.5",s:"Jan 5"},{l:"Now",v:String(D.lastW.kg),s:`Wk ${D.lastW.week}`},{l:"Goal",v:"68.0",s:"~15% BF"}].map(m=>(
               <div key={m.l} style={{textAlign:'center',padding:'10px 14px',borderRadius:14,background:m.l==="Now"?C.mintSoft:'rgba(255,255,255,0.02)',minWidth:72}}>
                 <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>{m.l}</div>
                 <div style={{fontSize:17,fontWeight:800,fontFamily:'var(--mono)',color:m.l==="Now"?C.mint:C.text}}>{m.v}</div>
                 <div style={{fontSize:9,color:C.text3,marginTop:2}}>{m.s}</div></div>))}</div></div>
-        <div style={{marginTop:16}}><WeightChart data={WEIGHTS} w={300} h={80} visible={v}/></div>
+        <div style={{marginTop:16}}><WeightChart data={D.WEIGHTS} w={300} h={80} visible={v}/></div>
       </AnimCard>
       <div style={{gridColumn:isD?'1/4':isT?'1/3':'1',display:'grid',gridTemplateColumns:isM?'1fr':'repeat(3,1fr)',gap:isD?14:12}}>
         <AnimCard delay={0.05} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:isD?'22px 16px':'18px 14px'}}>
@@ -487,10 +546,10 @@ function OverviewTab({vis,isD,isT,isM}) {
       <AnimCard delay={0.2} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Quick Insights</Lbl>
         <div style={{display:'grid',gridTemplateColumns:isM?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
-          {[{l:"Streak",v:insights.streak,suf:"d",sub:"≥70 compliance",c:C.mint,icon:I.fire},
-            {l:"Weight Pace",v:parseFloat(insights.velocity),suf:"kg/wk",pre:"-",sub:"Last 3 weeks",c:C.cyan,icon:I.down,dec:1},
-            {l:"Protein Hits",v:insights.proteinRate,suf:"%",sub:"Days ≥130g",c:insights.proteinRate>=70?C.mint:C.orange,icon:I.target},
-            {l:"Most Active",v:0,text:insights.mostActive.day,sub:`${insights.mostActive.avg.toLocaleString()} steps`,c:C.blue,icon:I.shoe},
+          {[{l:"Streak",v:D.insights.streak,suf:"d",sub:"≥70 compliance",c:C.mint,icon:I.fire},
+            {l:"Weight Pace",v:parseFloat(D.insights.velocity),suf:"kg/wk",pre:"-",sub:"Last 3 weeks",c:C.cyan,icon:I.down,dec:1},
+            {l:"Protein Hits",v:D.insights.proteinRate,suf:"%",sub:"Days ≥130g",c:D.insights.proteinRate>=70?C.mint:C.orange,icon:I.target},
+            {l:"Most Active",v:0,text:D.insights.mostActive.day,sub:`${D.insights.mostActive.avg.toLocaleString()} steps`,c:C.blue,icon:I.shoe},
           ].map((s,i)=>(<div key={i} style={{padding:'14px 12px',borderRadius:14,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`}}>
             <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}><div style={{color:s.c}}>{s.icon}</div>
               <span style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8}}>{s.l}</span></div>
@@ -511,25 +570,25 @@ function OverviewTab({vis,isD,isT,isM}) {
       </AnimCard></div>);
 }
 
-function NutritionTab({vis,isD,isT,isM}) {
+function NutritionTab({vis,isD,isT,isM,D}) {
   const [period, setPeriod] = useState("today");
-  const [dayIdx, setDayIdx] = useState(DAILY_W7.length-1);
+  const [dayIdx, setDayIdx] = useState(D.DAILY_W7.length-1);
   const [foodTab, setFoodTab] = useState("log");
   const localVis = useAnimateOnMount(`${period}-${dayIdx}`);
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const d=period==="day"?getPeriod("day",dayIdx):getPeriod(period);
+  const d=period==="day"?getPeriod("day",dayIdx,D):getPeriod(period,0,D);
   const isAvg=period!=="today"&&period!=="day";
-  const dateLabel=period==="today"?"Feb 19":period==="day"?(DAILY_W7[dayIdx]?.dt||"Feb 19"):period==="thisWeek"?"Week 7 Avg":period==="lastWeek"?"Week 6 Avg":"Month Avg";
+  const dateLabel=period==="today"?"Feb 19":period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Feb 19"):period==="thisWeek"?"Week 7 Avg":period==="lastWeek"?"Week 6 Avg":"Month Avg";
   const macros=[{name:"Protein",v:d.pro*4,c:C.mint},{name:"Carbs",v:d.carb*4,c:C.blue},{name:"Fat",v:d.fat*9,c:C.orange}];
-  const foodDate=period==="today"?"Feb 19":period==="day"?(DAILY_W7[dayIdx]?.dt||"Feb 19"):null;
-  const dayMeals=foodDate?FOOD_LOG[foodDate]:null;
+  const foodDate=period==="today"?"Feb 19":period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Feb 19"):null;
+  const dayMeals=foodDate?D.FOOD_LOG[foodDate]:null;
   const mealOrder=[{key:"breakfast",label:"Breakfast",icon:"☀"},{key:"lunch",label:"Lunch",icon:"☕"},{key:"snack",label:"Snack",icon:"🍎"},{key:"dinner",label:"Dinner",icon:"🌙"}];
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       <div style={{gridColumn:isD?'1/4':isT?'1/3':'1',display:'flex',flexDirection:'column',gap:8}}>
         <TimePicker value={period} onChange={setPeriod}/>
-        {period==="day"&&<DayPicker days={DAILY_W7} selected={dayIdx} onSelect={setDayIdx}/>}</div>
+        {period==="day"&&<DayPicker days={D.DAILY_W7} selected={dayIdx} onSelect={setDayIdx}/>}</div>
       <AnimCard style={{gridColumn:isD?'1/3':isT?'1/3':'1'}}>
         <Lbl>{dateLabel} Macros</Lbl>
         <div style={{display:'flex',gap:20,alignItems:'center',flexWrap:isM?'wrap':'nowrap'}}>
@@ -550,7 +609,7 @@ function NutritionTab({vis,isD,isT,isM}) {
       <AnimCard delay={0.05}>
         <Lbl>All-Time Averages</Lbl>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-          {[{l:"Calories",v:AVGS.cal,u:"kcal",c:C.mint},{l:"Protein",v:AVGS.pro,u:"g",c:C.mint},{l:"Carbs",v:AVGS.carb,u:"g",c:C.blue},{l:"Fat",v:AVGS.fat,u:"g",c:C.orange},{l:"Fiber",v:AVGS.fib,u:"g",c:C.cyan},{l:"Sugar",v:AVGS.sug,u:"g",c:C.purple}].map((a,i)=>(
+          {[{l:"Calories",v:D.AVGS.cal,u:"kcal",c:C.mint},{l:"Protein",v:D.AVGS.pro,u:"g",c:C.mint},{l:"Carbs",v:D.AVGS.carb,u:"g",c:C.blue},{l:"Fat",v:D.AVGS.fat,u:"g",c:C.orange},{l:"Fiber",v:D.AVGS.fib,u:"g",c:C.cyan},{l:"Sugar",v:D.AVGS.sug,u:"g",c:C.purple}].map((a,i)=>(
             <div key={a.l} style={{textAlign:'center',padding:'12px 8px',borderRadius:14,background:'rgba(255,255,255,0.02)',opacity:v?1:0,transform:v?'translateY(0)':'translateY(10px)',transition:`all .4s ease ${i*.06}s`}}>
               <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,marginBottom:4}}>{a.l}</div>
               <CountUp to={a.v} style={{fontSize:18}} color={a.c}/>
@@ -584,7 +643,7 @@ function NutritionTab({vis,isD,isT,isM}) {
             <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{Math.round(Object.values(dayMeals).flat().reduce((a,f)=>a+f.pro,0))}g pro</span></div>
         </div>):(<div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>{isAvg?"Switch to Today or Day by Day to see meals.":"No food data for this day."}</div>))
         :(<div style={{display:'grid',gridTemplateColumns:isD?'repeat(2,1fr)':'1fr',gap:8}}>
-          {POPULAR_FOODS.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`,
+          {D.POPULAR_FOODS.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`,
             opacity:v?1:0,transform:v?'translateY(0)':'translateY(8px)',transition:`all .3s ease ${i*.04}s`}}>
             <div style={{width:28,height:28,borderRadius:8,background:C.mintSoft,color:C.mint,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,flexShrink:0}}>{f.count}×</div>
             <div style={{flex:1,minWidth:0}}>
@@ -597,7 +656,7 @@ function NutritionTab({vis,isD,isT,isM}) {
         <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
           <thead><tr>{["Wk","Cal","Pro","Carb","Fat","Fib","Sug","Score"].map(h=>(
             <th key={h} style={{padding:'10px 6px',color:C.text3,fontWeight:700,textAlign:'center',fontSize:10,letterSpacing:.5,borderBottom:`1px solid ${C.border}`}}>{h}</th>))}</tr></thead>
-          <tbody>{W_NUTR.map((w,ri)=>(<tr key={w.w} style={{borderBottom:`1px solid ${C.border}`,opacity:v?1:0,transform:v?'translateX(0)':'translateX(-8px)',transition:`all .35s ease ${ri*.06}s`}}>
+          <tbody>{D.W_NUTR.map((w,ri)=>(<tr key={w.w} style={{borderBottom:`1px solid ${C.border}`,opacity:v?1:0,transform:v?'translateX(0)':'translateX(-8px)',transition:`all .35s ease ${ri*.06}s`}}>
             <td style={{padding:'10px 6px',textAlign:'center',fontWeight:700,color:C.mint,fontFamily:'var(--mono)'}}>{w.w}</td>
             {[w.cal,w.pro,w.carb,w.fat,w.fib,w.sug].map((v,i)=>(<td key={i} style={{padding:'10px 6px',textAlign:'center',fontFamily:'var(--mono)',fontWeight:600,color:C.text}}>{Math.round(v)}</td>))}
             <td style={{padding:'10px 6px',textAlign:'center'}}><span style={{display:'inline-block',padding:'3px 8px',borderRadius:6,background:w.comp>=70?C.mintSoft:w.comp>=50?C.orangeSoft:C.redSoft,color:w.comp>=70?C.mint:w.comp>=50?C.orange:C.red,fontSize:11,fontWeight:700,fontFamily:'var(--mono)'}}>{w.comp}</span></td>
@@ -605,22 +664,22 @@ function NutritionTab({vis,isD,isT,isM}) {
       </AnimCard></div>);
 }
 
-function ActivityTab({vis,isD,isT,isM}) {
+function ActivityTab({vis,isD,isT,isM,D}) {
   const [period, setPeriod] = useState("today");
-  const [dayIdx, setDayIdx] = useState(DAILY_W7.length-1);
+  const [dayIdx, setDayIdx] = useState(D.DAILY_W7.length-1);
   const localVis = useAnimateOnMount(`${period}-${dayIdx}`);
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const d=period==="day"?getPeriod("day",dayIdx):getPeriod(period);
+  const d=period==="day"?getPeriod("day",dayIdx,D):getPeriod(period,0,D);
   const label=period==="today"?"Today":period==="day"?d.dt:period==="thisWeek"?"This Week":period==="lastWeek"?"Last Week":"Month";
-  const gymDays=DAILY_ALL.filter(x=>x.gym).length, totalDays=DAILY_ALL.length;
-  const avgSleep=(DAILY_ALL.reduce((a,x)=>a+x.sleep,0)/totalDays).toFixed(1);
-  const avgSteps=Math.round(DAILY_ALL.reduce((a,x)=>a+x.steps,0)/totalDays);
+  const gymDays=D.DAILY_ALL.filter(x=>x.gym).length, totalDays=D.DAILY_ALL.length;
+  const avgSleep=(D.DAILY_ALL.reduce((a,x)=>a+x.sleep,0)/totalDays).toFixed(1);
+  const avgSteps=Math.round(D.DAILY_ALL.reduce((a,x)=>a+x.steps,0)/totalDays);
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       <div style={{gridColumn:isD?'1/4':isT?'1/3':'1',display:'flex',flexDirection:'column',gap:8}}>
         <TimePicker value={period} onChange={setPeriod}/>
-        {period==="day"&&<DayPicker days={DAILY_W7} selected={dayIdx} onSelect={setDayIdx}/>}</div>
+        {period==="day"&&<DayPicker days={D.DAILY_W7} selected={dayIdx} onSelect={setDayIdx}/>}</div>
       <AnimCard style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
         <Lbl tip={TIPS.steps}>{label} Steps</Lbl>
         <Arc val={d.steps} max={10000} label="" sz={isD?140:120} sw={10} color={d.steps>=8000?C.mint:C.orange} visible={v}/>
@@ -637,13 +696,13 @@ function ActivityTab({vis,isD,isT,isM}) {
       </AnimCard>
       <AnimCard delay={0.1}>
         <Lbl>Weekly Steps Trend</Lbl>
-        <Bars data={W_STEPS.map(s=>({v:s.v,label:`W${s.w}`}))} max={12000} color={C.blue} activeIdx={W_STEPS.length-1} visible={v}/>
-        <div style={{textAlign:'center',marginTop:14}}><CountUp to={W_STEPS[W_STEPS.length-1].v} style={{fontSize:24}} color={C.blue}/><span style={{fontSize:11,color:C.text3,marginLeft:6}}>avg W6</span></div>
+        <Bars data={D.W_STEPS.map(s=>({v:s.v,label:`W${s.w}`}))} max={12000} color={C.blue} activeIdx={D.W_STEPS.length-1} visible={v}/>
+        <div style={{textAlign:'center',marginTop:14}}><CountUp to={D.W_STEPS[D.W_STEPS.length-1].v} style={{fontSize:24}} color={C.blue}/><span style={{fontSize:11,color:C.text3,marginLeft:6}}>avg W6</span></div>
       </AnimCard>
       <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Week 7 — Daily Activity</Lbl>
         <div style={{display:'grid',gridTemplateColumns:isD?'repeat(4,1fr)':isT?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
-          {DAILY_W7.map((dd,i)=>{const isToday=dd.dt==="Feb 19";
+          {D.DAILY_W7.map((dd,i)=>{const isToday=dd.dt==="Feb 19";
             return (<div key={i} style={{padding:'16px 14px',borderRadius:16,background:isToday?C.mintSoft:'rgba(255,255,255,0.02)',border:`1px solid ${isToday?C.mintMed:'transparent'}`,
               cursor:'pointer',opacity:v?1:0,transform:v?'translateY(0)':'translateY(12px)',transition:`all .4s ease ${i*.08}s`}}
               onMouseEnter={e=>{if(!isToday){e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor=C.cardBorderHover;}}}
@@ -661,42 +720,42 @@ function ActivityTab({vis,isD,isT,isM}) {
       </AnimCard></div>);
 }
 
-function ProgressTab({vis,isD,isT}) {
+function ProgressTab({vis,isD,isT,D}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const velocity=insights.velocity, remaining=12.5-parseFloat(lost), weeksLeft=Math.ceil(remaining/parseFloat(velocity||0.8));
+  const velocity=D.insights.velocity, remaining=12.5-parseFloat(D.lost), weeksLeft=Math.ceil(remaining/parseFloat(velocity||0.8));
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       <AnimCard glow style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Weight Progress</Lbl>
         <div style={{display:'flex',alignItems:'flex-end',gap:isD?20:12,flexWrap:'wrap'}}>
           <div>
-            <CountUp to={lastW.kg} decimals={1} style={{fontSize:40,letterSpacing:-2,lineHeight:1}} color={C.text}/><span style={{fontSize:16,color:C.text2,marginLeft:4}}>kg</span>
-            <div style={{display:'flex',gap:8,marginTop:8}}><Tag color={C.mint}>{I.down} {lost} kg</Tag><Tag color={C.text2} bg="rgba(255,255,255,0.04)">{lostPct}%</Tag></div></div>
-          <div style={{flex:1,minWidth:200}}><WeightChart data={WEIGHTS} w={300} h={100} visible={vis}/></div></div>
+            <CountUp to={D.lastW.kg} decimals={1} style={{fontSize:40,letterSpacing:-2,lineHeight:1}} color={C.text}/><span style={{fontSize:16,color:C.text2,marginLeft:4}}>kg</span>
+            <div style={{display:'flex',gap:8,marginTop:8}}><Tag color={C.mint}>{I.down} {D.lost} kg</Tag><Tag color={C.text2} bg="rgba(255,255,255,0.04)">{D.lostPct}%</Tag></div></div>
+          <div style={{flex:1,minWidth:200}}><WeightChart data={D.WEIGHTS} w={300} h={100} visible={vis}/></div></div>
         <div style={{display:'flex',gap:8,marginTop:16,overflowX:'auto',paddingBottom:4}}>
-          {WEIGHTS.map((w,i)=>(<div key={i} style={{textAlign:'center',padding:'8px 12px',borderRadius:10,background:i===WEIGHTS.length-1?C.mintSoft:'rgba(255,255,255,0.02)',flexShrink:0,minWidth:52,
+          {D.WEIGHTS.map((w,i)=>(<div key={i} style={{textAlign:'center',padding:'8px 12px',borderRadius:10,background:i===D.WEIGHTS.length-1?C.mintSoft:'rgba(255,255,255,0.02)',flexShrink:0,minWidth:52,
             opacity:vis?1:0,transform:vis?'translateY(0)':'translateY(8px)',transition:`all .35s ease ${i*.06}s`}}>
             <div style={{fontSize:8,color:C.text3,fontWeight:700}}>W{w.week}</div>
-            <div style={{fontSize:13,fontWeight:800,fontFamily:'var(--mono)',color:i===WEIGHTS.length-1?C.mint:C.text,marginTop:2}}>{w.kg}</div>
-            {i>0&&<div style={{fontSize:8,color:C.mint,marginTop:1}}>-{(WEIGHTS[i-1].kg-w.kg).toFixed(1)}</div>}
+            <div style={{fontSize:13,fontWeight:800,fontFamily:'var(--mono)',color:i===D.WEIGHTS.length-1?C.mint:C.text,marginTop:2}}>{w.kg}</div>
+            {i>0&&<div style={{fontSize:8,color:C.mint,marginTop:1}}>-{(D.WEIGHTS[i-1].kg-w.kg).toFixed(1)}</div>}
           </div>))}</div>
       </AnimCard>
       <AnimCard delay={0.05}><Lbl tip={TIPS.compliance}>Compliance Trend</Lbl>
-        <Bars data={W_NUTR.map(w=>({v:w.comp,label:`W${w.w}`}))} max={100} color={C.mint} activeIdx={W_NUTR.length-1} visible={vis}/>
+        <Bars data={D.W_NUTR.map(w=>({v:w.comp,label:`W${w.w}`}))} max={100} color={C.mint} activeIdx={D.W_NUTR.length-1} visible={vis}/>
         <div style={{display:'flex',justifyContent:'space-between',marginTop:14}}>
-          <div><div style={{fontSize:9,color:C.text3}}>Best</div><CountUp to={Math.max(...W_NUTR.map(w=>w.comp))} style={{fontSize:17}} color={C.mint}/></div>
-          <div style={{textAlign:'right'}}><div style={{fontSize:9,color:C.text3}}>Latest</div><CountUp to={W_NUTR[5].comp} style={{fontSize:17}} color={C.mint}/></div></div>
+          <div><div style={{fontSize:9,color:C.text3}}>Best</div><CountUp to={Math.max(...D.W_NUTR.map(w=>w.comp))} style={{fontSize:17}} color={C.mint}/></div>
+          <div style={{textAlign:'right'}}><div style={{fontSize:9,color:C.text3}}>Latest</div><CountUp to={D.W_NUTR[5].comp} style={{fontSize:17}} color={C.mint}/></div></div>
       </AnimCard>
       <AnimCard delay={0.1}><Lbl tip={TIPS.flatStomach}>Flat Stomach Trend</Lbl>
-        <Bars data={W_NUTR.map(w=>({v:w.flat,label:`W${w.w}`}))} max={100} color={C.cyan} activeIdx={W_NUTR.length-1} visible={vis}/>
+        <Bars data={D.W_NUTR.map(w=>({v:w.flat,label:`W${w.w}`}))} max={100} color={C.cyan} activeIdx={D.W_NUTR.length-1} visible={vis}/>
         <div style={{display:'flex',justifyContent:'space-between',marginTop:14}}>
-          <div><div style={{fontSize:9,color:C.text3}}>Best</div><CountUp to={Math.max(...W_NUTR.map(w=>w.flat))} style={{fontSize:17}} color={C.cyan}/></div>
-          <div style={{textAlign:'right'}}><div style={{fontSize:9,color:C.text3}}>Latest</div><CountUp to={W_NUTR[5].flat} style={{fontSize:17}} color={C.cyan}/></div></div>
+          <div><div style={{fontSize:9,color:C.text3}}>Best</div><CountUp to={Math.max(...D.W_NUTR.map(w=>w.flat))} style={{fontSize:17}} color={C.cyan}/></div>
+          <div style={{textAlign:'right'}}><div style={{fontSize:9,color:C.text3}}>Latest</div><CountUp to={D.W_NUTR[5].flat} style={{fontSize:17}} color={C.cyan}/></div></div>
       </AnimCard>
       <AnimCard delay={0.15}><Lbl>Steps Over Weeks</Lbl>
-        <Spark data={W_STEPS.map(s=>s.v)} color={C.blue} w={200} h={60} visible={vis}/></AnimCard>
+        <Spark data={D.W_STEPS.map(s=>s.v)} color={C.blue} w={200} h={60} visible={vis}/></AnimCard>
       <AnimCard delay={0.2}><Lbl>Calorie Avg Over Weeks</Lbl>
-        <Spark data={W_NUTR.map(w=>w.cal)} color={C.orange} w={200} h={60} visible={vis}/></AnimCard>
+        <Spark data={D.W_NUTR.map(w=>w.cal)} color={C.orange} w={200} h={60} visible={vis}/></AnimCard>
       <AnimCard delay={0.25}><Lbl>Projected Finish</Lbl>
         <div style={{textAlign:'center'}}>
           <CountUp to={weeksLeft} style={{fontSize:32}} color={C.cyan}/><span style={{fontSize:14,color:C.text3,marginLeft:4}}>weeks to go</span>
@@ -704,7 +763,7 @@ function ProgressTab({vis,isD,isT}) {
       </AnimCard></div>);
 }
 
-function TargetsTab({vis,isD,isT}) {
+function TargetsTab({vis,isD,isT,D}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const phases=[
     {n:1,l:"Fat Loss",wk:"Weeks 1–7",goal:"Aggressive fat loss, protect muscle",cal:"1,300–1,500",pro:"130–160",carb:"40–70",fat:"40–55",sug:"< 20",fib:"20–30",steps:"8k–10k",train:"3x strength + rope",active:true},
@@ -728,7 +787,7 @@ function TargetsTab({vis,isD,isT}) {
       <AnimCard delay={0.25} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Week 7 — Daily Breakdown</Lbl>
         <div style={{display:'flex',flexDirection:'column',gap:6}}>
-          {DAILY_W7.map((d,i)=>{const isT2=d.dt==="Feb 19";
+          {D.DAILY_W7.map((d,i)=>{const isT2=d.dt==="Feb 19";
             return (<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:isT2?C.mintSoft:'rgba(255,255,255,0.02)',border:`1px solid ${isT2?C.mintMed:'transparent'}`,
               cursor:'pointer',opacity:vis?1:0,transform:vis?'translateX(0)':'translateX(-10px)',transition:`all .35s ease ${i*.06}s`}}
               onMouseEnter={e=>{if(!isT2){e.currentTarget.style.background='rgba(255,255,255,0.04)';}}}
@@ -751,21 +810,21 @@ function TargetsTab({vis,isD,isT}) {
 }
 
 // AI COACH TAB
-function CoachTab({vis,isD,isT,isM}) {
+function CoachTab({vis,isD,isT,isM,D}) {
   const [chatMsg, setChatMsg] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const chatEnd = useRef(null);
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const typeColor = {warning:C.orange,success:C.mint,action:C.blue};
-  const remaining = {cal:Math.max(0,1400-today.cal),pro:Math.max(0,140-today.pro),fib:Math.max(0,25-today.fib),steps:Math.max(0,8000-today.steps)};
+  const remaining = {cal:Math.max(0,1400-D.today.cal),pro:Math.max(0,140-D.today.pro),fib:Math.max(0,25-D.today.fib),steps:Math.max(0,8000-D.today.steps)};
 
   const contextPrompt = `You are a concise, expert fitness coach for Robin on a 14-week fat loss program. Phase 1 (current): aggressive fat loss while protecting muscle.
-CURRENT DATA: Today: ${today.cal} cal, ${today.pro}g protein, ${today.carb}g carbs, ${today.fat}g fat, ${today.fib}g fiber, ${today.sug}g sugar, ${today.steps} steps, ${today.sleep}h sleep, gym: ${today.gym?"yes":"no"}.
+CURRENT DATA: Today: ${D.today.cal} cal, ${D.today.pro}g protein, ${D.today.carb}g carbs, ${D.today.fat}g fat, ${D.today.fib}g fiber, ${D.today.sug}g sugar, ${D.today.steps} steps, ${D.today.sleep}h sleep, gym: ${D.today.gym?"yes":"no"}.
 Targets: 1300-1500 cal, 130-160g protein, 40-70g carbs, 40-55g fat, 20-30g fiber, <20g sugar, 8000+ steps.
-Weight: ${lastW.kg}kg (started 80.5, goal 68, lost ${lost}kg). Week ${lastW.week+1}/14. Velocity: -${insights.velocity}kg/wk.
-Week 6 avgs: ${W_NUTR[5].cal} cal, ${W_NUTR[5].pro}g pro. Streak: ${insights.streak}d. Protein rate: ${insights.proteinRate}%.
-Most eaten: ${POPULAR_FOODS.slice(0,5).map(f=>f.name).join(', ')}.
+Weight: ${D.lastW.kg}kg (started 80.5, goal 68, D.lost ${D.lost}kg). Week ${D.lastW.week+1}/14. Velocity: -${D.insights.velocity}kg/wk.
+Week 6 avgs: ${D.W_NUTR[5].cal} cal, ${D.W_NUTR[5].pro}g pro. Streak: ${D.insights.streak}d. Protein rate: ${D.insights.proteinRate}%.
+Most eaten: ${D.POPULAR_FOODS.slice(0,5).map(f=>f.name).join(', ')}.
 Be concise (2-4 sentences), practical, reference actual numbers. Suggest specific foods with macros when relevant.`;
 
   useEffect(() => { chatEnd.current?.scrollIntoView({behavior:'smooth'}); }, [messages]);
@@ -773,30 +832,30 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
   const getOfflineTip = (q) => {
     const ql = q.toLowerCase();
     if (ql.includes("eat")||ql.includes("dinner")||ql.includes("meal")||ql.includes("food")||ql.includes("lunch")||ql.includes("snack")||ql.includes("breakfast"))
-      return `You still need ~${remaining.cal} cal and ${remaining.pro}g protein today. Try: 150g salmon (280cal, 30g pro) + 200g broccoli (68cal, 6g fiber) + 100g lentils (116cal, 9g pro, 8g fiber). That closes your macro gaps nicely.`;
+      return `You still need ~${remaining.cal} cal and ${remaining.pro}g protein D.today. Try: 150g salmon (280cal, 30g pro) + 200g broccoli (68cal, 6g fiber) + 100g lentils (116cal, 9g pro, 8g fiber). That closes your macro gaps nicely.`;
     if (ql.includes("protein"))
-      return `You're at ${today.pro}g protein (target: 130-160g). ${today.pro>=130?"On track! Keep going.":"Add a whey shake (+24g) or 150g chicken (+47g) to close the gap."}`;
+      return `You're at ${D.today.pro}g protein (target: 130-160g). ${D.today.pro>=130?"On track! Keep going.":"Add a whey shake (+24g) or 150g chicken (+47g) to close the gap."}`;
     if (ql.includes("step")||ql.includes("walk")||ql.includes("cardio"))
-      return `${today.steps.toLocaleString()} steps today. ${today.steps>=8000?"Target hit! Great work.":"Need "+remaining.steps+" more. A brisk 20-min walk adds ~2,500 steps. Try after dinner."}`;
+      return `${D.today.steps.toLocaleString()} steps D.today. ${D.today.steps>=8000?"Target hit! Great work.":"Need "+remaining.steps+" more. A brisk 20-min walk adds ~2,500 steps. Try after dinner."}`;
     if (ql.includes("weight")||ql.includes("progress")||ql.includes("how am i"))
-      return `You've lost ${lost}kg in ${lastW.week+1} weeks (${lostPct}% of starting weight). At -${insights.velocity}kg/week, you're on pace to reach 68kg in ~${Math.ceil((lastW.kg-68)/parseFloat(insights.velocity||0.8))} more weeks. That's solid progress.`;
+      return `You've D.lost ${D.lost}kg in ${D.lastW.week+1} weeks (${D.lostPct}% of starting weight). At -${D.insights.velocity}kg/week, you're on pace to reach 68kg in ~${Math.ceil((D.lastW.kg-68)/parseFloat(D.insights.velocity||0.8))} more weeks. That's solid progress.`;
     if (ql.includes("sleep"))
-      return `${today.sleep}h sleep today. ${today.sleep>=7?"Good — sleep above 7h keeps cortisol low and recovery high.":"Below 7h target. Poor sleep raises cortisol and stalls fat loss. Try: no screens 30min before bed, consistent bedtime, cool room."}`;
+      return `${D.today.sleep}h sleep D.today. ${D.today.sleep>=7?"Good — sleep above 7h keeps cortisol low and recovery high.":"Below 7h target. Poor sleep raises cortisol and stalls fat loss. Try: no screens 30min before bed, consistent bedtime, cool room."}`;
     if (ql.includes("fiber"))
-      return `${today.fib}g fiber today (target: 20-30g). ${today.fib>=20?"On track!":"Add: 200g broccoli (+5g), 1 tbsp chia seeds (+5g), or 100g lentils (+8g). Fiber aids digestion and reduces bloating."}`;
+      return `${D.today.fib}g fiber today (target: 20-30g). ${D.today.fib>=20?"On track!":"Add: 200g broccoli (+5g), 1 tbsp chia seeds (+5g), or 100g lentils (+8g). Fiber aids digestion and reduces bloating."}`;
     if (ql.includes("sugar"))
-      return `${today.sug}g sugar today (target: <20g). ${today.sug<=20?"Well controlled!":"Over target. Check for hidden sugars in sauces, flavored yogurt, and fruit juice. Stick to whole fruits instead."}`;
+      return `${D.today.sug}g sugar today (target: <20g). ${D.today.sug<=20?"Well controlled!":"Over target. Check for hidden sugars in sauces, flavored yogurt, and fruit juice. Stick to whole fruits instead."}`;
     if (ql.includes("calorie")||ql.includes("cal"))
-      return `${today.cal} calories today (target: 1,300-1,500). ${today.cal>=1300&&today.cal<=1500?"Right on target.":today.cal<1300?"Slightly under — make sure you're eating enough to protect muscle. Add a protein-rich snack.":"Slightly over. Not a disaster, but watch portions at dinner."}`;
+      return `${D.today.cal} calories today (target: 1,300-1,500). ${D.today.cal>=1300&&D.today.cal<=1500?"Right on target.":D.today.cal<1300?"Slightly under — make sure you're eating enough to protect muscle. Add a protein-rich snack.":"Slightly over. Not a disaster, but watch portions at dinner."}`;
     if (ql.includes("gym")||ql.includes("train")||ql.includes("workout")||ql.includes("exercise"))
-      return `${today.gym?"You trained today — great!":"Rest day today."} Phase 1 calls for 3x strength + rope per week. Focus on compound lifts (squat, deadlift, bench, row) to preserve muscle in a deficit. Keep rest periods 60-90s.`;
+      return `${D.today.gym?"You trained today — great!":"Rest day D.today."} Phase 1 calls for 3x strength + rope per week. Focus on compound lifts (squat, deadlift, bench, row) to preserve muscle in a deficit. Keep rest periods 60-90s.`;
     if (ql.includes("target")||ql.includes("hit")||ql.includes("score")||ql.includes("compliance"))
-      return `Compliance today: ${today.comp}/100. ${today.comp>=90?"Excellent execution!":today.comp>=70?"Good but room to improve.":"Below 70 — focus on protein and fiber."} Your streak is ${insights.streak} days \u226570. Protein hit rate: ${insights.proteinRate}% of all days.`;
+      return `Compliance today: ${D.today.comp}/100. ${D.today.comp>=90?"Excellent execution!":D.today.comp>=70?"Good but room to improve.":"Below 70 — focus on protein and fiber."} Your streak is ${D.insights.streak} days \u226570. Protein hit rate: ${D.insights.proteinRate}% of all days.`;
     if (ql.includes("cheat")||ql.includes("break")||ql.includes("off day"))
-      return `One off day won't ruin your progress. You've lost ${lost}kg already. The key is consistency: your ${insights.streak}-day streak shows commitment. If you go over, just get back on track tomorrow. Don't compensate by under-eating.`;
+      return `One off day won't ruin your progress. You've D.lost ${D.lost}kg already. The key is consistency: your ${D.insights.streak}-day streak shows commitment. If you go over, just get back on track tomorrow. Don't compensate by under-eating.`;
     if (ql.includes("plateau")||ql.includes("stuck")||ql.includes("stall"))
-      return `At -${insights.velocity}kg/week, you're still losing well. Plateaus usually last 1-2 weeks and break naturally. Keep hitting protein (${insights.proteinRate}% hit rate), stay consistent, and trust the process. If it persists 3+ weeks, consider a 2-day refeed at maintenance calories.`;
-    return `Today: ${today.cal} cal (${today.cal>=1300&&today.cal<=1500?"on target":"needs attention"}), ${today.pro}g protein (${today.pro>=130?"good":"low"}), ${today.fib}g fiber (${today.fib>=20?"ok":"add veg"}), ${today.steps} steps (${today.steps>=8000?"hit":"need more"}). Compliance: ${today.comp}/100. Streak: ${insights.streak} days. You're doing well — keep at it.`;
+      return `At -${D.insights.velocity}kg/week, you're still losing well. Plateaus usually last 1-2 weeks and break naturally. Keep hitting protein (${D.insights.proteinRate}% hit rate), stay consistent, and trust the process. If it persists 3+ weeks, consider a 2-day refeed at maintenance calories.`;
+    return `Today: ${D.today.cal} cal (${D.today.cal>=1300&&D.today.cal<=1500?"on target":"needs attention"}), ${D.today.pro}g protein (${D.today.pro>=130?"good":"low"}), ${D.today.fib}g fiber (${D.today.fib>=20?"ok":"add veg"}), ${D.today.steps} steps (${D.today.steps>=8000?"hit":"need more"}). Compliance: ${D.today.comp}/100. Streak: ${D.insights.streak} days. You're doing well — keep at it.`;
   };
 
   const sendMessage = async (text) => {
@@ -826,11 +885,11 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
   };
 
   const staticTips = [
-    {title:"Fiber Gap",tip:`At ${today.fib}g fiber \u2014 add broccoli or chia seeds to reach 20g.`,type:"action"},
-    {title:today.pro>=130?"Protein On Track":"Protein Low",tip:today.pro>=130?`${today.pro}g protein \u2014 solid.`:`${today.pro}g protein \u2014 below 130g, add a shake.`,type:today.pro>=130?"success":"warning"},
-    {title:"Step Check",tip:`${today.steps.toLocaleString()} steps. ${today.steps>=8000?"Target hit!":"Walk 20 min to close gap."}`,type:today.steps>=8000?"success":"action"},
-    {title:"Sugar Watch",tip:`${today.sug}g sugar${today.sug>20?" \u2014 over 20g limit.":" \u2014 controlled."}`,type:today.sug>20?"warning":"success"},
-    {title:"Weekly Trend",tip:`Compliance at ${W_NUTR[5].comp}/100. ${W_NUTR[5].comp>=75?"Strong.":"Focus protein & fiber."}`,type:W_NUTR[5].comp>=75?"success":"action"},
+    {title:"Fiber Gap",tip:`At ${D.today.fib}g fiber \u2014 add broccoli or chia seeds to reach 20g.`,type:"action"},
+    {title:D.today.pro>=130?"Protein On Track":"Protein Low",tip:D.today.pro>=130?`${D.today.pro}g protein \u2014 solid.`:`${D.today.pro}g protein \u2014 below 130g, add a shake.`,type:D.today.pro>=130?"success":"warning"},
+    {title:"Step Check",tip:`${D.today.steps.toLocaleString()} steps. ${D.today.steps>=8000?"Target hit!":"Walk 20 min to close gap."}`,type:D.today.steps>=8000?"success":"action"},
+    {title:"Sugar Watch",tip:`${D.today.sug}g sugar${D.today.sug>20?" \u2014 over 20g limit.":" \u2014 controlled."}`,type:D.today.sug>20?"warning":"success"},
+    {title:"Weekly Trend",tip:`Compliance at ${D.W_NUTR[5].comp}/100. ${D.W_NUTR[5].comp>=75?"Strong.":"Focus protein & fiber."}`,type:D.W_NUTR[5].comp>=75?"success":"action"},
   ];
   const quickQ = ["What should I eat for dinner?","How's my progress?","Am I hitting my targets?","Tips for better sleep"];
 
@@ -890,24 +949,57 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
 }
 
 // MAIN APP
+
+// MAIN APP
 export default function Stride() {
   const [tab, setTab] = useState("overview");
   const [ww, setWw] = useState(typeof window!=="undefined"?window.innerWidth:1200);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifRead, setNotifRead] = useState({});
+  const [syncing, setSyncing] = useState(false);
+  const [lastSync, setLastSync] = useState(null);
+  const [liveData, setLiveData] = useState(null);
   const notifRef = useRef(null);
   const bellRef = useRef(null);
   const vis = useAnimateOnMount(tab);
   useEffect(()=>{const h=()=>setWw(window.innerWidth);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);},[]);
 
+  // DATA LOADER
+  const fetchData = useCallback(async () => {
+    setSyncing(true);
+    try {
+      const base = window.location.pathname.replace(/\/$/,'');
+      const resp = await fetch(`${base}/data/stride-data.json?t=${Date.now()}`);
+      if (resp.ok) {
+        const json = await resp.json();
+        const transformed = transformSyncData(json);
+        if (transformed) {
+          setLiveData(transformed);
+          setLastSync(json.meta?.lastSync || null);
+        }
+      }
+    } catch (e) { /* use fallback */ }
+    setSyncing(false);
+  }, []);
+  useEffect(() => { fetchData(); }, [fetchData]);
+  const handleRefresh = async () => { await fetchData(); };
+
+  // Use live data if available, otherwise fallback
+  const D = useMemo(() => {
+    const base = liveData || buildFallbackData();
+    const insights = computeInsights(base);
+    const popularFoods = computePopularFoods(base.FOOD_LOG);
+    return { ...base, insights, POPULAR_FOODS: popularFoods };
+  }, [liveData]);
+
   const notifications = useMemo(() => [
-    {id:"n1",title:"Fiber Gap",tip:`You're at ${today.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action",tab:"coach"},
-    {id:"n2",title:today.pro>=130?"Protein On Track":"Protein Low",tip:today.pro>=130?`${today.pro}g protein today — great execution.`:`${today.pro}g protein is below 130g. Add a shake or chicken.`,type:today.pro>=130?"success":"warning",tab:"coach"},
-    {id:"n3",title:"Step Check",tip:`${today.steps.toLocaleString()} steps. ${today.steps>=8000?"Target hit!":"A 20-min walk adds ~2,500 steps."}`,type:today.steps>=8000?"success":"action",tab:"activity"},
-    {id:"n4",title:"Weekly Trend",tip:`Compliance at ${W_NUTR[5].comp}/100. ${W_NUTR[5].comp>=75?"Solid.":"Focus on protein & fiber."}`,type:W_NUTR[5].comp>=75?"success":"action",tab:"progress"},
-    {id:"n5",title:"Weight Pace",tip:`-${insights.velocity}kg/wk over 3 weeks. ${parseFloat(insights.velocity)>=0.8?"Sustainable pace.":"Check calorie adherence."}`,type:parseFloat(insights.velocity)>=0.8?"success":"warning",tab:"progress"},
-  ], []);
+    {id:"n1",title:"Fiber Gap",tip:`You're at ${D.today.fib}g fiber \u2014 add broccoli or chia seeds to reach 20g.`,type:"action",tab:"coach"},
+    {id:"n2",title:D.today.pro>=130?"Protein On Track":"Protein Low",tip:D.today.pro>=130?`${D.today.pro}g protein today \u2014 great execution.`:`${D.today.pro}g protein is below 130g. Add a shake or chicken.`,type:D.today.pro>=130?"success":"warning",tab:"coach"},
+    {id:"n3",title:"Step Check",tip:`${D.today.steps.toLocaleString()} steps. ${D.today.steps>=8000?"Target hit!":"A 20-min walk adds ~2,500 steps."}`,type:D.today.steps>=8000?"success":"action",tab:"activity"},
+    {id:"n4",title:"Weekly Trend",tip:`Compliance at ${D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0}/100. ${(D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0)>=75?"Solid.":"Focus on protein & fiber."}`,type:(D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0)>=75?"success":"action",tab:"progress"},
+    {id:"n5",title:"Weight Pace",tip:`-${D.insights.velocity}kg/wk over 3 weeks. ${parseFloat(D.insights.velocity)>=0.8?"Sustainable pace.":"Check calorie adherence."}`,type:parseFloat(D.insights.velocity)>=0.8?"success":"warning",tab:"progress"},
+  ], [D]);
   const unreadCount = notifications.filter(n => !notifRead[n.id]).length;
 
   useEffect(() => {
@@ -954,7 +1046,7 @@ export default function Stride() {
         <button onClick={(e)=>{e.stopPropagation();setNotifOpen(false);setTab("coach");}} style={{width:'100%',padding:'8px',borderRadius:8,border:'none',cursor:'pointer',
           background:C.mintSoft,color:C.mint,fontSize:10,fontWeight:700,fontFamily:'var(--sans)',transition:'opacity .2s'}}
           onMouseEnter={e=>e.currentTarget.style.opacity='0.8'} onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
-          Open AI Coach →</button>
+          Open AI Coach \u2192</button>
       </div>
     </div>
   );
@@ -962,13 +1054,14 @@ export default function Stride() {
   const isM=ww<768, isT=ww>=768&&ww<1024, isD=ww>=1024;
   const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"targets",icon:I.target,label:"Targets"},{id:"coach",icon:I.sparkle,label:"AI Coach"}];
   const renderTab = () => {
+    const p = {vis,isD,isT,isM,D};
     switch(tab) {
-      case "overview": return <OverviewTab vis={vis} isD={isD} isT={isT} isM={isM}/>;
-      case "nutrition": return <NutritionTab vis={vis} isD={isD} isT={isT} isM={isM}/>;
-      case "activity": return <ActivityTab vis={vis} isD={isD} isT={isT} isM={isM}/>;
-      case "progress": return <ProgressTab vis={vis} isD={isD} isT={isT}/>;
-      case "targets": return <TargetsTab vis={vis} isD={isD} isT={isT}/>;
-      case "coach": return <CoachTab vis={vis} isD={isD} isT={isT} isM={isM}/>;
+      case "overview": return <OverviewTab {...p}/>;
+      case "nutrition": return <NutritionTab {...p}/>;
+      case "activity": return <ActivityTab {...p}/>;
+      case "progress": return <ProgressTab {...p}/>;
+      case "targets": return <TargetsTab {...p}/>;
+      case "coach": return <CoachTab {...p}/>;
       default: return null;
     }
   };
@@ -981,17 +1074,17 @@ export default function Stride() {
         *{box-sizing:border-box;margin:0;padding:0;}
         ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:${C.border};border-radius:3px;}
         @keyframes fadeSlideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
       `}</style>
       <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden'}}>
         <div style={{position:'absolute',top:'-10%',left:'20%',width:600,height:600,borderRadius:'50%',background:`radial-gradient(circle,${C.mintSoft} 0%,transparent 70%)`,filter:'blur(30px)'}}/>
         <div style={{position:'absolute',bottom:'-15%',right:'5%',width:500,height:500,borderRadius:'50%',background:'radial-gradient(circle,rgba(77,160,255,.03) 0%,transparent 70%)',filter:'blur(30px)'}}/></div>
 
-      {/* DESKTOP SIDEBAR - COLLAPSIBLE */}
       {isD && (
         <nav style={{width:navW,minHeight:'100vh',background:C.surfaceSolid,borderRight:`1px solid ${C.border}`,padding:navCollapsed?'28px 8px':'28px 16px',display:'flex',flexDirection:'column',position:'sticky',top:0,zIndex:10,transition:'width .3s ease, padding .3s ease',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:navCollapsed?20:36,padding:navCollapsed?'0':'0 8px',justifyContent:navCollapsed?'center':'flex-start'}}>
             <div style={{width:36,height:36,borderRadius:12,background:'linear-gradient(135deg,#B8FF57,#57FFD8)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:900,color:C.bg,boxShadow:`0 4px 16px ${C.mint}33`,flexShrink:0}}>S</div>
-            {!navCollapsed&&<div><div style={{fontSize:17,fontWeight:800,letterSpacing:-.3}}>Stride</div><div style={{fontSize:10,color:C.text3,fontWeight:600}}>Week 7 · Phase 1</div></div>}
+            {!navCollapsed&&<div><div style={{fontSize:17,fontWeight:800,letterSpacing:-.3}}>Stride</div><div style={{fontSize:10,color:C.text3,fontWeight:600}}>Week {D.currentWeek} \u00b7 Phase 1</div></div>}
           </div>
           {!navCollapsed&&<div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1.5,padding:'0 14px',marginBottom:8}}>Navigation</div>}
           {NAV.map(n=>{const act=tab===n.id;
@@ -1006,27 +1099,30 @@ export default function Stride() {
           </button>
           {!navCollapsed&&<div style={{marginTop:'auto',padding:'18px 16px',borderRadius:18,background:`linear-gradient(135deg,${C.mintSoft},transparent)`,border:`1px solid ${C.mintSoft}`}}>
             <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Overall Progress</div>
-            <div style={{fontSize:24,fontWeight:900,fontFamily:'var(--mono)',color:C.mint}}>-{lost}kg</div>
+            <div style={{fontSize:24,fontWeight:900,fontFamily:'var(--mono)',color:C.mint}}>-{D.lost}kg</div>
             <div style={{fontSize:11,color:C.text2,marginTop:2}}>of 12.5 kg goal</div>
             <div style={{height:4,borderRadius:2,background:C.border,marginTop:10,overflow:'hidden'}}>
-              <div style={{height:'100%',width:`${(parseFloat(lost)/12.5*100).toFixed(0)}%`,borderRadius:2,background:`linear-gradient(90deg,${C.mint}BB,${C.mint})`,transition:'width 1s ease'}}/></div>
+              <div style={{height:'100%',width:`${(parseFloat(D.lost)/12.5*100).toFixed(0)}%`,borderRadius:2,background:`linear-gradient(90deg,${C.mint}BB,${C.mint})`,transition:'width 1s ease'}}/></div>
           </div>}
         </nav>
       )}
 
-      {/* MAIN CONTENT */}
       <div style={{flex:1,position:'relative',zIndex:1,minHeight:'100vh'}}>
         {!isD && (
           <header style={{padding:'14px 18px 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
               <div style={{width:36,height:36,borderRadius:12,background:'linear-gradient(135deg,#B8FF57,#57FFD8)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,color:C.bg,boxShadow:`0 4px 16px ${C.mint}33`}}>S</div>
-              <div><div style={{fontSize:10,color:C.text3,fontWeight:600}}>Week 7 · Phase 1</div><div style={{fontSize:16,fontWeight:800,letterSpacing:-.3}}>Stride</div></div>
+              <div><div style={{fontSize:10,color:C.text3,fontWeight:600}}>Week {D.currentWeek} \u00b7 Phase 1</div><div style={{fontSize:16,fontWeight:800,letterSpacing:-.3}}>Stride</div></div>
             </div>
-            <div style={{position:'relative'}}>
-              <button ref={bellRef} onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
-                {I.bell}{unreadCount>0&&<div style={{position:'absolute',top:5,right:5,minWidth:14,height:14,borderRadius:7,background:C.red,border:`2px solid ${C.bg}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:800,color:'#fff',padding:'0 3px'}}>{unreadCount}</div>}
-              </button>
-              {notifOpen&&<NotifPanel/>}
+            <div style={{display:'flex',gap:8,alignItems:'center'}}>
+              <button onClick={handleRefresh} title="Refresh" style={{width:32,height:32,borderRadius:10,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:syncing?C.mint:C.text3,cursor:'pointer'}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:syncing?'spin 1s linear infinite':'none'}}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
+              <div style={{position:'relative'}}>
+                <button ref={bellRef} onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
+                  {I.bell}{unreadCount>0&&<div style={{position:'absolute',top:5,right:5,minWidth:14,height:14,borderRadius:7,background:C.red,border:`2px solid ${C.bg}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:800,color:'#fff',padding:'0 3px'}}>{unreadCount}</div>}
+                </button>
+                {notifOpen&&<NotifPanel/>}
+              </div>
             </div>
           </header>
         )}
@@ -1035,13 +1131,13 @@ export default function Stride() {
             <div>
               <div style={{fontSize:22,fontWeight:800}}>
                 {tab==="overview"?"Dashboard":tab==="nutrition"?"Nutrition Tracking":tab==="activity"?"Activity & Training":tab==="progress"?"Progress Analytics":tab==="coach"?"AI Coach":"Phase Targets"}</div>
-              <div style={{fontSize:12,color:C.text3,marginTop:2}}>Thursday, February 19, 2026</div>
+              <div style={{fontSize:12,color:C.text3,marginTop:2}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}{lastSync&&<span style={{marginLeft:8,fontSize:10,opacity:0.6}}>\u00b7 Synced {new Date(lastSync).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>}</div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <div style={{padding:'8px 14px',borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,fontSize:12,fontWeight:600,color:C.text2}}>Phase 1 — Fat Loss</div>
-              <button onClick={()=>window.location.reload()} title="Refresh stats" style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,cursor:'pointer',transition:'color .2s'}}
-                onMouseEnter={e=>e.currentTarget.style.color=C.mint} onMouseLeave={e=>e.currentTarget.style.color=C.text2}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+              <div style={{padding:'8px 14px',borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,fontSize:12,fontWeight:600,color:C.text2}}>Phase 1 \u2014 Fat Loss</div>
+              <button onClick={handleRefresh} title="Refresh stats" style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:syncing?C.mint:C.text2,cursor:'pointer',transition:'color .2s'}}
+                onMouseEnter={e=>{if(!syncing)e.currentTarget.style.color=C.mint;}} onMouseLeave={e=>{if(!syncing)e.currentTarget.style.color=C.text2;}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:syncing?'spin 1s linear infinite':'none'}}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
               </button>
               <div style={{position:'relative'}}>
                 <button ref={bellRef} onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
@@ -1057,7 +1153,6 @@ export default function Stride() {
         </div>
       </div>
 
-      {/* MOBILE/TABLET BOTTOM NAV */}
       {!isD && (
         <nav style={{position:'fixed',bottom:0,left:0,right:0,background:`linear-gradient(180deg,${C.bg}00 0%,${C.bg}EE 20%,${C.bg} 100%)`,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',borderTop:`1px solid ${C.border}`,padding:'6px 4px',paddingBottom:'max(6px, env(safe-area-inset-bottom))',zIndex:100,display:'flex',justifyContent:'space-around'}}>
           {NAV.map(n=>{const act=tab===n.id;
