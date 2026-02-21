@@ -487,6 +487,70 @@ def build_output(all_days, weight_data):
     }
 
 
+def fetch_mfp_api(cookie_jar, username, target_date):
+    """
+    Try MFP's internal API endpoint for diary data.
+    This is an undocumented endpoint but often more reliable than HTML scraping.
+    """
+    import urllib.request
+    import json as _json
+    
+    date_str = target_date.strftime("%Y-%m-%d")
+    
+    # Try the internal API that the MFP web app uses
+    urls = [
+        f"https://www.myfitnesspal.com/api/nutrition?entry_date={date_str}&username={username}",
+        f"https://www.myfitnesspal.com/food/diary/{username}.json?date={date_str}",
+    ]
+    
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
+    opener.addheaders = [
+        ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"),
+        ("Accept", "application/json"),
+        ("X-Requested-With", "XMLHttpRequest"),
+    ]
+    
+    for url in urls:
+        try:
+            resp = opener.open(url, timeout=30)
+            data = _json.loads(resp.read().decode("utf-8"))
+            
+            # Try to extract nutrition from various API response formats
+            totals = None
+            
+            # Format 1: { nutritionSummary: { calories: ..., protein: ... } }
+            if "nutritionSummary" in data:
+                ns = data["nutritionSummary"]
+                totals = {
+                    "calories": round(ns.get("calories", 0)),
+                    "protein": round(ns.get("protein", 0)),
+                    "carbs": round(ns.get("totalCarbs", 0) or ns.get("carbs", 0) or ns.get("carbohydrates", 0)),
+                    "fat": round(ns.get("totalFat", 0) or ns.get("fat", 0)),
+                    "fiber": round(ns.get("fiber", 0)),
+                    "sugar": round(ns.get("sugar", 0)),
+                }
+            
+            # Format 2: { total: { calories: ..., protein: ... } }
+            elif "total" in data:
+                t = data["total"]
+                totals = {
+                    "calories": round(t.get("calories", 0)),
+                    "protein": round(t.get("protein", 0)),
+                    "carbs": round(t.get("carbs", 0) or t.get("total carbohydrate", 0)),
+                    "fat": round(t.get("fat", 0) or t.get("total fat", 0)),
+                    "fiber": round(t.get("fiber", 0)),
+                    "sugar": round(t.get("sugar", 0)),
+                }
+            
+            if totals and totals.get("calories", 0) > 0:
+                print(f"  (via API: {url.split('?')[0].split('/')[-1]})")
+                return totals
+                
+        except Exception:
+            continue
+    
+    return None
+
 def main():
     print("🏃 Stride MFP Sync starting...")
     print(f"   Program start: {PROGRAM_START}")
@@ -596,68 +660,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-def fetch_mfp_api(cookie_jar, username, target_date):
-    """
-    Try MFP's internal API endpoint for diary data.
-    This is an undocumented endpoint but often more reliable than HTML scraping.
-    """
-    import urllib.request
-    import json as _json
-    
-    date_str = target_date.strftime("%Y-%m-%d")
-    
-    # Try the internal API that the MFP web app uses
-    urls = [
-        f"https://www.myfitnesspal.com/api/nutrition?entry_date={date_str}&username={username}",
-        f"https://www.myfitnesspal.com/food/diary/{username}.json?date={date_str}",
-    ]
-    
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
-    opener.addheaders = [
-        ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"),
-        ("Accept", "application/json"),
-        ("X-Requested-With", "XMLHttpRequest"),
-    ]
-    
-    for url in urls:
-        try:
-            resp = opener.open(url, timeout=30)
-            data = _json.loads(resp.read().decode("utf-8"))
-            
-            # Try to extract nutrition from various API response formats
-            totals = None
-            
-            # Format 1: { nutritionSummary: { calories: ..., protein: ... } }
-            if "nutritionSummary" in data:
-                ns = data["nutritionSummary"]
-                totals = {
-                    "calories": round(ns.get("calories", 0)),
-                    "protein": round(ns.get("protein", 0)),
-                    "carbs": round(ns.get("totalCarbs", 0) or ns.get("carbs", 0) or ns.get("carbohydrates", 0)),
-                    "fat": round(ns.get("totalFat", 0) or ns.get("fat", 0)),
-                    "fiber": round(ns.get("fiber", 0)),
-                    "sugar": round(ns.get("sugar", 0)),
-                }
-            
-            # Format 2: { total: { calories: ..., protein: ... } }
-            elif "total" in data:
-                t = data["total"]
-                totals = {
-                    "calories": round(t.get("calories", 0)),
-                    "protein": round(t.get("protein", 0)),
-                    "carbs": round(t.get("carbs", 0) or t.get("total carbohydrate", 0)),
-                    "fat": round(t.get("fat", 0) or t.get("total fat", 0)),
-                    "fiber": round(t.get("fiber", 0)),
-                    "sugar": round(t.get("sugar", 0)),
-                }
-            
-            if totals and totals.get("calories", 0) > 0:
-                print(f"  (via API: {url.split('?')[0].split('/')[-1]})")
-                return totals
-                
-        except Exception:
-            continue
-    
-    return None
