@@ -259,25 +259,24 @@ function transformSyncData(json, todayLive) {
   }
 
   // Merge weight from proxy
+  let finalWeights = useWeights;
   if (todayLive?._weightEntries?.length > 0) {
     const proxyW = todayLive._weightEntries.map(we => ({
       week: Math.max(1, Math.floor((new Date(we.date+"T00:00:00") - new Date("2026-01-05T00:00:00")) / (7*86400000)) + 1),
       kg: we.weight, date: fmt(we.date),
     }));
-    useWeights.length = 0;
-    useWeights.push({ week: 0, kg: json.meta?.startWeight || 80.5, date: fmt("2026-01-05") });
-    proxyW.forEach(we => useWeights.push(we));
+    finalWeights = [{ week: 0, kg: json.meta?.startWeight || 80.5, date: fmt("2026-01-05") }, ...proxyW];
   }
 
   // Derived
-  const lastWeight = useWeights[useWeights.length - 1] || { kg: 80.5, week: 0 };
+  const lastWeight = finalWeights[finalWeights.length - 1] || { kg: 80.5, week: 0 };
   const startKg = json.meta?.startWeight || 80.5;
   const totalLost = (startKg - lastWeight.kg).toFixed(1);
   const lostPct = ((startKg - lastWeight.kg) / startKg * 100).toFixed(1);
   const todayData = dailyW7[dailyW7.length - 1] || dailyAll[dailyAll.length - 1] || FALLBACK_DAILY_W7[FALLBACK_DAILY_W7.length-1];
 
   return {
-    WEIGHTS: useWeights, W_STEPS: wSteps.length > 0 ? wSteps : [{w:currentWeek,v:0}], W_NUTR: wNutr,
+    WEIGHTS: finalWeights, W_STEPS: wSteps.length > 0 ? wSteps : [{w:currentWeek,v:0}], W_NUTR: wNutr,
     DAILY_ALL: dailyAll, DAILY_W7: dailyW7,
     AVGS: averages, FOOD_LOG: {},
     today: todayData, lastW: lastWeight,
@@ -1207,6 +1206,8 @@ export default function Stride() {
         if (todayLive?.calories > 0) {
           setLastSync(new Date().toISOString());
           console.log('[Stride] Today live:', todayLive.calories, 'cal,', todayLive.protein, 'g pro');
+          console.log('[Stride] Weight entries:', todayLive._weightEntries?.length || 0);
+          console.log('[Stride] Steps:', todayLive.steps || 0);
         }
       } catch (e) { console.log('[Stride] Proxy error:', e.message); }
     }
