@@ -993,9 +993,30 @@ export default function Stride() {
     setSyncing(false);
   }, []);
   useEffect(() => { fetchData(); }, [fetchData]);
-  const handleRefresh = async () => { await fetchData(); };
+  const handleRefresh = async () => {
+    setSyncing(true);
+    // Try to trigger GitHub Actions sync workflow
+    const pat = localStorage.getItem('stride_gh_token');
+    if (pat) {
+      try {
+        await fetch('https://api.github.com/repos/robinchristopherheering/stride_app/actions/workflows/sync.yml/dispatches', {
+          method: 'POST',
+          headers: { 'Authorization': `token ${pat}`, 'Accept': 'application/vnd.github.v3+json' },
+          body: JSON.stringify({ ref: 'main' }),
+        });
+        // Wait for workflow to start and complete (~30-60s)
+        await new Promise(r => setTimeout(r, 45000));
+      } catch (e) { /* token missing or invalid */ }
+    }
+    // Re-fetch data
+    await fetchData();
+    setSyncing(false);
+  };
 
-  // Use live data if available, otherwise fallback
+  // Data source indicator
+  const isLive = !!liveData;
+  const dataAge = lastSync ? Math.round((Date.now() - new Date(lastSync).getTime()) / 3600000) : null;
+  const isStale = !isLive || (dataAge !== null && dataAge > 8);
   const D = useMemo(() => {
     const base = liveData || buildFallbackData();
     const insights = computeInsights(base);
@@ -1141,7 +1162,10 @@ export default function Stride() {
             <div>
               <div style={{fontSize:22,fontWeight:800}}>
                 {tab==="overview"?"Dashboard":tab==="nutrition"?"Nutrition Tracking":tab==="activity"?"Activity & Training":tab==="progress"?"Progress Analytics":tab==="coach"?"AI Coach":"Phase Targets"}</div>
-              <div style={{fontSize:12,color:C.text3,marginTop:2}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}{lastSync&&<span style={{marginLeft:8,fontSize:10,opacity:0.6}}>· Synced {new Date(lastSync).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span>}</div>
+              <div style={{fontSize:12,color:C.text3,marginTop:2}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}
+                {isLive?<span style={{marginLeft:8,fontSize:10,color:C.mint,opacity:0.8}}>· Live data{dataAge!==null?` (${dataAge}h ago)`:''}</span>
+                :<span style={{marginLeft:8,fontSize:10,color:C.orange,opacity:0.9}}>· Demo data — sync needed</span>}
+              </div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
               <div style={{padding:'8px 14px',borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,fontSize:12,fontWeight:600,color:C.text2}}>Phase 1 — Fat Loss</div>
