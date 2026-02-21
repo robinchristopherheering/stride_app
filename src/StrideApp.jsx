@@ -91,6 +91,14 @@ const FALLBACK_FOOD_LOG = {
   },
 };
 
+// Tooltip definitions
+const TIPS = {
+  compliance: "Measures adherence to Phase 1 targets. Average of progress toward Calories (1,200 kcal), Protein (140g), and Fiber (30g), each capped at 100%. \u2265 90% = perfect execution. < 70% = risk of muscle loss.",
+  flatStomach: "Focuses on digestive health and bloating reduction. Same as Compliance but with a stricter Fiber target (35g vs 30g) for gut clearance. \u2265 90% = optimal digestion. < 70% = likely under 20g fiber, expect bloating.",
+  steps: "Daily step target for Phase 1: 8,000\u201310,000. Walking burns fat without increasing cortisol like intense cardio.",
+  protein: "130\u2013160g daily to preserve muscle during a caloric deficit. Protein is the most important macro for body composition.",
+};
+
 // Transform JSON from sync → app format
 function transformSyncData(json) {
   if (!json || !json.daily || json.daily.length === 0) return null;
