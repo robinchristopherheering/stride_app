@@ -978,18 +978,30 @@ export default function Stride() {
     setSyncing(true);
     try {
       const base = window.location.pathname.replace(/\/$/,'');
-      const resp = await fetch(`${base}/data/stride-data.json?t=${Date.now()}`);
+      const url = `${base}/data/stride-data.json?t=${Date.now()}`;
+      console.log('[Stride] Fetching:', url);
+      const resp = await fetch(url);
       if (resp.ok) {
         const json = await resp.json();
+        console.log('[Stride] JSON loaded:', json?.daily?.length || 0, 'days, lastSync:', json?.meta?.lastSync);
         if (json && json.daily && Array.isArray(json.daily) && json.daily.length > 0) {
-          const transformed = transformSyncData(json);
-          if (transformed && transformed.DAILY_W7.length > 0) {
-            setLiveData(transformed);
+          const hasRealData = json.daily.some(d => (d.calories || 0) > 0);
+          console.log('[Stride] Has real data:', hasRealData);
+          if (hasRealData) {
+            const transformed = transformSyncData(json);
+            if (transformed && transformed.DAILY_W7 && transformed.DAILY_W7.length > 0) {
+              setLiveData(transformed);
+              console.log('[Stride] Live data set:', transformed.DAILY_W7.length, 'days this week');
+            } else {
+              console.log('[Stride] Transform returned no current week data, using fallback');
+            }
           }
         }
         if (json?.meta?.lastSync) setLastSync(json.meta.lastSync);
+      } else {
+        console.log('[Stride] Fetch failed:', resp.status);
       }
-    } catch (e) { /* use fallback */ }
+    } catch (e) { console.log('[Stride] Fetch error:', e.message); }
     setSyncing(false);
   }, []);
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -1019,6 +1031,7 @@ export default function Stride() {
   const isStale = !isLive || (dataAge !== null && dataAge > 8);
   const D = useMemo(() => {
     const base = liveData || buildFallbackData();
+    console.log('[Stride] Using', liveData ? 'LIVE' : 'FALLBACK', '| today:', base.today?.cal, 'cal | weight:', base.lastW?.kg, 'kg | W7 days:', base.DAILY_W7?.length);
     const insights = computeInsights(base);
     const popularFoods = computePopularFoods(base.FOOD_LOG);
     return { ...base, insights, POPULAR_FOODS: popularFoods };
