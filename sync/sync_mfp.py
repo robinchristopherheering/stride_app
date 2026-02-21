@@ -187,21 +187,40 @@ def scrape_mfp_web(cookie_jar, username, target_date):
 
 
 def parse_diary_html(html):
-    """Extract totals row from MFP diary HTML page."""
+    """Extract totals row from MFP diary HTML page — handles current MFP layout."""
     import re
-    # Look for the totals row — MFP uses specific CSS classes
-    # This is a simplified parser; may need adjustment if MFP changes layout
     totals = {}
 
-    # Try to find total-line values
-    total_pattern = r'total["\s].*?(\d[\d,]*)\s*(?:cal|kcal)'
-    cal_match = re.search(r'Totals.*?(\d[\d,]*)', html, re.IGNORECASE | re.DOTALL)
-    if cal_match:
-        totals["calories"] = int(cal_match.group(1).replace(",", ""))
+    # MFP diary page has a totals row with class "total"
+    # Try multiple patterns to be robust against layout changes
+    
+    # Pattern 1: JSON data embedded in page (newer MFP)
+    json_match = re.search(r'"nutritionSummary"\s*:\s*\{([^}]+)\}', html)
+    if json_match:
+        block = json_match.group(1)
+        for key, mfp_key in [("calories","calories"),("protein","protein"),("carbs","totalCarbs"),
+                              ("fat","totalFat"),("fiber","fiber"),("sugar","sugar")]:
+            m = re.search(rf'"{mfp_key}"\s*:\s*(\d+\.?\d*)', block)
+            if m: totals[key] = round(float(m.group(1)))
 
-    return totals if totals else None
+    # Pattern 2: Table row totals (older MFP layout)
+    if not totals:
+        total_section = re.search(r'(?:total|Totals).*?</tr>', html, re.IGNORECASE | re.DOTALL)
+        if total_section:
+            numbers = re.findall(r'>\s*([\d,]+)\s*<', total_section.group())
+            if len(numbers) >= 6:
+                keys = ["calories", "fat", "carbs", "protein", "sugar", "fiber"]
+                for key, val in zip(keys, numbers):
+                    totals[key] = int(val.replace(",", ""))
 
+    # Pattern 3: aria-label or data attributes
+    if not totals:
+        for key in ["calories", "protein", "carbs", "fat", "fiber", "sugar"]:
+            m = re.search(rf'(?:total|Totals).*?{key}.*?(\d[\d,]*)', html, re.IGNORECASE | re.DOTALL)
+            if m:
+                totals[key] = int(m.group(1).replace(",", ""))
 
+    return totals if totals.get("calories", 0) > 0 else None
 def pull_day_data_library(client, target_date):
     """Pull a single day's data using the python-myfitnesspal library."""
     try:
@@ -518,6 +537,9 @@ def main():
             day_data = pull_day_data_library(client, current)
 
         if day_data is None:
+            day_data = fetch_mfp_api(cookie_jar, MFP_USERNAME, current)
+
+        if day_data is None:
             day_data = scrape_mfp_web(cookie_jar, MFP_USERNAME, current)
 
         if day_data and day_data.get("calories", 0) > 0:
@@ -574,3 +596,68 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def fetch_mfp_api(cookie_jar, username, target_date):
+    """
+    Try MFP's internal API endpoint for diary data.
+    This is an undocumented endpoint but often more reliable than HTML scraping.
+    """
+    import urllib.request
+    import json as _json
+    
+    date_str = target_date.strftime("%Y-%m-%d")
+    
+    # Try the internal API that the MFP web app uses
+    urls = [
+        f"https://www.myfitnesspal.com/api/nutrition?entry_date={date_str}&username={username}",
+        f"https://www.myfitnesspal.com/food/diary/{username}.json?date={date_str}",
+    ]
+    
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
+    opener.addheaders = [
+        ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"),
+        ("Accept", "application/json"),
+        ("X-Requested-With", "XMLHttpRequest"),
+    ]
+    
+    for url in urls:
+        try:
+            resp = opener.open(url, timeout=30)
+            data = _json.loads(resp.read().decode("utf-8"))
+            
+            # Try to extract nutrition from various API response formats
+            totals = None
+            
+            # Format 1: { nutritionSummary: { calories: ..., protein: ... } }
+            if "nutritionSummary" in data:
+                ns = data["nutritionSummary"]
+                totals = {
+                    "calories": round(ns.get("calories", 0)),
+                    "protein": round(ns.get("protein", 0)),
+                    "carbs": round(ns.get("totalCarbs", 0) or ns.get("carbs", 0) or ns.get("carbohydrates", 0)),
+                    "fat": round(ns.get("totalFat", 0) or ns.get("fat", 0)),
+                    "fiber": round(ns.get("fiber", 0)),
+                    "sugar": round(ns.get("sugar", 0)),
+                }
+            
+            # Format 2: { total: { calories: ..., protein: ... } }
+            elif "total" in data:
+                t = data["total"]
+                totals = {
+                    "calories": round(t.get("calories", 0)),
+                    "protein": round(t.get("protein", 0)),
+                    "carbs": round(t.get("carbs", 0) or t.get("total carbohydrate", 0)),
+                    "fat": round(t.get("fat", 0) or t.get("total fat", 0)),
+                    "fiber": round(t.get("fiber", 0)),
+                    "sugar": round(t.get("sugar", 0)),
+                }
+            
+            if totals and totals.get("calories", 0) > 0:
+                print(f"  (via API: {url.split('?')[0].split('/')[-1]})")
+                return totals
+                
+        except Exception:
+            continue
+    
+    return None
