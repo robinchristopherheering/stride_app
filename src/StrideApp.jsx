@@ -134,6 +134,8 @@ function transformSyncData(json) {
   if (weights.length === 0 || weights[0].week !== 0) {
     weights.unshift({ week: 0, kg: json.meta?.startWeight || 80.5, date: fmt(json.meta?.programStart || "2026-01-05") });
   }
+  // If we only have the start weight (sync didn't get weight measurements), use fallback weights
+  const useWeights = weights.length > 1 ? weights : FALLBACK_WEIGHTS;
 
   // Weekly nutrition
   const wNutr = (json.weekly || []).filter(w => w.daysLogged > 0).map(w => ({
@@ -153,14 +155,14 @@ function transformSyncData(json) {
   };
 
   // Derived
-  const lastWeight = weights[weights.length - 1] || { kg: 80.5, week: 0 };
+  const lastWeight = useWeights[useWeights.length - 1] || { kg: 80.5, week: 0 };
   const startKg = json.meta?.startWeight || 80.5;
   const totalLost = (startKg - lastWeight.kg).toFixed(1);
   const lostPct = ((startKg - lastWeight.kg) / startKg * 100).toFixed(1);
   const todayData = dailyW7[dailyW7.length - 1] || dailyAll[dailyAll.length - 1] || FALLBACK_DAILY_W7[FALLBACK_DAILY_W7.length-1];
 
   return {
-    WEIGHTS: weights, W_STEPS: wSteps, W_NUTR: wNutr,
+    WEIGHTS: useWeights, W_STEPS: wSteps, W_NUTR: wNutr,
     DAILY_ALL: dailyAll, DAILY_W7: dailyW7,
     AVGS: averages, FOOD_LOG: FALLBACK_FOOD_LOG, // food log still from fallback until sync supports it
     today: todayData, lastW: lastWeight,
@@ -201,14 +203,18 @@ function computePopularFoods(foodLog) {
 
 // Compute insights from data
 function computeInsights(data) {
-  const allDays = [...data.DAILY_ALL, ...data.DAILY_W7.map(d=>({...d,w:data.currentWeek}))];
+  if (!data || !data.DAILY_ALL || !data.DAILY_W7 || !data.WEIGHTS) {
+    return { streak: 0, velocity: "0.8", proteinRate: 0, mostActive: {day:"Sun",avg:0} };
+  }
+  const allDays = [...data.DAILY_ALL, ...data.DAILY_W7.map(d=>({...d,w:data.currentWeek||7}))];
+  if (allDays.length === 0) return { streak: 0, velocity: "0.8", proteinRate: 0, mostActive: {day:"Sun",avg:0} };
   const reversed = [...allDays].reverse(); let streak=0;
-  for (const d of reversed) { if (d.comp>=70) streak++; else break; }
+  for (const d of reversed) { if ((d.comp||0)>=70) streak++; else break; }
   const recentW = data.WEIGHTS.slice(-3);
-  const velocity = recentW.length>1 ? ((recentW[0].kg-recentW[recentW.length-1].kg)/(recentW.length-1)).toFixed(1) : "0.8";
-  const proteinRate = Math.round(allDays.filter(d=>d.pro>=130).length/allDays.length*100);
+  const velocity = recentW.length>1 ? Math.abs((recentW[0].kg-recentW[recentW.length-1].kg)/(recentW.length-1)).toFixed(1) : "0.8";
+  const proteinRate = Math.round(allDays.filter(d=>(d.pro||0)>=130).length/allDays.length*100);
   const dayTotals = {};
-  allDays.forEach(d => { const day=d.day||d.d; if(!dayTotals[day]) dayTotals[day]={s:0,c:0}; dayTotals[day].s+=d.steps; dayTotals[day].c++; });
+  allDays.forEach(d => { const day=d.day||d.d; if(!dayTotals[day]) dayTotals[day]={s:0,c:0}; dayTotals[day].s+=(d.steps||0); dayTotals[day].c++; });
   const mostActive = Object.entries(dayTotals).map(([day,v])=>({day,avg:Math.round(v.s/v.c)})).sort((a,b)=>b.avg-a.avg)[0] || {day:"Sun",avg:0};
   return { streak, velocity, proteinRate, mostActive };
 }
@@ -307,7 +313,7 @@ function WeightChart({ data, w=300, h=100, visible=true }) {
   const [hover, setHover] = useState(null);
   const mn=Math.min(...data.map(d=>d.kg))-1, mx=Math.max(...data.map(d=>d.kg))+1, rng=mx-mn||1;
   const padT=10, padB=18, ch=h-padT-padB;
-  const pts=data.map((d,i)=>({x:(i/(data.length-1))*w, y:padT+ch-((d.kg-mn)/rng)*ch, ...d}));
+  const pts=data.map((d,i)=>({x:data.length>1?(i/(data.length-1))*w:w/2, y:padT+ch-((d.kg-mn)/rng)*ch, ...d}));
   const linePath=pts.map((p,i)=>`${i?'L':'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   const fillPath=`${linePath} L${pts[pts.length-1].x},${h} L0,${h} Z`;
   const totalLen=useMemo(()=>{let l=0;for(let i=1;i<pts.length;i++){const dx=pts[i].x-pts[i-1].x,dy=pts[i].y-pts[i-1].y;l+=Math.sqrt(dx*dx+dy*dy);}return l;},[data]);
@@ -347,7 +353,7 @@ function WeightChart({ data, w=300, h=100, visible=true }) {
 
 function Spark({data,color=C.mint,w=200,h=50,fill=true,sw=2,visible=true}) {
   const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;
-  const pts=data.map((v,i)=>[(i/(data.length-1))*w, h-((v-mn)/rng)*h*.82-h*.09]);
+  const pts=data.map((v,i)=>[data.length>1?(i/(data.length-1))*w:w/2, h-((v-mn)/rng)*h*.82-h*.09]);
   const d=pts.map((p,i)=>`${i?'L':'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
   const fd=`${d} L${w},${h} L0,${h} Z`;
   const gid=useMemo(()=>`s${Math.random().toString(36).slice(2,7)}`,[]);
@@ -518,13 +524,13 @@ function OverviewTab({vis,isD,isT,isM,D}) {
           <div>
             <Lbl>Current Weight</Lbl>
             <div style={{display:'flex',alignItems:'baseline',gap:6}}>
-              <CountUp to={D.lastW.kg} decimals={1} style={{fontSize:isM?36:46,letterSpacing:-2,lineHeight:1}} color={C.text}/>
+              <CountUp to={D.lastW?.kg} decimals={1} style={{fontSize:isM?36:46,letterSpacing:-2,lineHeight:1}} color={C.text}/>
               <span style={{fontSize:16,color:C.text2,fontWeight:600}}>kg</span></div>
             <div style={{display:'flex',gap:8,marginTop:10,flexWrap:'wrap'}}>
               <Tag color={C.mint}>{I.down} {D.lost} kg lost</Tag>
               <Tag color={C.text2} bg="rgba(255,255,255,0.04)">{D.lostPct}% total</Tag></div></div>
           <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-            {[{l:"Start",v:"80.5",s:"Jan 5"},{l:"Now",v:String(D.lastW.kg),s:`Wk ${D.lastW.week}`},{l:"Goal",v:"68.0",s:"~15% BF"}].map(m=>(
+            {[{l:"Start",v:"80.5",s:"Jan 5"},{l:"Now",v:String(D.lastW?.kg),s:`Wk ${D.lastW?.week}`},{l:"Goal",v:"68.0",s:"~15% BF"}].map(m=>(
               <div key={m.l} style={{textAlign:'center',padding:'10px 14px',borderRadius:14,background:m.l==="Now"?C.mintSoft:'rgba(255,255,255,0.02)',minWidth:72}}>
                 <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>{m.l}</div>
                 <div style={{fontSize:17,fontWeight:800,fontFamily:'var(--mono)',color:m.l==="Now"?C.mint:C.text}}>{m.v}</div>
@@ -737,7 +743,7 @@ function ProgressTab({vis,isD,isT,D}) {
         <Lbl>Weight Progress</Lbl>
         <div style={{display:'flex',alignItems:'flex-end',gap:isD?20:12,flexWrap:'wrap'}}>
           <div>
-            <CountUp to={D.lastW.kg} decimals={1} style={{fontSize:40,letterSpacing:-2,lineHeight:1}} color={C.text}/><span style={{fontSize:16,color:C.text2,marginLeft:4}}>kg</span>
+            <CountUp to={D.lastW?.kg} decimals={1} style={{fontSize:40,letterSpacing:-2,lineHeight:1}} color={C.text}/><span style={{fontSize:16,color:C.text2,marginLeft:4}}>kg</span>
             <div style={{display:'flex',gap:8,marginTop:8}}><Tag color={C.mint}>{I.down} {D.lost} kg</Tag><Tag color={C.text2} bg="rgba(255,255,255,0.04)">{D.lostPct}%</Tag></div></div>
           <div style={{flex:1,minWidth:200}}><WeightChart data={D.WEIGHTS} w={300} h={100} visible={vis}/></div></div>
         <div style={{display:'flex',gap:8,marginTop:16,overflowX:'auto',paddingBottom:4}}>
@@ -830,7 +836,7 @@ function CoachTab({vis,isD,isT,isM,D}) {
   const contextPrompt = `You are a concise, expert fitness coach for Robin on a 14-week fat loss program. Phase 1 (current): aggressive fat loss while protecting muscle.
 CURRENT DATA: Today: ${D.today.cal} cal, ${D.today.pro}g protein, ${D.today.carb}g carbs, ${D.today.fat}g fat, ${D.today.fib}g fiber, ${D.today.sug}g sugar, ${D.today.steps} steps, ${D.today.sleep}h sleep, gym: ${D.today.gym?"yes":"no"}.
 Targets: 1300-1500 cal, 130-160g protein, 40-70g carbs, 40-55g fat, 20-30g fiber, <20g sugar, 8000+ steps.
-Weight: ${D.lastW.kg}kg (started 80.5, goal 68, lost ${D.lost}kg). Week ${D.lastW.week+1}/14. Velocity: -${D.insights.velocity}kg/wk.
+Weight: ${D.lastW?.kg}kg (started 80.5, goal 68, lost ${D.lost}kg). Week ${D.lastW?.week+1}/14. Velocity: -${D.insights.velocity}kg/wk.
 Week 6 avgs: ${D.W_NUTR[5].cal} cal, ${D.W_NUTR[5].pro}g pro. Streak: ${D.insights.streak}d. Protein rate: ${D.insights.proteinRate}%.
 Most eaten: ${D.POPULAR_FOODS.slice(0,5).map(f=>f.name).join(', ')}.
 Be concise (2-4 sentences), practical, reference actual numbers. Suggest specific foods with macros when relevant.`;
@@ -846,7 +852,7 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
     if (ql.includes("step")||ql.includes("walk")||ql.includes("cardio"))
       return `${D.today.steps.toLocaleString()} steps D.today. ${D.today.steps>=8000?"Target hit! Great work.":"Need "+remaining.steps+" more. A brisk 20-min walk adds ~2,500 steps. Try after dinner."}`;
     if (ql.includes("weight")||ql.includes("progress")||ql.includes("how am i"))
-      return `You've lost ${D.lost}kg in ${D.lastW.week+1} weeks (${D.lostPct}% of starting weight). At -${D.insights.velocity}kg/week, you're on pace to reach 68kg in ~${Math.ceil((D.lastW.kg-68)/parseFloat(D.insights.velocity||0.8))} more weeks. That's solid progress.`;
+      return `You've lost ${D.lost}kg in ${D.lastW?.week+1} weeks (${D.lostPct}% of starting weight). At -${D.insights.velocity}kg/week, you're on pace to reach 68kg in ~${Math.ceil((D.lastW?.kg-68)/parseFloat(D.insights.velocity||0.8))} more weeks. That's solid progress.`;
     if (ql.includes("sleep"))
       return `${D.today.sleep}h sleep D.today. ${D.today.sleep>=7?"Good — sleep above 7h keeps cortisol low and recovery high.":"Below 7h target. Poor sleep raises cortisol and stalls fat loss. Try: no screens 30min before bed, consistent bedtime, cool room."}`;
     if (ql.includes("fiber"))
@@ -1030,11 +1036,28 @@ export default function Stride() {
   const dataAge = lastSync ? Math.round((Date.now() - new Date(lastSync).getTime()) / 3600000) : null;
   const isStale = !isLive || (dataAge !== null && dataAge > 8);
   const D = useMemo(() => {
-    const base = liveData || buildFallbackData();
-    console.log('[Stride] Using', liveData ? 'LIVE' : 'FALLBACK', '| today:', base.today?.cal, 'cal | weight:', base.lastW?.kg, 'kg | W7 days:', base.DAILY_W7?.length);
-    const insights = computeInsights(base);
-    const popularFoods = computePopularFoods(base.FOOD_LOG);
-    return { ...base, insights, POPULAR_FOODS: popularFoods };
+    try {
+      const base = liveData || buildFallbackData();
+      // Ensure critical fields exist
+      if (!base.lastW) base.lastW = { kg: 80.5, week: 0, date: "Jan 5" };
+      if (!base.today) base.today = base.DAILY_W7?.[base.DAILY_W7.length-1] || {cal:0,pro:0,carb:0,fat:0,fib:0,sug:0,comp:0,flat:0,steps:0,sleep:0,gym:false};
+      if (!base.WEIGHTS || base.WEIGHTS.length === 0) base.WEIGHTS = [{ kg: 80.5, week: 0, date: "Jan 5" }];
+      if (!base.W_NUTR) base.W_NUTR = [];
+      if (!base.W_STEPS) base.W_STEPS = [];
+      if (!base.DAILY_ALL) base.DAILY_ALL = [];
+      if (!base.DAILY_W7) base.DAILY_W7 = [];
+      if (!base.lost) base.lost = (80.5 - base.lastW.kg).toFixed(1);
+      if (!base.lostPct) base.lostPct = ((80.5 - base.lastW.kg) / 80.5 * 100).toFixed(1);
+      if (!base.currentWeek) base.currentWeek = 7;
+      console.log('[Stride] Using', liveData ? 'LIVE' : 'FALLBACK', '| today:', base.today?.cal, 'cal | weight:', base.lastW?.kg, 'kg | W7 days:', base.DAILY_W7?.length);
+      const insights = computeInsights(base);
+      const popularFoods = computePopularFoods(base.FOOD_LOG || {});
+      return { ...base, insights, POPULAR_FOODS: popularFoods };
+    } catch (e) {
+      console.error('[Stride] Data error:', e);
+      const fb = buildFallbackData();
+      return { ...fb, insights: { streak: 0, velocity: "0.8", proteinRate: 0, mostActive: {day:"Sun",avg:0} }, POPULAR_FOODS: [] };
+    }
   }, [liveData]);
 
   const notifications = useMemo(() => [
