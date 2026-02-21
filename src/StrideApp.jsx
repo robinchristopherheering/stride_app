@@ -334,6 +334,66 @@ function computeInsights(data) {
   return { streak, velocity, proteinRate, mostActive };
 }
 
+// GYM & SLEEP TRACKING (localStorage)
+function useGymSleep() {
+  const KEY = 'stride_gym_sleep';
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
+  const [data, setData] = useState(load);
+  const save = (d) => { setData(d); localStorage.setItem(KEY, JSON.stringify(d)); };
+  const getDay = (dateStr) => data[dateStr] || { gym: false, sleep: 0 };
+  const setGym = (dateStr, val) => { const d = {...data}; d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0}), gym: val}; save(d); };
+  const setSleep = (dateStr, val) => { const d = {...data}; d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0}), sleep: parseFloat(val)||0}; save(d); };
+  return { getDay, setGym, setSleep, data };
+}
+
+function GymSleepEditor({ days, gymSleep, currentWeek }) {
+  const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmt = (d) => { const dt = new Date(d+"T00:00:00"); return `${m[dt.getMonth()]} ${dt.getDate()}`; };
+  // Build date list for current week (Mon-Sun)
+  const today = new Date();
+  const dayOfWeek = today.getDay() || 7; // Mon=1, Sun=7
+  const weekDates = [];
+  for (let i = 1; i <= 7; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - dayOfWeek + i);
+    if (d <= today) weekDates.push(d.toISOString().split('T')[0]);
+  }
+
+  return (
+    <div style={{display:'grid',gridTemplateColumns:`repeat(${weekDates.length},1fr)`,gap:6}}>
+      {weekDates.map(dateStr => {
+        const dayData = gymSleep.getDay(dateStr);
+        const dow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(dateStr+"T00:00:00").getDay()];
+        const isToday = dateStr === today.toISOString().split('T')[0];
+        return (
+          <div key={dateStr} style={{padding:'10px 6px',borderRadius:12,background:isToday?C.mintSoft:'rgba(255,255,255,0.02)',
+            border:`1px solid ${isToday?C.mintMed:'rgba(255,255,255,0.04)'}`,textAlign:'center'}}>
+            <div style={{fontSize:11,fontWeight:700,color:isToday?C.mint:C.text2,marginBottom:6}}>{dow}</div>
+            <div style={{fontSize:9,color:C.text3,marginBottom:8}}>{fmt(dateStr)}</div>
+            <div style={{marginBottom:8}}>
+              <div style={{fontSize:8,color:C.text3,textTransform:'uppercase',letterSpacing:0.5,marginBottom:3}}>Gym</div>
+              <div onClick={()=>gymSleep.setGym(dateStr,!dayData.gym)}
+                style={{width:28,height:28,borderRadius:8,margin:'0 auto',display:'flex',alignItems:'center',justifyContent:'center',
+                  cursor:'pointer',background:dayData.gym?C.mint:'rgba(255,255,255,0.05)',
+                  color:dayData.gym?C.bg:C.text3,fontSize:14,fontWeight:700,transition:'all .2s'}}>
+                {dayData.gym ? '✓' : '–'}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:8,color:C.text3,textTransform:'uppercase',letterSpacing:0.5,marginBottom:3}}>Sleep</div>
+              <input type="number" min="0" max="12" step="0.5" value={dayData.sleep||''} placeholder="h"
+                onChange={e=>gymSleep.setSleep(dateStr,e.target.value)}
+                style={{width:36,padding:'4px 2px',borderRadius:6,border:`1px solid rgba(255,255,255,0.1)`,
+                  background:'rgba(255,255,255,0.04)',color:C.text,fontSize:12,textAlign:'center',
+                  fontFamily:'var(--mono)',outline:'none'}}/>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // HOOKS
 function useInView(threshold = 0.15) {
   const ref = useRef(null);
@@ -793,7 +853,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
       </AnimCard></div>);
 }
 
-function ActivityTab({vis,isD,isT,isM,D}) {
+function ActivityTab({vis,isD,isT,isM,D,gymSleep}) {
   const [period, setPeriod] = useState("today");
   const [dayIdx, setDayIdx] = useState(D.DAILY_W7.length-1);
   const localVis = useAnimateOnMount(`${period}-${dayIdx}`);
@@ -829,7 +889,7 @@ function ActivityTab({vis,isD,isT,isM,D}) {
         <div style={{textAlign:'center',marginTop:14}}><CountUp to={(D.W_STEPS[D.W_STEPS.length-1]||{v:0}).v} style={{fontSize:24}} color={C.blue}/><span style={{fontSize:11,color:C.text3,marginLeft:6}}>avg W{D.currentWeek}</span></div>
       </AnimCard>
       <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
-        <Lbl>Week 7 — Daily Activity</Lbl>
+        <Lbl>Week {D.currentWeek} — Daily Activity</Lbl>
         <div style={{display:'grid',gridTemplateColumns:isD?'repeat(4,1fr)':isT?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
           {D.DAILY_W7.map((dd,i)=>{const isToday=i===D.DAILY_W7.length-1;
             return (<div key={i} style={{padding:'16px 14px',borderRadius:16,background:isToday?C.mintSoft:'rgba(255,255,255,0.02)',border:`1px solid ${isToday?C.mintMed:'transparent'}`,
@@ -846,6 +906,11 @@ function ActivityTab({vis,isD,isT,isM,D}) {
                 <div><div style={{fontSize:9,color:C.text3}}>Gym</div><div style={{color:dd.gym?C.mint:C.text3,display:'flex',alignItems:'center',marginTop:2}}>{dd.gym?I.check:I.x}</div></div>
               </div></div>);})}
         </div>
+      </AnimCard>
+      <AnimCard delay={0.2} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
+        <Lbl>Log Gym & Sleep</Lbl>
+        <div style={{fontSize:11,color:C.text3,marginBottom:10}}>Tap to toggle gym days, enter sleep hours</div>
+        <GymSleepEditor days={D.DAILY_W7} gymSleep={gymSleep} currentWeek={D.currentWeek}/>
       </AnimCard></div>);
 }
 
@@ -1084,6 +1149,7 @@ export default function Stride() {
   const [tab, setTab] = useState("overview");
   const [ww, setWw] = useState(typeof window!=="undefined"?window.innerWidth:1200);
   const [navCollapsed, setNavCollapsed] = useState(false);
+  const gymSleep = useGymSleep();
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifRead, setNotifRead] = useState({});
   const [syncing, setSyncing] = useState(false);
@@ -1121,11 +1187,16 @@ export default function Stride() {
       try {
         const todayStr = new Date().toISOString().split('T')[0];
         console.log('[Stride] Proxy: fetching today...');
-        const [todayResp, weightResp] = await Promise.all([
+        const [todayResp, weightResp, stepsResp] = await Promise.all([
           fetch(`${PROXY_URL}/api/diary?date=${todayStr}`).catch(() => null),
           fetch(`${PROXY_URL}/api/weight`).catch(() => null),
+          fetch(`${PROXY_URL}/api/steps?date=${todayStr}`).catch(() => null),
         ]);
         if (todayResp?.ok) todayLive = await todayResp.json();
+        if (stepsResp?.ok) {
+          const sd = await stepsResp.json();
+          if (sd?.steps > 0) { todayLive = todayLive || {}; todayLive.steps = sd.steps; }
+        }
         if (weightResp?.ok) {
           const wd = await weightResp.json();
           if (wd?.entries?.length > 0) {
@@ -1189,6 +1260,26 @@ export default function Stride() {
       if (!base.lost) base.lost = (80.5 - base.lastW.kg).toFixed(1);
       if (!base.lostPct) base.lostPct = ((80.5 - base.lastW.kg) / 80.5 * 100).toFixed(1);
       if (!base.currentWeek) base.currentWeek = 7;
+      // Overlay gym/sleep from localStorage
+      const gsData = gymSleep.data || {};
+      const today = new Date();
+      const dayOfWeek = today.getDay() || 7;
+      base.DAILY_W7.forEach((d, i) => {
+        const dt = new Date(today);
+        dt.setDate(today.getDate() - dayOfWeek + 1 + i); // Mon=0 offset
+        const dateStr = dt.toISOString().split('T')[0];
+        const gs = gsData[dateStr];
+        if (gs) { d.gym = gs.gym || false; d.sleep = gs.sleep || 0; }
+      });
+      base.DAILY_ALL.forEach(d => {
+        // Match by dt format "Mon DD" — find the date string
+        Object.keys(gsData).forEach(dateStr => {
+          const mm = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+          const dd = new Date(dateStr+"T00:00:00");
+          const fmtD = `${mm[dd.getMonth()]} ${dd.getDate()}`;
+          if (d.dt === fmtD) { d.gym = gsData[dateStr].gym || d.gym; d.sleep = gsData[dateStr].sleep || d.sleep; }
+        });
+      });
       console.log('[Stride] Using', liveData ? 'LIVE' : 'FALLBACK', '| today:', base.today?.cal, 'cal | weight:', base.lastW?.kg, 'kg | W7 days:', base.DAILY_W7?.length);
       const insights = computeInsights(base);
       const popularFoods = computePopularFoods(base.FOOD_LOG || {});
@@ -1198,7 +1289,7 @@ export default function Stride() {
       const fb = buildFallbackData();
       return { ...fb, insights: { streak: 0, velocity: "0.8", proteinRate: 0, mostActive: {day:"Sun",avg:0} }, POPULAR_FOODS: [] };
     }
-  }, [liveData]);
+  }, [liveData, gymSleep.data]);
 
   const notifications = useMemo(() => [
     {id:"n1",title:"Fiber Gap",tip:`You're at ${D.today.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action",tab:"coach"},
@@ -1261,7 +1352,7 @@ export default function Stride() {
   const isM=ww<768, isT=ww>=768&&ww<1024, isD=ww>=1024;
   const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"targets",icon:I.target,label:"Targets"},{id:"coach",icon:I.sparkle,label:"AI Coach"}];
   const renderTab = () => {
-    const p = {vis,isD,isT,isM,D};
+    const p = {vis,isD,isT,isM,D,gymSleep};
     switch(tab) {
       case "overview": return <OverviewTab {...p}/>;
       case "nutrition": return <NutritionTab {...p}/>;
