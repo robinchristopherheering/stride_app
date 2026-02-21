@@ -99,8 +99,88 @@ const TIPS = {
   protein: "130–160g daily to preserve muscle during a caloric deficit. Protein is the most important macro for body composition.",
 };
 
+// Transform real-time proxy data → app format
+function transformProxyData(days, weightEntries, todayStr) {
+  if (!days || days.length === 0) return null;
+  const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmt = (iso) => { const d=new Date(iso+"T00:00:00"); return `${m[d.getMonth()]} ${d.getDate()}`; };
+  const programStart = new Date("2026-01-05");
+  const getWeek = (iso) => Math.floor((new Date(iso+"T00:00:00") - programStart) / (7*86400000)) + 1;
+  const getDow = (iso) => ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(iso+"T00:00:00").getDay()];
+  const todayWeek = getWeek(todayStr);
+
+  // Build daily data
+  const dailyAll = days.filter(d => (d.calories||0) > 0).map(d => ({
+    w: getWeek(d.date), d: getDow(d.date), dt: fmt(d.date),
+    cal: d.calories||0, pro: d.protein||0, carb: d.carbs||0, fat: d.fat||0,
+    fib: d.fiber||0, sug: d.sugar||0, steps: d.steps||0,
+    comp: computeSimpleCompliance(d), flat: computeSimpleCompliance(d) - 2,
+    gym: false, sleep: 0,
+  }));
+
+  const dailyW7 = dailyAll.filter(d => d.w === todayWeek);
+
+  // Weights — use entries from proxy, fallback to hardcoded
+  let weights = weightEntries.map(w => ({ week: getWeek(w.date), kg: w.weight, date: fmt(w.date) }));
+  if (weights.length === 0 || weights[0].week !== 0) {
+    weights.unshift({ week: 0, kg: 80.5, date: "Jan 5" });
+  }
+  const useWeights = weights.length > 1 ? weights : FALLBACK_WEIGHTS;
+
+  // Weekly aggregates
+  const weekMap = {};
+  dailyAll.forEach(d => { if (!weekMap[d.w]) weekMap[d.w] = []; weekMap[d.w].push(d); });
+  const avg = (arr, k) => Math.round(arr.reduce((a,d) => a+(d[k]||0), 0) / arr.length);
+  const wNutr = Object.entries(weekMap).map(([w, days]) => ({
+    w: parseInt(w), cal: avg(days,'cal'), pro: avg(days,'pro'), carb: avg(days,'carb'),
+    fat: avg(days,'fat'), fib: avg(days,'fib'), sug: avg(days,'sug'),
+    calF: avg(days,'cal') >= 1200 && avg(days,'cal') <= 1500 ? "On target" : avg(days,'cal') < 1200 ? "Low" : "High",
+    fibF: avg(days,'fib') >= 20 ? "On target" : "Low",
+    comp: avg(days,'comp'), flat: avg(days,'comp') - 2,
+  })).sort((a,b) => a.w - b.w);
+
+  // Steps by week
+  const wSteps = Object.entries(weekMap).map(([w, days]) => {
+    const stepDays = days.filter(d => (d.steps||0) > 0);
+    return stepDays.length ? { w: parseInt(w), v: avg(stepDays, 'steps') } : null;
+  }).filter(Boolean);
+
+  // Averages
+  const logged = dailyAll.filter(d => d.cal > 0);
+  const n = logged.length || 1;
+  const averages = {
+    cal: Math.round(logged.reduce((a,d) => a+d.cal, 0) / n),
+    pro: Math.round(logged.reduce((a,d) => a+d.pro, 0) / n),
+    carb: Math.round(logged.reduce((a,d) => a+d.carb, 0) / n),
+    fat: Math.round(logged.reduce((a,d) => a+d.fat, 0) / n),
+    fib: Math.round(logged.reduce((a,d) => a+d.fib, 0) / n),
+    sug: Math.round(logged.reduce((a,d) => a+d.sug, 0) / n),
+  };
+
+  const lastWeight = useWeights[useWeights.length - 1] || { kg: 80.5, week: 0 };
+  const totalLost = (80.5 - lastWeight.kg).toFixed(1);
+  const lostPct = ((80.5 - lastWeight.kg) / 80.5 * 100).toFixed(1);
+  const todayData = dailyW7[dailyW7.length - 1] || dailyAll[dailyAll.length - 1] || FALLBACK_DAILY_W7[FALLBACK_DAILY_W7.length-1];
+
+  return {
+    WEIGHTS: useWeights, W_STEPS: wSteps, W_NUTR: wNutr,
+    DAILY_ALL: dailyAll, DAILY_W7: dailyW7,
+    AVGS: averages, FOOD_LOG: FALLBACK_FOOD_LOG,
+    today: todayData, lastW: lastWeight,
+    lost: totalLost, lostPct: lostPct,
+    startKg: 80.5, currentWeek: todayWeek,
+  };
+}
+
+function computeSimpleCompliance(d) {
+  const calScore = Math.min(100, ((d.calories||0) / 1350) * 100);
+  const proScore = Math.min(100, ((d.protein||0) / 140) * 100);
+  const fibScore = Math.min(100, ((d.fiber||0) / 20) * 100);
+  return Math.round((calScore + proScore + fibScore) / 3);
+}
+
 // Transform JSON from sync → app format
-function transformSyncData(json) {
+function transformSyncData(json, todayLive) {
   if (!json || !json.daily || json.daily.length === 0) return null;
   const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const fmt = (iso) => { const d=new Date(iso+"T00:00:00"); return `${m[d.getMonth()]} ${d.getDate()}`; };
@@ -154,6 +234,41 @@ function transformSyncData(json) {
     fat: avgs.fat||0, fib: avgs.fiber||0, sug: avgs.sugar||0,
   };
 
+  // Merge live proxy data for today
+  if (todayLive && todayLive.calories > 0) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayFmt = fmt(todayStr);
+    const todayDow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date().getDay()];
+    const liveDay = {
+      w: currentWeek, d: todayDow, dt: todayFmt, day: todayDow,
+      cal: todayLive.calories, pro: todayLive.protein||0, carb: todayLive.carbs||0,
+      fat: todayLive.fat||0, fib: todayLive.fiber||0, sug: todayLive.sugar||0,
+      steps: todayLive.steps||0, comp: 0, flat: 0, gym: false, sleep: 0, wt: null,
+    };
+    const calS = Math.min(100, (liveDay.cal / 1350) * 100);
+    const proS = Math.min(100, (liveDay.pro / 140) * 100);
+    const fibS = Math.min(100, (liveDay.fib / 20) * 100);
+    liveDay.comp = Math.round((calS + proS + fibS) / 3);
+    liveDay.flat = Math.max(0, liveDay.comp - 2);
+    const todayIdxW7 = dailyW7.findIndex(dd => dd.dt === todayFmt);
+    if (todayIdxW7 >= 0) dailyW7[todayIdxW7] = {...dailyW7[todayIdxW7], ...liveDay};
+    else dailyW7.push(liveDay);
+    const todayIdxAll = dailyAll.findIndex(dd => dd.dt === todayFmt);
+    if (todayIdxAll >= 0) dailyAll[todayIdxAll] = {...dailyAll[todayIdxAll], ...liveDay};
+    else dailyAll.push(liveDay);
+  }
+
+  // Merge weight from proxy
+  if (todayLive?._weightEntries?.length > 0) {
+    const proxyW = todayLive._weightEntries.map(we => ({
+      week: Math.max(1, Math.floor((new Date(we.date+"T00:00:00") - new Date("2026-01-05T00:00:00")) / (7*86400000)) + 1),
+      kg: we.weight, date: fmt(we.date),
+    }));
+    useWeights.length = 0;
+    useWeights.push({ week: 0, kg: json.meta?.startWeight || 80.5, date: fmt("2026-01-05") });
+    proxyW.forEach(we => useWeights.push(we));
+  }
+
   // Derived
   const lastWeight = useWeights[useWeights.length - 1] || { kg: 80.5, week: 0 };
   const startKg = json.meta?.startWeight || 80.5;
@@ -162,9 +277,9 @@ function transformSyncData(json) {
   const todayData = dailyW7[dailyW7.length - 1] || dailyAll[dailyAll.length - 1] || FALLBACK_DAILY_W7[FALLBACK_DAILY_W7.length-1];
 
   return {
-    WEIGHTS: useWeights, W_STEPS: wSteps, W_NUTR: wNutr,
+    WEIGHTS: useWeights, W_STEPS: wSteps.length > 0 ? wSteps : [{w:currentWeek,v:0}], W_NUTR: wNutr,
     DAILY_ALL: dailyAll, DAILY_W7: dailyW7,
-    AVGS: averages, FOOD_LOG: FALLBACK_FOOD_LOG, // food log still from fallback until sync supports it
+    AVGS: averages, FOOD_LOG: {},
     today: todayData, lastW: lastWeight,
     lost: totalLost, lostPct: lostPct,
     startKg, currentWeek,
@@ -593,9 +708,9 @@ function NutritionTab({vis,isD,isT,isM,D}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const d=period==="day"?getPeriod("day",dayIdx,D):getPeriod(period,0,D);
   const isAvg=period!=="today"&&period!=="day";
-  const dateLabel=period==="today"?"Feb 19":period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Feb 19"):period==="thisWeek"?"Week 7 Avg":period==="lastWeek"?"Week 6 Avg":"Month Avg";
+  const dateLabel=period==="today"?(D.today?.dt||"Today"):period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Today"):period==="thisWeek"?"Week 7 Avg":period==="lastWeek"?"Week 6 Avg":"Month Avg";
   const macros=[{name:"Protein",v:d.pro*4,c:C.mint},{name:"Carbs",v:d.carb*4,c:C.blue},{name:"Fat",v:d.fat*9,c:C.orange}];
-  const foodDate=period==="today"?"Feb 19":period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Feb 19"):null;
+  const foodDate=period==="today"?(D.today?.dt||null):period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Today"):null;
   const dayMeals=foodDate?D.FOOD_LOG[foodDate]:null;
   const mealOrder=[{key:"breakfast",label:"Breakfast",icon:"☀"},{key:"lunch",label:"Lunch",icon:"☕"},{key:"snack",label:"Snack",icon:"🍎"},{key:"dinner",label:"Dinner",icon:"🌙"}];
   return (
@@ -711,12 +826,12 @@ function ActivityTab({vis,isD,isT,isM,D}) {
       <AnimCard delay={0.1}>
         <Lbl>Weekly Steps Trend</Lbl>
         <Bars data={D.W_STEPS.map(s=>({v:s.v,label:`W${s.w}`}))} max={12000} color={C.blue} activeIdx={D.W_STEPS.length-1} visible={v}/>
-        <div style={{textAlign:'center',marginTop:14}}><CountUp to={D.W_STEPS[D.W_STEPS.length-1].v} style={{fontSize:24}} color={C.blue}/><span style={{fontSize:11,color:C.text3,marginLeft:6}}>avg W6</span></div>
+        <div style={{textAlign:'center',marginTop:14}}><CountUp to={(D.W_STEPS[D.W_STEPS.length-1]||{v:0}).v} style={{fontSize:24}} color={C.blue}/><span style={{fontSize:11,color:C.text3,marginLeft:6}}>avg W{D.currentWeek}</span></div>
       </AnimCard>
       <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Week 7 — Daily Activity</Lbl>
         <div style={{display:'grid',gridTemplateColumns:isD?'repeat(4,1fr)':isT?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
-          {D.DAILY_W7.map((dd,i)=>{const isToday=dd.dt==="Feb 19";
+          {D.DAILY_W7.map((dd,i)=>{const isToday=i===D.DAILY_W7.length-1;
             return (<div key={i} style={{padding:'16px 14px',borderRadius:16,background:isToday?C.mintSoft:'rgba(255,255,255,0.02)',border:`1px solid ${isToday?C.mintMed:'transparent'}`,
               cursor:'pointer',opacity:v?1:0,transform:v?'translateY(0)':'translateY(12px)',transition:`all .4s ease ${i*.08}s`}}
               onMouseEnter={e=>{if(!isToday){e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor=C.cardBorderHover;}}}
@@ -801,7 +916,7 @@ function TargetsTab({vis,isD,isT,D}) {
       <AnimCard delay={0.25} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Week 7 — Daily Breakdown</Lbl>
         <div style={{display:'flex',flexDirection:'column',gap:6}}>
-          {D.DAILY_W7.map((d,i)=>{const isT2=d.dt==="Feb 19";
+          {D.DAILY_W7.map((d,i)=>{const isT2=i===D.DAILY_W7.length-1;
             return (<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:isT2?C.mintSoft:'rgba(255,255,255,0.02)',border:`1px solid ${isT2?C.mintMed:'transparent'}`,
               cursor:'pointer',opacity:vis?1:0,transform:vis?'translateX(0)':'translateX(-10px)',transition:`all .35s ease ${i*.06}s`}}
               onMouseEnter={e=>{if(!isT2){e.currentTarget.style.background='rgba(255,255,255,0.04)';}}}
@@ -980,34 +1095,59 @@ export default function Stride() {
   useEffect(()=>{const h=()=>setWw(window.innerWidth);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);},[]);
 
   // DATA LOADER
+  // CONFIGURATION — Set your Cloudflare Worker URL after deploying
+  const PROXY_URL = localStorage.getItem('stride_proxy_url') || '';
+
   const fetchData = useCallback(async () => {
     setSyncing(true);
+    let jsonData = null;
+    let todayLive = null;
+
+    // Step 1: Load historical data from sync JSON
     try {
       const base = window.location.pathname.replace(/\/$/,'');
       const url = `${base}/data/stride-data.json?t=${Date.now()}`;
-      console.log('[Stride] Fetching:', url);
+      console.log('[Stride] Loading sync JSON...');
       const resp = await fetch(url);
       if (resp.ok) {
-        const json = await resp.json();
-        console.log('[Stride] JSON loaded:', json?.daily?.length || 0, 'days, lastSync:', json?.meta?.lastSync);
-        if (json && json.daily && Array.isArray(json.daily) && json.daily.length > 0) {
-          const hasRealData = json.daily.some(d => (d.calories || 0) > 0);
-          console.log('[Stride] Has real data:', hasRealData);
-          if (hasRealData) {
-            const transformed = transformSyncData(json);
-            if (transformed && transformed.DAILY_W7 && transformed.DAILY_W7.length > 0) {
-              setLiveData(transformed);
-              console.log('[Stride] Live data set:', transformed.DAILY_W7.length, 'days this week');
-            } else {
-              console.log('[Stride] Transform returned no current week data, using fallback');
-            }
+        jsonData = await resp.json();
+        console.log('[Stride] JSON:', jsonData?.daily?.length || 0, 'days');
+        if (jsonData?.meta?.lastSync) setLastSync(jsonData.meta.lastSync);
+      }
+    } catch (e) { console.log('[Stride] JSON error:', e.message); }
+
+    // Step 2: Fetch TODAY live from proxy (fast — 1-2 requests)
+    if (PROXY_URL) {
+      try {
+        const todayStr = new Date().toISOString().split('T')[0];
+        console.log('[Stride] Proxy: fetching today...');
+        const [todayResp, weightResp] = await Promise.all([
+          fetch(`${PROXY_URL}/api/diary?date=${todayStr}`).catch(() => null),
+          fetch(`${PROXY_URL}/api/weight`).catch(() => null),
+        ]);
+        if (todayResp?.ok) todayLive = await todayResp.json();
+        if (weightResp?.ok) {
+          const wd = await weightResp.json();
+          if (wd?.entries?.length > 0) {
+            todayLive = todayLive || {};
+            todayLive._weightEntries = wd.entries;
           }
         }
-        if (json?.meta?.lastSync) setLastSync(json.meta.lastSync);
-      } else {
-        console.log('[Stride] Fetch failed:', resp.status);
+        if (todayLive?.calories > 0) {
+          setLastSync(new Date().toISOString());
+          console.log('[Stride] Today live:', todayLive.calories, 'cal,', todayLive.protein, 'g pro');
+        }
+      } catch (e) { console.log('[Stride] Proxy error:', e.message); }
+    }
+
+    // Step 3: Transform and merge
+    if (jsonData?.daily?.length > 0 && jsonData.daily.some(d => (d.calories||0) > 0)) {
+      const transformed = transformSyncData(jsonData, todayLive);
+      if (transformed && (transformed.DAILY_W7?.length > 0 || transformed.DAILY_ALL?.length > 0)) {
+        setLiveData(transformed);
+        console.log('[Stride] Data ready:', transformed.DAILY_W7?.length, 'W7 days, weight:', transformed.lastW?.kg);
       }
-    } catch (e) { console.log('[Stride] Fetch error:', e.message); }
+    }
     setSyncing(false);
   }, []);
   useEffect(() => { fetchData(); }, [fetchData]);
