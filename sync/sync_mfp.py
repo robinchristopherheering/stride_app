@@ -482,8 +482,8 @@ def main():
 
     # Determine date range to sync
     today = date.today()
-    # Sync from program start to yesterday (today may be incomplete)
-    sync_end = today - timedelta(days=1)
+    # Sync up to and including today (for near-real-time updates)
+    sync_end = today
     sync_start = PROGRAM_START
 
     # If we have existing data, only sync recent days (last 7) for speed
