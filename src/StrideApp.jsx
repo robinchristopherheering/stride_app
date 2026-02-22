@@ -789,7 +789,7 @@ function getPeriod(period, dayIdx=0, D) {
   return D.today;
 }
 // TAB RENDERERS
-function OverviewTab({vis,isD,isT,isM,D,setInfoModal}) {
+function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings}) {
   const [period, setPeriod] = useState("today");
   const [dayIdx, setDayIdx] = useState(D.DAILY_W7.length-1);
   const localVis = useAnimateOnMount(`${period}-${dayIdx}`);
