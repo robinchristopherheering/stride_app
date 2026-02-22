@@ -84,15 +84,8 @@ const FALLBACK_DAILY_W7 = [
   {day:"Thu",dt:"Feb 19",cal:1208,pro:163,carb:70,fat:30,fib:8,sug:29,comp:76,flat:74,steps:5903,sleep:6.5,gym:false,wt:null},
 ];
 
-// FOOD LOG fallback
-const FALLBACK_FOOD_LOG = {
-  "Feb 19": {
-    breakfast: [{name:"Greek Yogurt 0% Fat",amount:"200g",cal:118,pro:20,carb:8,fat:0},{name:"Almonds",amount:"20g",cal:116,pro:4,carb:4,fat:10}],
-    lunch: [{name:"Grilled Chicken Breast",amount:"200g",cal:330,pro:62,carb:0,fat:7},{name:"Brown Rice",amount:"100g cooked",cal:112,pro:2.6,carb:24,fat:0.9},{name:"Mixed Salad w/ Olive Oil",amount:"1 bowl",cal:185,pro:4,carb:12,fat:14}],
-    snack: [{name:"Whey Protein Shake",amount:"1 scoop",cal:120,pro:24,carb:3,fat:1},{name:"Apple",amount:"1 medium",cal:95,pro:0.5,carb:25,fat:0.3}],
-    dinner: [{name:"Cottage Cheese",amount:"150g",cal:148,pro:18,carb:6,fat:5}],
-  },
-};
+// FOOD LOG — no fallback; populated from real MFP data via proxy
+const FALLBACK_FOOD_LOG = {};
 
 // Tooltip definitions
 const TIPS = {
@@ -273,6 +266,15 @@ function transformSyncData(json, todayLive) {
     finalWeights = [{ week: 0, kg: json.meta?.startWeight || 80.5, date: fmt("2026-01-05") }, ...proxyW];
   }
 
+  // Build FOOD_LOG from today's live proxy meals data
+  const foodLog = {};
+  if (todayLive?.meals) {
+    const todayStr = localDateStr();
+    const meals = todayLive.meals;
+    const hasFoods = ['breakfast','lunch','dinner','snack'].some(k => meals[k]?.length > 0);
+    if (hasFoods) foodLog[todayStr] = meals;
+  }
+
   // Derived
   const lastWeight = finalWeights[finalWeights.length - 1] || { kg: 80.5, week: 0 };
   const startKg = json.meta?.startWeight || 80.5;
@@ -283,7 +285,7 @@ function transformSyncData(json, todayLive) {
   return {
     WEIGHTS: finalWeights, W_STEPS: wSteps.length > 0 ? wSteps : [{w:currentWeek,v:0}], W_NUTR: wNutr,
     DAILY_ALL: dailyAll, DAILY_W7: dailyW7,
-    AVGS: averages, FOOD_LOG: {},
+    AVGS: averages, FOOD_LOG: foodLog,
     today: todayData, lastW: lastWeight,
     lost: totalLost, lostPct: lostPct,
     startKg, currentWeek,
@@ -309,15 +311,25 @@ function buildFallbackData() {
   };
 }
 
-// Compute popular foods from food log
-function computePopularFoods(foodLog) {
-  const allFoods = Object.values(foodLog).flatMap(m => [...(m.breakfast||[]),...(m.lunch||[]),...(m.snack||[]),...(m.dinner||[])]);
+// Compute popular foods from food log, optionally filtered by date range
+// foodLog is keyed by ISO date string "2026-02-19" → {breakfast:[], lunch:[], ...}
+function computePopularFoods(foodLog, fromDate, toDate) {
+  const entries = Object.entries(foodLog || {});
+  const filtered = fromDate && toDate
+    ? entries.filter(([date]) => date >= fromDate && date <= toDate)
+    : entries;
+  const allFoods = filtered.flatMap(([, m]) => [...(m.breakfast||[]),...(m.lunch||[]),...(m.snack||[]),...(m.dinner||[])]);
   const freq = {};
   allFoods.forEach(f => {
-    if (!freq[f.name]) freq[f.name] = {...f,count:0,totalCal:0,totalPro:0};
-    freq[f.name].count++; freq[f.name].totalCal+=f.cal; freq[f.name].totalPro+=f.pro;
+    const key = f.name.toLowerCase().trim();
+    if (!freq[key]) freq[key] = {name:f.name,count:0,totalCal:0,totalPro:0,totalCarb:0,totalFat:0};
+    freq[key].count++; freq[key].totalCal+=f.cal||0; freq[key].totalPro+=f.pro||0; freq[key].totalCarb+=f.carb||0; freq[key].totalFat+=f.fat||0;
   });
-  return Object.values(freq).sort((a,b)=>b.count-a.count).slice(0,8).map(f=>({...f,avgCal:Math.round(f.totalCal/f.count),avgPro:Math.round(f.totalPro/f.count)}));
+  return Object.values(freq).sort((a,b)=>b.count-a.count).slice(0,10).map(f=>({
+    ...f, avgCal:Math.round(f.totalCal/f.count), avgPro:Math.round(f.totalPro/f.count),
+    avgCarb:Math.round(f.totalCarb/f.count), avgFat:Math.round(f.totalFat/f.count),
+    cal:Math.round(f.totalCal/f.count), pro:Math.round(f.totalPro/f.count),
+  }));
 }
 
 // Compute insights from data
@@ -406,8 +418,8 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
         );
       })}
     </div>
-    {editDate && <div onClick={()=>setEditDate(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',backdropFilter:'blur(6px)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,maxWidth:340,width:'100%',padding:24}}>
+    {editDate && <div onClick={()=>setEditDate(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#1a1e24",border:`1px solid ${C.border}`,borderRadius:16,maxWidth:340,width:'100%',padding:24}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
           <span style={{fontSize:16,fontWeight:700,color:C.mint}}>{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(editDate+"T00:00:00").getDay()]} — {fmt(editDate)}</span>
           <span onClick={()=>setEditDate(null)} style={{cursor:'pointer',fontSize:20,color:C.text3,padding:'4px 8px'}}>✕</span>
@@ -536,8 +548,8 @@ function InfoModal({id, onClose}) {
   const info = INFO_CONTENT[id];
   if (!info) return null;
   return (
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',backdropFilter:'blur(6px)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,maxWidth:420,width:'100%',maxHeight:'80vh',overflow:'auto',padding:24}}>
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:"#1a1e24",border:`1px solid ${C.border}`,borderRadius:16,maxWidth:420,width:'100%',maxHeight:'80vh',overflow:'auto',padding:24}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
           <span style={{fontSize:16,fontWeight:700,color:C.mint}}>{info.title}</span>
           <span onClick={onClose} style={{cursor:'pointer',fontSize:20,color:C.text3,padding:'4px 8px'}}>✕</span>
@@ -798,106 +810,242 @@ function Lbl({children,tip,modalId,onModal}){return <div style={{fontSize:10,col
 
 function DateNav({D, value, onChange}) {
   const [showPicker, setShowPicker] = useState(false);
-  const [calMonth, setCalMonth] = useState(()=>{const d=new Date();return{y:d.getFullYear(),m:d.getMonth()};});
-  const [rangeStart, setRangeStart] = useState(null);
-  const startDate = '2026-01-05';
-  const todayDate = localDateStr();
+  const [viewMonth, setViewMonth] = useState(()=>{const d=new Date();return{y:d.getFullYear(),m:d.getMonth()};});
+  // Draft selection: what user is building before confirming
+  const [draft, setDraft] = useState(null); // null | {mode:'day',date} | {mode:'range',from,to} | {mode:'range-partial',from}
+  const MIN = '2026-01-05';
+  const TODAY = localDateStr();
   const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const MNF = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const DN = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const fmtDisplay = (ds) => {const d=new Date(ds+'T12:00:00');return `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]}, ${d.getDate()} ${MN[d.getMonth()]}`;};
-  const fmtShort = (ds) => {const d=new Date(ds+'T12:00:00');return `${d.getDate()} ${MN[d.getMonth()]}`;};
-  const navigate = (dir) => {
-    if (value.mode !== 'day') return;
-    const cur = new Date(value.date+'T12:00:00');
-    cur.setDate(cur.getDate() + dir);
-    const next = localDateStr(cur);
-    if (next < startDate || next > todayDate) return;
-    onChange({...value, date: next});
-  };
-  const isToday = value.date === todayDate;
-  const isRange = value.mode === 'range';
-  const rangeDays = isRange ? Math.round((new Date(value.to+'T12:00:00') - new Date(value.from+'T12:00:00'))/(86400000))+1 : 0;
-  const presets = [
-    {l:'Today',fn:()=>onChange({mode:'day',date:todayDate})},
-    {l:'Yesterday',fn:()=>{const y=new Date();y.setDate(y.getDate()-1);onChange({mode:'day',date:localDateStr(y)});}},
-    {l:'This Week',fn:()=>{const t=new Date();const dow=t.getDay()||7;const mon=new Date(t);mon.setDate(t.getDate()-dow+1);onChange({mode:'range',from:localDateStr(mon),to:todayDate});}},
-    {l:'Last Week',fn:()=>{const t=new Date();const dow=t.getDay()||7;const mon=new Date(t);mon.setDate(t.getDate()-dow-6);const sun=new Date(mon);sun.setDate(mon.getDate()+6);onChange({mode:'range',from:localDateStr(mon),to:localDateStr(sun)});}},
-    {l:'This Month',fn:()=>{const t=new Date();onChange({mode:'range',from:`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-01`,to:todayDate});}},
-    {l:'All Time',fn:()=>onChange({mode:'range',from:startDate,to:todayDate})},
-  ];
+  const DN = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+  const fmt = (ds) => {if(!ds)return'';const d=new Date(ds+'T12:00:00');return`${d.getDate()} ${MN[d.getMonth()]}`;};
+  const fmtFull = (ds) => {if(!ds)return'Today';const d=new Date(ds+'T12:00:00');return`${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]}, ${d.getDate()} ${MN[d.getMonth()]}`;};
+  const nav = (dir) => {if(value.mode!=='day')return;const c=new Date(value.date+'T12:00:00');c.setDate(c.getDate()+dir);const n=localDateStr(c);if(n>=MIN&&n<=TODAY)onChange({...value,date:n});};
+  const isToday = value.date===TODAY;
+  const isRange = value.mode==='range';
+  const rangeDays = isRange?Math.round((new Date(value.to+'T12:00:00')-new Date(value.from+'T12:00:00'))/86400000)+1:0;
+  // Calendar grid
   const calDays = useMemo(()=>{
-    const first = new Date(calMonth.y, calMonth.m, 1);
-    const startDow = (first.getDay()+6)%7;
-    const daysInMonth = new Date(calMonth.y, calMonth.m+1, 0).getDate();
-    const cells = [];
-    for (let i=0; i<startDow; i++) cells.push(null);
-    for (let d=1; d<=daysInMonth; d++) cells.push(d);
+    const first=new Date(viewMonth.y,viewMonth.m,1);
+    const startDow=(first.getDay()+6)%7;
+    const dim=new Date(viewMonth.y,viewMonth.m+1,0).getDate();
+    const cells=[];
+    for(let i=0;i<startDow;i++)cells.push(null);
+    for(let d=1;d<=dim;d++)cells.push(d);
     return cells;
-  },[calMonth]);
-  const calDateStr = (day) => day ? `${calMonth.y}-${String(calMonth.m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}` : null;
-  const isDis = (day) => {if(!day)return true;const ds=calDateStr(day);return ds<startDate||ds>todayDate;};
-  const isInR = (day) => {
-    if(!day)return false;const ds=calDateStr(day);
-    if(rangeStart){const a=ds>=rangeStart,b=ds<=rangeStart;return(rangeStart<ds&&ds<=todayDate)||(ds<rangeStart&&ds>=startDate)?(a||b):false;}
-    return isRange&&ds>=value.from&&ds<=value.to;
+  },[viewMonth]);
+  const ds = (day) => day?`${viewMonth.y}-${String(viewMonth.m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`:null;
+  const isDis = (day) => {if(!day)return true;const s=ds(day);return s<MIN||s>TODAY;};
+
+  // Hover state for range preview
+  const [hoverDate, setHoverDate] = useState(null);
+
+  // Determine visual state of each day based on draft (not committed value)
+  const dayState = (day) => {
+    if(!day)return'empty';
+    const s=ds(day);
+    if(isDis(day))return'disabled';
+    const ref = draft || value; // Use draft if exists, else current value
+    const isT = s===TODAY;
+    if(ref.mode==='day'){
+      if(ref.date===s)return isT?'selected-today':'selected';
+      if(isT)return'today';
+    }
+    if(ref.mode==='range'){
+      if(s===ref.from&&s===ref.to)return'selected';
+      if(s===ref.from)return'range-start';
+      if(s===ref.to)return'range-end';
+      if(s>ref.from&&s<ref.to)return'range-mid';
+      if(isT)return'today';
+    }
+    if(ref.mode==='range-partial'){
+      if(s===ref.from)return'range-start';
+      // Show hover preview
+      if(hoverDate&&!isDis(day)){
+        const lo=s<ref.from?s:ref.from, hi=s>ref.from?s:ref.from;
+        const hLo=hoverDate<ref.from?hoverDate:ref.from, hHi=hoverDate>ref.from?hoverDate:ref.from;
+        if(s===hoverDate&&s!==ref.from)return'range-end-preview';
+        if(s>hLo&&s<hHi&&s!==ref.from)return'range-mid-preview';
+      }
+      if(isT)return'today';
+    }
+    if(isT)return'today';
+    return'normal';
   };
-  const isEnd = (day) => {if(!day||!isRange||rangeStart)return false;const ds=calDateStr(day);return ds===value.from||ds===value.to;};
-  const isSel = (day) => {if(!day)return false;return value.mode==='day'&&calDateStr(day)===value.date;};
-  const handleDayClick = (day) => {
-    if(!day||isDis(day))return;const ds=calDateStr(day);
-    if(rangeStart){
-      const from=ds<rangeStart?ds:rangeStart,to=ds>rangeStart?ds:rangeStart;
-      onChange({mode:'range',from,to});setRangeStart(null);setShowPicker(false);
-    } else {onChange({mode:'day',date:ds});setShowPicker(false);}
+
+  const handleDay = (day) => {
+    if(!day||isDis(day))return;
+    const d=ds(day);
+    if(!draft){
+      // First tap: single day selection
+      setDraft({mode:'day',date:d});
+    } else if(draft.mode==='day'){
+      // Second tap on a different day: start building a range
+      if(d===draft.date){
+        // Tap same day again — no-op, already selected
+        return;
+      }
+      const from=d<draft.date?d:draft.date, to=d>draft.date?d:draft.date;
+      setDraft({mode:'range',from,to});
+    } else if(draft.mode==='range-partial'){
+      // Complete the range
+      const from=d<draft.from?d:draft.from, to=d>draft.from?d:draft.from;
+      setDraft({mode:'range',from,to});
+    } else if(draft.mode==='range'){
+      // Already have a complete range — restart with new single date
+      setDraft({mode:'day',date:d});
+    }
   };
-  const prevMonth = () => setCalMonth(p=>p.m===0?{y:p.y-1,m:11}:{y:p.y,m:p.m-1});
-  const nextMonth = () => {const n=calMonth.m===11?{y:calMonth.y+1,m:0}:{y:calMonth.y,m:calMonth.m+1};if(n.y<=2026)setCalMonth(n);};
-  const canPrev = !(calMonth.y===2026&&calMonth.m===0);
-  const canNext = !(calMonth.y===new Date().getFullYear()&&calMonth.m===new Date().getMonth());
+
+  const canConfirm = draft && (draft.mode==='day' || draft.mode==='range');
+  const draftChanged = draft && (
+    (draft.mode==='day' && (value.mode!=='day' || value.date!==draft.date)) ||
+    (draft.mode==='range' && (value.mode!=='range' || value.from!==draft.from || value.to!==draft.to))
+  );
+
+  const handleConfirm = () => {
+    if(!canConfirm)return;
+    if(draft.mode==='day')onChange({mode:'day',date:draft.date});
+    else onChange({mode:'range',from:draft.from,to:draft.to});
+    setDraft(null);setShowPicker(false);setHoverDate(null);
+  };
+  const handleCancel = () => {
+    setDraft(null);setShowPicker(false);setHoverDate(null);
+  };
+
+  const prevM=()=>setViewMonth(p=>p.m===0?{y:p.y-1,m:11}:{y:p.y,m:p.m-1});
+  const nextM=()=>{const n=viewMonth.m===11?{y:viewMonth.y+1,m:0}:{y:viewMonth.y,m:viewMonth.m+1};if(n.y<=2026)setViewMonth(n);};
+  const canPrev=!(viewMonth.y===2026&&viewMonth.m===0);
+  const canNext=!(viewMonth.y===new Date().getFullYear()&&viewMonth.m===new Date().getMonth());
+  const openPicker=()=>{
+    setShowPicker(true);
+    // Initialize draft from current value so user sees current selection
+    setDraft(value.mode==='range'?{mode:'range',from:value.from,to:value.to}:{mode:'day',date:value.date||TODAY});
+    setHoverDate(null);
+    const d=value.mode==='day'?value.date:(value.from||TODAY);
+    const dt=new Date(d+'T12:00:00');
+    setViewMonth({y:dt.getFullYear(),m:dt.getMonth()});
+  };
+  const presets = [
+    {l:'Today',v:{mode:'day',date:TODAY}},
+    {l:'Yesterday',v:(()=>{const y=new Date();y.setDate(y.getDate()-1);return{mode:'day',date:localDateStr(y)};})()},
+    {l:'This Week',v:(()=>{const t=new Date();const dow=t.getDay()||7;const m=new Date(t);m.setDate(t.getDate()-dow+1);return{mode:'range',from:localDateStr(m),to:TODAY};})()},
+    {l:'Last Week',v:(()=>{const t=new Date();const dow=t.getDay()||7;const m=new Date(t);m.setDate(t.getDate()-dow-6);const s=new Date(m);s.setDate(m.getDate()+6);return{mode:'range',from:localDateStr(m),to:localDateStr(s)};})()},
+    {l:'This Month',v:(()=>{const t=new Date();return{mode:'range',from:`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-01`,to:TODAY};})()},
+    {l:'All Time',v:{mode:'range',from:MIN,to:TODAY}},
+  ];
+  // Styles
+  const dayStyle = (state) => {
+    const base={textAlign:'center',padding:'8px 0',fontSize:12,cursor:'pointer',userSelect:'none',transition:'all .1s',borderRadius:8};
+    switch(state){
+      case'empty':return{...base,cursor:'default'};
+      case'disabled':return{...base,color:'rgba(255,255,255,0.08)',cursor:'default'};
+      case'selected':case'selected-today':return{...base,background:C.mint,color:C.bg,fontWeight:700,borderRadius:8};
+      case'today':return{...base,color:C.mint,fontWeight:700};
+      case'range-start':return{...base,background:C.mint,color:C.bg,fontWeight:700,borderRadius:'8px 0 0 8px'};
+      case'range-end':return{...base,background:C.mint,color:C.bg,fontWeight:700,borderRadius:'0 8px 8px 0'};
+      case'range-end-preview':return{...base,background:'rgba(184,255,87,0.35)',color:C.mint,fontWeight:700,borderRadius:'0 8px 8px 0',border:`1px dashed ${C.mint}`};
+      case'range-mid':return{...base,background:'rgba(184,255,87,0.15)',color:C.mint,fontWeight:500,borderRadius:0};
+      case'range-mid-preview':return{...base,background:'rgba(184,255,87,0.08)',color:'rgba(184,255,87,0.6)',fontWeight:500,borderRadius:0};
+      default:return{...base,color:C.text,fontWeight:400};
+    }
+  };
+
+  // Summary line inside the picker showing what's selected in draft
+  const draftSummary = () => {
+    if(!draft)return null;
+    if(draft.mode==='day')return <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+      <span style={{color:C.text2,fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:0.5}}>Selected</span>
+      <span style={{color:C.mint,fontWeight:700,fontSize:13}}>{fmtFull(draft.date)}</span>
+    </div>;
+    if(draft.mode==='range-partial')return <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+      <span style={{color:C.text2,fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:0.5}}>From</span>
+      <span style={{color:C.mint,fontWeight:700,fontSize:13}}>{fmt(draft.from)}</span>
+      <span style={{color:C.text3,fontSize:11}}>→</span>
+      <span style={{color:C.text3,fontSize:11,fontStyle:'italic'}}>tap end date</span>
+    </div>;
+    if(draft.mode==='range'){
+      const days=Math.round((new Date(draft.to+'T12:00:00')-new Date(draft.from+'T12:00:00'))/86400000)+1;
+      return <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+        <span style={{color:C.mint,fontWeight:700,fontSize:13}}>{fmt(draft.from)}</span>
+        <span style={{color:C.text2,fontSize:11}}>→</span>
+        <span style={{color:C.mint,fontWeight:700,fontSize:13}}>{fmt(draft.to)}</span>
+        <span style={{background:'rgba(184,255,87,0.12)',color:C.mint,fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:6}}>{days}d</span>
+      </div>;
+    }
+    return null;
+  };
+
   return (<div style={{position:'relative',zIndex:20}}>
     <div style={{display:'flex',alignItems:'center',gap:6,padding:3,borderRadius:12,background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`}}>
-      {!isRange&&<button onClick={()=>navigate(-1)} disabled={value.date<=startDate} style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:value.date<=startDate?C.border:C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>‹</button>}
-      <div style={{flex:1,textAlign:'center',fontSize:12,fontWeight:600,color:C.text,cursor:'pointer',padding:'5px 0',whiteSpace:'nowrap'}} onClick={()=>setShowPicker(!showPicker)}>
-        {isRange?`${fmtShort(value.from)} – ${fmtShort(value.to)}`:fmtDisplay(value.date)}
+      {!isRange&&<button onClick={()=>nav(-1)} disabled={value.date<=MIN} style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:value.date<=MIN?'rgba(255,255,255,0.1)':C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>‹</button>}
+      <div style={{flex:1,textAlign:'center',fontSize:12,fontWeight:600,color:C.text,cursor:'pointer',padding:'5px 0',whiteSpace:'nowrap'}} onClick={openPicker}>
+        {isRange?`${fmt(value.from)} – ${fmt(value.to)}`:fmtFull(value.date)}
         {isRange&&<span style={{fontSize:10,color:C.text3,marginLeft:6}}>({rangeDays}d avg)</span>}
       </div>
-      {!isRange&&<button onClick={()=>navigate(1)} disabled={isToday} style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:isToday?C.border:C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>›</button>}
-      <button onClick={()=>{setShowPicker(!showPicker);setRangeStart(null);}} title="Calendar"
+      {!isRange&&<button onClick={()=>nav(1)} disabled={isToday} style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:isToday?'rgba(255,255,255,0.1)':C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>›</button>}
+      <button onClick={openPicker} title="Calendar"
         style={{width:30,height:30,borderRadius:8,border:`1px solid ${showPicker?C.mintMed:C.border}`,background:showPicker?C.mintSoft:'rgba(255,255,255,0.04)',color:showPicker?C.mint:C.text3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
       </button>
-      {(isRange||!isToday)&&<button onClick={()=>{onChange({mode:'day',date:todayDate});setShowPicker(false);}}
+      {(isRange||!isToday)&&<button onClick={()=>{onChange({mode:'day',date:TODAY});setShowPicker(false);setDraft(null);}}
         style={{padding:'5px 8px',borderRadius:8,border:'none',background:C.mintSoft,color:C.mint,fontSize:10,fontWeight:700,cursor:'pointer',flexShrink:0}}>Today</button>}
     </div>
-    {showPicker&&<div onClick={()=>{setShowPicker(false);setRangeStart(null);}} style={{position:'fixed',inset:0,zIndex:98,background:'rgba(0,0,0,0.4)'}}/>}
-    {showPicker&&<div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:6,background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:16,zIndex:100,boxShadow:'0 12px 40px rgba(0,0,0,0.6)',maxWidth:340}}>
+    {showPicker&&<div onClick={handleCancel} style={{position:'fixed',inset:0,zIndex:98,background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)'}}/>}
+    {showPicker&&<div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:6,background:'#1a1e24',border:`1px solid ${C.border}`,borderRadius:16,padding:16,zIndex:100,boxShadow:'0 16px 48px rgba(0,0,0,0.7)',maxWidth:340}}>
+      {/* Presets */}
       <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:12}}>
-        {presets.map(p=>(<button key={p.l} onClick={()=>{p.fn();setShowPicker(false);setRangeStart(null);}}
-          style={{padding:'5px 9px',borderRadius:7,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.03)',color:C.text2,fontSize:10,fontWeight:600,cursor:'pointer'}}>{p.l}</button>))}
-        <button onClick={()=>setRangeStart(rangeStart?null:(value.date||todayDate))}
-          style={{padding:'5px 9px',borderRadius:7,border:`1px solid ${rangeStart?C.mintMed:C.border}`,background:rangeStart?C.mintSoft:'rgba(255,255,255,0.03)',color:rangeStart?C.mint:C.text2,fontSize:10,fontWeight:600,cursor:'pointer'}}>
-          {rangeStart?'Selecting…':'Custom Range'}</button>
-      </div>
-      {rangeStart&&<div style={{padding:'6px 10px',borderRadius:8,background:C.mintSoft,marginBottom:10,fontSize:11,color:C.mint,fontWeight:600,textAlign:'center'}}>
-        Start: {fmtShort(rangeStart)} — now tap an end date</div>}
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
-        <button onClick={prevMonth} disabled={!canPrev} style={{width:28,height:28,borderRadius:7,border:'none',background:'transparent',color:canPrev?C.text2:C.border,cursor:'pointer',fontSize:16}}>‹</button>
-        <span style={{fontSize:13,fontWeight:700,color:C.text}}>{MNF[calMonth.m]} {calMonth.y}</span>
-        <button onClick={nextMonth} disabled={!canNext} style={{width:28,height:28,borderRadius:7,border:'none',background:'transparent',color:canNext?C.text2:C.border,cursor:'pointer',fontSize:16}}>›</button>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:1}}>
-        {DN.map(d=>(<div key={d} style={{textAlign:'center',fontSize:9,color:C.text3,fontWeight:700,padding:'4px 0'}}>{d}</div>))}
-        {calDays.map((day,i)=>{
-          const dis=isDis(day),sel=isSel(day),inR=isInR(day),end=isEnd(day),tod=day&&calDateStr(day)===todayDate;
-          return(<div key={i} onClick={()=>handleDayClick(day)}
-            style={{textAlign:'center',padding:'8px 0',borderRadius:8,fontSize:12,fontWeight:sel||end?700:tod?600:400,
-              cursor:dis||!day?'default':'pointer',userSelect:'none',
-              color:dis?'rgba(255,255,255,0.15)':sel||end?C.bg:tod?C.mint:C.text,
-              background:sel||end?C.mint:inR?'rgba(184,255,87,0.12)':'transparent',
-              transition:'background .1s',
-            }}>{day||''}</div>);
+        {presets.map(p=>{
+          const active = draft && (
+            (draft.mode==='day'&&p.v.mode==='day'&&draft.date===p.v.date)||
+            (draft.mode==='range'&&p.v.mode==='range'&&draft.from===p.v.from&&draft.to===p.v.to)
+          );
+          return(<button key={p.l} onClick={()=>setDraft(p.v)}
+            style={{padding:'4px 8px',borderRadius:6,border:`1px solid ${active?C.mint:C.border}`,background:active?C.mintSoft:'rgba(255,255,255,0.03)',color:active?C.mint:C.text2,fontSize:10,fontWeight:active?700:500,cursor:'pointer'}}>{p.l}</button>);
         })}
+      </div>
+      {/* Month nav */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+        <button onClick={prevM} disabled={!canPrev} style={{width:28,height:28,borderRadius:7,border:'none',background:'transparent',color:canPrev?C.text2:'rgba(255,255,255,0.1)',cursor:canPrev?'pointer':'default',fontSize:18}}>‹</button>
+        <span style={{fontSize:13,fontWeight:700,color:C.text}}>{MNF[viewMonth.m]} {viewMonth.y}</span>
+        <button onClick={nextM} disabled={!canNext} style={{width:28,height:28,borderRadius:7,border:'none',background:'transparent',color:canNext?C.text2:'rgba(255,255,255,0.1)',cursor:canNext?'pointer':'default',fontSize:18}}>›</button>
+      </div>
+      {/* Day headers */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:0,marginBottom:4}}>
+        {DN.map(d=>(<div key={d} style={{textAlign:'center',fontSize:10,color:C.text3,fontWeight:600,padding:'4px 0'}}>{d}</div>))}
+      </div>
+      {/* Calendar grid */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:0}}>
+        {calDays.map((day,i)=>{
+          const st=dayState(day);
+          return(<div key={i} onClick={()=>handleDay(day)}
+            onMouseEnter={()=>{if(draft&&draft.mode==='range-partial'&&day&&!isDis(day))setHoverDate(ds(day));}}
+            onMouseLeave={()=>setHoverDate(null)}
+            style={dayStyle(st)}>{day||''}</div>);
+        })}
+      </div>
+      {/* Selection summary + help text */}
+      <div style={{marginTop:12,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,textAlign:'center',fontSize:11,color:C.text3}}>
+        {draftSummary() || <span style={{fontSize:11,color:C.text3}}>Tap a date · tap again for range</span>}
+      </div>
+      {/* Action buttons */}
+      <div style={{display:'flex',gap:8,marginTop:12}}>
+        <button onClick={handleCancel}
+          style={{flex:1,padding:'10px 0',borderRadius:10,border:`1px solid ${C.border}`,background:'transparent',color:C.text2,fontSize:12,fontWeight:600,cursor:'pointer'}}>
+          Cancel
+        </button>
+        {draft&&draft.mode==='range-partial'&&<button onClick={()=>setDraft({mode:'day',date:draft.from})}
+          style={{flex:1,padding:'10px 0',borderRadius:10,border:`1px solid ${C.mint}`,background:'transparent',color:C.mint,fontSize:12,fontWeight:600,cursor:'pointer'}}>
+          Use Single Day
+        </button>}
+        <button onClick={handleConfirm} disabled={!canConfirm}
+          style={{flex:1,padding:'10px 0',borderRadius:10,border:'none',
+            background:canConfirm?C.mint:'rgba(255,255,255,0.06)',
+            color:canConfirm?C.bg:'rgba(255,255,255,0.2)',
+            fontSize:12,fontWeight:700,cursor:canConfirm?'pointer':'default',
+            opacity:canConfirm?1:0.5}}>
+          Confirm
+        </button>
       </div>
     </div>}
   </div>);
@@ -1049,9 +1197,115 @@ function NutritionTab({vis,isD,isT,isM,D}) {
   const isAvg=d._isRange;
   const dateLabel=isAvg?`${d._count}d Average`:(d._dt||"Today");
   const macros=[{name:"Protein",v:d.pro*4,c:C.mint},{name:"Carbs",v:d.carb*4,c:C.blue},{name:"Fat",v:d.fat*9,c:C.orange}];
-  const dayMeals=d._isDay?D.FOOD_LOG[d._dt]:null;
-  const foodLabel=d._isDay?(d._dt||"Today")+"'s Log":"Top Foods";
   const mealOrder=[{key:"breakfast",label:"Breakfast",icon:"☀"},{key:"lunch",label:"Lunch",icon:"☕"},{key:"snack",label:"Snack",icon:"🍎"},{key:"dinner",label:"Dinner",icon:"🌙"}];
+  const PROXY_URL = 'https://stride-mfp-proxy.robinheering.workers.dev';
+
+  // On-demand food log fetching & caching
+  const [foodLogCache, setFoodLogCache] = useState({});
+  const [loadingFood, setLoadingFood] = useState(false);
+
+  // Merge D.FOOD_LOG (from initial load) with locally fetched cache
+  const allFoodLogs = useMemo(() => ({...D.FOOD_LOG, ...foodLogCache}), [D.FOOD_LOG, foodLogCache]);
+
+  // Fetch food log for a specific date from proxy
+  const fetchFoodLog = useCallback(async (dateStr) => {
+    if (allFoodLogs[dateStr] !== undefined) return; // already have it (including null = tried & empty)
+    setLoadingFood(true);
+    try {
+      const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => data.meals[k]?.length > 0)) {
+          setFoodLogCache(prev => ({...prev, [dateStr]: data.meals}));
+        } else {
+          setFoodLogCache(prev => ({...prev, [dateStr]: null})); // Mark as fetched but empty
+        }
+      } else {
+        setFoodLogCache(prev => ({...prev, [dateStr]: null}));
+      }
+    } catch (e) {
+      console.log('[Stride] Food fetch error:', e.message);
+      setFoodLogCache(prev => ({...prev, [dateStr]: null}));
+    }
+    setLoadingFood(false);
+  }, [allFoodLogs]);
+
+  // Fetch food logs for a date range (batch up to 14 days)
+  const fetchFoodLogsForRange = useCallback(async (from, to) => {
+    const start = new Date(from+'T12:00:00');
+    const end = new Date(to+'T12:00:00');
+    const dates = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
+      const ds = localDateStr(d);
+      if (allFoodLogs[ds] === undefined) dates.push(ds);
+    }
+    if (dates.length === 0) return;
+    // Limit batch to 14 to avoid hammering
+    const batch = dates.slice(0, 14);
+    setLoadingFood(true);
+    const results = {};
+    await Promise.all(batch.map(async (dateStr) => {
+      try {
+        const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => data.meals[k]?.length > 0)) {
+            results[dateStr] = data.meals;
+          } else {
+            results[dateStr] = null;
+          }
+        } else { results[dateStr] = null; }
+      } catch { results[dateStr] = null; }
+    }));
+    setFoodLogCache(prev => ({...prev, ...results}));
+    setLoadingFood(false);
+  }, [allFoodLogs]);
+
+  // Auto-fetch when date changes
+  useEffect(() => {
+    if (dateNav.mode === 'day') {
+      fetchFoodLog(dateNav.date);
+    } else if (dateNav.mode === 'range') {
+      fetchFoodLogsForRange(dateNav.from, dateNav.to);
+    }
+  }, [dateNav]);
+
+  // Get food log for current day
+  const dayMeals = d._isDay ? allFoodLogs[d._date] : null;
+
+  // Compute popular foods based on context
+  const popularFoods = useMemo(() => {
+    if (dateNav.mode === 'range') {
+      return computePopularFoods(allFoodLogs, dateNav.from, dateNav.to);
+    }
+    // For single day view (Top Foods tab) — show all-time top foods
+    return computePopularFoods(allFoodLogs);
+  }, [allFoodLogs, dateNav]);
+
+  const foodLabel = d._isDay ? (d._dt || "Today") + "'s Log" : "Top Foods";
+
+  // Food list renderer (shared between Top Foods views)
+  const TopFoodsList = ({foods, label}) => (
+    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+      {label && <div style={{fontSize:10,color:C.text3,textAlign:'center',padding:'4px 0'}}>{label}</div>}
+      {foods.length === 0 ? (
+        <div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>
+          {loadingFood ? 'Loading food data…' : 'No food data available. Food logs are fetched from MFP when you view specific dates.'}
+        </div>
+      ) : (
+        <div style={{display:'grid',gridTemplateColumns:isD?'repeat(2,1fr)':'1fr',gap:8}}>
+          {foods.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`,
+            opacity:v?1:0,transform:v?'translateY(0)':'translateY(8px)',transition:`all .3s ease ${i*.04}s`}}>
+            <div style={{width:28,height:28,borderRadius:8,background:C.mintSoft,color:C.mint,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,flexShrink:0}}>{f.count}×</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:600,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.name}</div>
+              <div style={{fontSize:10,color:C.text3,marginTop:1}}>{f.avgCal} cal · {f.avgPro}g pro · {f.avgCarb}g carb · {f.avgFat}g fat</div></div>
+          </div>))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       <div style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
@@ -1084,20 +1338,40 @@ function NutritionTab({vis,isD,isT,isM,D}) {
       </AnimCard>
       <AnimCard delay={0.1} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
-          <Lbl>{foodTab==="log"?"Food Diary":"Most Eaten Foods"}</Lbl>
-          <div style={{display:'flex',gap:4,padding:2,borderRadius:8,background:'rgba(255,255,255,0.03)'}}>
+          <Lbl>{d._isRange?"Period Overview":"Food Diary"}</Lbl>
+          {d._isDay&&<div style={{display:'flex',gap:4,padding:2,borderRadius:8,background:'rgba(255,255,255,0.03)'}}>
             <button onClick={()=>setFoodTab("log")} style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',background:foodTab==="log"?C.mintSoft:'transparent',color:foodTab==="log"?C.mint:C.text3,fontSize:10,fontWeight:600,fontFamily:'var(--sans)'}}>{foodLabel}</button>
-            <button onClick={()=>setFoodTab("popular")} style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',background:foodTab==="popular"?C.mintSoft:'transparent',color:foodTab==="popular"?C.mint:C.text3,fontSize:10,fontWeight:600,fontFamily:'var(--sans)'}}>Top Foods</button></div></div>
-        {foodTab==="log"?(dayMeals?(<div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <button onClick={()=>setFoodTab("popular")} style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',background:foodTab==="popular"?C.mintSoft:'transparent',color:foodTab==="popular"?C.mint:C.text3,fontSize:10,fontWeight:600,fontFamily:'var(--sans)'}}>Top Foods</button></div>}</div>
+        {d._isRange?(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{padding:'14px 16px',borderRadius:12,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:11,color:C.text3,marginBottom:8}}>Daily averages across <span style={{color:C.mint,fontWeight:700}}>{d._count} days</span></div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+              {[{l:'Calories',v:d.cal,u:'kcal',c:C.text},{l:'Protein',v:d.pro,u:'g',c:C.mint},{l:'Carbs',v:d.carb,u:'g',c:C.blue},{l:'Fat',v:d.fat,u:'g',c:C.orange},{l:'Fiber',v:d.fib,u:'g',c:C.cyan},{l:'Sugar',v:d.sug,u:'g',c:C.purple}].map(m=>(
+                <div key={m.l} style={{textAlign:'center',padding:'8px 0'}}>
+                  <div style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:m.c}}>{m.v}<span style={{fontSize:10,fontWeight:400}}>{m.u}</span></div>
+                  <div style={{fontSize:9,color:C.text3,marginTop:2}}>{m.l}</div>
+                </div>))}
+            </div>
+          </div>
+          <TopFoodsList foods={popularFoods} label={loadingFood ? 'Loading food data for this period…' : popularFoods.length > 0 ? `Top foods eaten during this ${d._count}-day period ↓` : null} />
+        </div>)
+        :foodTab==="log"?(
+          loadingFood ? (
+            <div style={{padding:30,textAlign:'center',color:C.text3,fontSize:12}}>
+              <div style={{marginBottom:8}}>Loading food diary…</div>
+              <div style={{width:20,height:20,border:`2px solid ${C.border}`,borderTopColor:C.mint,borderRadius:'50%',margin:'0 auto',animation:'spin 1s linear infinite'}}/>
+            </div>
+          ) : dayMeals ? (<div style={{display:'flex',flexDirection:'column',gap:12}}>
           {mealOrder.map(meal=>{const items=dayMeals[meal.key]; if(!items||!items.length)return null;
             return (<div key={meal.key}>
               <div style={{fontSize:10,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:.8,marginBottom:6,display:'flex',alignItems:'center',gap:6}}>
-                <span>{meal.icon}</span>{meal.label}</div>
+                <span>{meal.icon}</span>{meal.label}
+                <span style={{fontSize:9,fontWeight:500,color:C.text3,marginLeft:'auto'}}>{items.reduce((a,f)=>a+(f.cal||0),0)} cal</span></div>
               {items.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 12px',borderRadius:12,background:'rgba(255,255,255,0.02)',marginBottom:4,
                 opacity:v?1:0,transform:v?'translateX(0)':'translateX(-6px)',transition:`all .3s ease ${i*.03}s`}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:12,fontWeight:600,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.name}</div>
-                  <div style={{fontSize:9,color:C.text3,marginTop:1}}>{f.amount}</div></div>
+                  {f.amount&&<div style={{fontSize:9,color:C.text3,marginTop:1}}>{f.amount}</div>}</div>
                 <div style={{display:'flex',gap:isM?6:12,flexShrink:0}}>
                   <div style={{textAlign:'center'}}><div style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{f.cal}</div><div style={{fontSize:7,color:C.text3}}>cal</div></div>
                   <div style={{textAlign:'center'}}><div style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{f.pro}</div><div style={{fontSize:7,color:C.text3}}>pro</div></div>
@@ -1106,17 +1380,10 @@ function NutritionTab({vis,isD,isT,isM,D}) {
                 </div></div>))}</div>);})}
           <div style={{display:'flex',justifyContent:'flex-end',gap:14,padding:'8px 12px',borderTop:`1px solid ${C.border}`}}>
             <span style={{fontSize:10,color:C.text3,fontWeight:600}}>Total:</span>
-            <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{Object.values(dayMeals).flat().reduce((a,f)=>a+f.cal,0)} cal</span>
-            <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{Math.round(Object.values(dayMeals).flat().reduce((a,f)=>a+f.pro,0))}g pro</span></div>
-        </div>):(<div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>{isAvg?"Select a single day to see meals.":"No food data for this day."}</div>))
-        :(<div style={{display:'grid',gridTemplateColumns:isD?'repeat(2,1fr)':'1fr',gap:8}}>
-          {D.POPULAR_FOODS.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`,
-            opacity:v?1:0,transform:v?'translateY(0)':'translateY(8px)',transition:`all .3s ease ${i*.04}s`}}>
-            <div style={{width:28,height:28,borderRadius:8,background:C.mintSoft,color:C.mint,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,flexShrink:0}}>{f.count}×</div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:12,fontWeight:600,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.name}</div>
-              <div style={{fontSize:10,color:C.text3,marginTop:1}}>Avg: {f.avgCal} cal · {f.avgPro}g protein</div></div>
-          </div>))}</div>)}
+            <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{['breakfast','lunch','snack','dinner'].flatMap(k=>dayMeals[k]||[]).reduce((a,f)=>a+(f.cal||0),0)} cal</span>
+            <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{Math.round(['breakfast','lunch','snack','dinner'].flatMap(k=>dayMeals[k]||[]).reduce((a,f)=>a+(f.pro||0),0))}g pro</span></div>
+        </div>) : (<div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>No food log for this day.</div>))
+        :(<TopFoodsList foods={popularFoods} label={loadingFood ? 'Loading…' : null} />)}
       </AnimCard>
       <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1',overflowX:'auto'}}>
         <Lbl>Weekly Nutrition Averages</Lbl>
