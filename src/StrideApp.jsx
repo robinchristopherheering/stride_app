@@ -798,20 +798,15 @@ function Lbl({children,tip,modalId,onModal}){return <div style={{fontSize:10,col
 
 function DateNav({D, value, onChange}) {
   const [showPicker, setShowPicker] = useState(false);
+  const [calMonth, setCalMonth] = useState(()=>{const d=new Date();return{y:d.getFullYear(),m:d.getMonth()};});
+  const [rangeStart, setRangeStart] = useState(null);
   const startDate = '2026-01-05';
   const todayDate = localDateStr();
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const fmtDisplay = (ds) => {
-    if (!ds) return 'Today';
-    const d = new Date(ds+'T12:00:00');
-    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
-  };
-  const fmtShort = (ds) => {
-    if (!ds) return '';
-    const d = new Date(ds+'T12:00:00');
-    return `${d.getDate()} ${months[d.getMonth()]}`;
-  };
+  const MN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const MNF = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DN = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const fmtDisplay = (ds) => {const d=new Date(ds+'T12:00:00');return `${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]}, ${d.getDate()} ${MN[d.getMonth()]}`;};
+  const fmtShort = (ds) => {const d=new Date(ds+'T12:00:00');return `${d.getDate()} ${MN[d.getMonth()]}`;};
   const navigate = (dir) => {
     if (value.mode !== 'day') return;
     const cur = new Date(value.date+'T12:00:00');
@@ -831,37 +826,79 @@ function DateNav({D, value, onChange}) {
     {l:'This Month',fn:()=>{const t=new Date();onChange({mode:'range',from:`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-01`,to:todayDate});}},
     {l:'All Time',fn:()=>onChange({mode:'range',from:startDate,to:todayDate})},
   ];
-  const inputSt = {padding:'8px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text,fontSize:13,fontFamily:'var(--mono)',width:'100%',colorScheme:'dark'};
-  return (<div style={{position:'relative'}}>
+  const calDays = useMemo(()=>{
+    const first = new Date(calMonth.y, calMonth.m, 1);
+    const startDow = (first.getDay()+6)%7;
+    const daysInMonth = new Date(calMonth.y, calMonth.m+1, 0).getDate();
+    const cells = [];
+    for (let i=0; i<startDow; i++) cells.push(null);
+    for (let d=1; d<=daysInMonth; d++) cells.push(d);
+    return cells;
+  },[calMonth]);
+  const calDateStr = (day) => day ? `${calMonth.y}-${String(calMonth.m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}` : null;
+  const isDis = (day) => {if(!day)return true;const ds=calDateStr(day);return ds<startDate||ds>todayDate;};
+  const isInR = (day) => {
+    if(!day)return false;const ds=calDateStr(day);
+    if(rangeStart){const a=ds>=rangeStart,b=ds<=rangeStart;return(rangeStart<ds&&ds<=todayDate)||(ds<rangeStart&&ds>=startDate)?(a||b):false;}
+    return isRange&&ds>=value.from&&ds<=value.to;
+  };
+  const isEnd = (day) => {if(!day||!isRange||rangeStart)return false;const ds=calDateStr(day);return ds===value.from||ds===value.to;};
+  const isSel = (day) => {if(!day)return false;return value.mode==='day'&&calDateStr(day)===value.date;};
+  const handleDayClick = (day) => {
+    if(!day||isDis(day))return;const ds=calDateStr(day);
+    if(rangeStart){
+      const from=ds<rangeStart?ds:rangeStart,to=ds>rangeStart?ds:rangeStart;
+      onChange({mode:'range',from,to});setRangeStart(null);setShowPicker(false);
+    } else {onChange({mode:'day',date:ds});setShowPicker(false);}
+  };
+  const prevMonth = () => setCalMonth(p=>p.m===0?{y:p.y-1,m:11}:{y:p.y,m:p.m-1});
+  const nextMonth = () => {const n=calMonth.m===11?{y:calMonth.y+1,m:0}:{y:calMonth.y,m:calMonth.m+1};if(n.y<=2026)setCalMonth(n);};
+  const canPrev = !(calMonth.y===2026&&calMonth.m===0);
+  const canNext = !(calMonth.y===new Date().getFullYear()&&calMonth.m===new Date().getMonth());
+  return (<div style={{position:'relative',zIndex:20}}>
     <div style={{display:'flex',alignItems:'center',gap:6,padding:3,borderRadius:12,background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`}}>
-      {!isRange && <button onClick={()=>navigate(-1)} disabled={value.date<=startDate}
-        style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:value.date<=startDate?C.border:C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>‹</button>}
+      {!isRange&&<button onClick={()=>navigate(-1)} disabled={value.date<=startDate} style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:value.date<=startDate?C.border:C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>‹</button>}
       <div style={{flex:1,textAlign:'center',fontSize:12,fontWeight:600,color:C.text,cursor:'pointer',padding:'5px 0',whiteSpace:'nowrap'}} onClick={()=>setShowPicker(!showPicker)}>
-        {isRange ? `${fmtShort(value.from)} – ${fmtShort(value.to)}` : fmtDisplay(value.date)}
-        {isRange && <span style={{fontSize:10,color:C.text3,marginLeft:6}}>({rangeDays}d avg)</span>}
+        {isRange?`${fmtShort(value.from)} – ${fmtShort(value.to)}`:fmtDisplay(value.date)}
+        {isRange&&<span style={{fontSize:10,color:C.text3,marginLeft:6}}>({rangeDays}d avg)</span>}
       </div>
-      {!isRange && <button onClick={()=>navigate(1)} disabled={isToday}
-        style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:isToday?C.border:C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>›</button>}
-      <button onClick={()=>setShowPicker(!showPicker)} title="Date range"
-        style={{width:30,height:30,borderRadius:8,border:`1px solid ${showPicker?C.mintMed:C.border}`,background:showPicker?C.mintSoft:'rgba(255,255,255,0.04)',color:showPicker?C.mint:C.text3,cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+      {!isRange&&<button onClick={()=>navigate(1)} disabled={isToday} style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:isToday?C.border:C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>›</button>}
+      <button onClick={()=>{setShowPicker(!showPicker);setRangeStart(null);}} title="Calendar"
+        style={{width:30,height:30,borderRadius:8,border:`1px solid ${showPicker?C.mintMed:C.border}`,background:showPicker?C.mintSoft:'rgba(255,255,255,0.04)',color:showPicker?C.mint:C.text3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
       </button>
-      {(isRange || !isToday) && <button onClick={()=>onChange({mode:'day',date:todayDate})}
-        style={{padding:'5px 8px',borderRadius:8,border:'none',background:C.mintSoft,color:C.mint,fontSize:10,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>Today</button>}
+      {(isRange||!isToday)&&<button onClick={()=>{onChange({mode:'day',date:todayDate});setShowPicker(false);}}
+        style={{padding:'5px 8px',borderRadius:8,border:'none',background:C.mintSoft,color:C.mint,fontSize:10,fontWeight:700,cursor:'pointer',flexShrink:0}}>Today</button>}
     </div>
-    {showPicker && <div onClick={()=>setShowPicker(false)} style={{position:'fixed',inset:0,zIndex:98}}/>}
-    {showPicker && <div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:6,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14,zIndex:99,boxShadow:'0 8px 32px rgba(0,0,0,0.5)'}}>
+    {showPicker&&<div onClick={()=>{setShowPicker(false);setRangeStart(null);}} style={{position:'fixed',inset:0,zIndex:98,background:'rgba(0,0,0,0.4)'}}/>}
+    {showPicker&&<div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:6,background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:16,zIndex:100,boxShadow:'0 12px 40px rgba(0,0,0,0.6)',maxWidth:340}}>
       <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:12}}>
-        {presets.map(p=>(<button key={p.l} onClick={()=>{p.fn();setShowPicker(false);}} style={{padding:'6px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.03)',color:C.text2,fontSize:10,fontWeight:600,cursor:'pointer',transition:'all .15s'}}
-          onMouseEnter={e=>e.currentTarget.style.borderColor=C.mintMed} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>{p.l}</button>))}
+        {presets.map(p=>(<button key={p.l} onClick={()=>{p.fn();setShowPicker(false);setRangeStart(null);}}
+          style={{padding:'5px 9px',borderRadius:7,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.03)',color:C.text2,fontSize:10,fontWeight:600,cursor:'pointer'}}>{p.l}</button>))}
+        <button onClick={()=>setRangeStart(rangeStart?null:(value.date||todayDate))}
+          style={{padding:'5px 9px',borderRadius:7,border:`1px solid ${rangeStart?C.mintMed:C.border}`,background:rangeStart?C.mintSoft:'rgba(255,255,255,0.03)',color:rangeStart?C.mint:C.text2,fontSize:10,fontWeight:600,cursor:'pointer'}}>
+          {rangeStart?'Selecting…':'Custom Range'}</button>
       </div>
-      <div style={{fontSize:10,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Custom Range</div>
-      <div style={{display:'flex',gap:8,alignItems:'center'}}>
-        <input type="date" min={startDate} max={todayDate} value={value.from||value.date} onChange={e=>{onChange({mode:'range',from:e.target.value,to:value.to||todayDate});}} style={inputSt}/>
-        <span style={{color:C.text3,fontSize:11,flexShrink:0}}>to</span>
-        <input type="date" min={startDate} max={todayDate} value={value.to||todayDate} onChange={e=>{onChange({mode:'range',from:value.from||startDate,to:e.target.value});}} style={inputSt}/>
+      {rangeStart&&<div style={{padding:'6px 10px',borderRadius:8,background:C.mintSoft,marginBottom:10,fontSize:11,color:C.mint,fontWeight:600,textAlign:'center'}}>
+        Start: {fmtShort(rangeStart)} — now tap an end date</div>}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+        <button onClick={prevMonth} disabled={!canPrev} style={{width:28,height:28,borderRadius:7,border:'none',background:'transparent',color:canPrev?C.text2:C.border,cursor:'pointer',fontSize:16}}>‹</button>
+        <span style={{fontSize:13,fontWeight:700,color:C.text}}>{MNF[calMonth.m]} {calMonth.y}</span>
+        <button onClick={nextMonth} disabled={!canNext} style={{width:28,height:28,borderRadius:7,border:'none',background:'transparent',color:canNext?C.text2:C.border,cursor:'pointer',fontSize:16}}>›</button>
       </div>
-      <button onClick={()=>setShowPicker(false)} style={{width:'100%',marginTop:10,padding:'8px',borderRadius:8,border:'none',background:C.mint,color:C.bg,fontSize:12,fontWeight:700,cursor:'pointer'}}>Done</button>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:1}}>
+        {DN.map(d=>(<div key={d} style={{textAlign:'center',fontSize:9,color:C.text3,fontWeight:700,padding:'4px 0'}}>{d}</div>))}
+        {calDays.map((day,i)=>{
+          const dis=isDis(day),sel=isSel(day),inR=isInR(day),end=isEnd(day),tod=day&&calDateStr(day)===todayDate;
+          return(<div key={i} onClick={()=>handleDayClick(day)}
+            style={{textAlign:'center',padding:'8px 0',borderRadius:8,fontSize:12,fontWeight:sel||end?700:tod?600:400,
+              cursor:dis||!day?'default':'pointer',userSelect:'none',
+              color:dis?'rgba(255,255,255,0.15)':sel||end?C.bg:tod?C.mint:C.text,
+              background:sel||end?C.mint:inR?'rgba(184,255,87,0.12)':'transparent',
+              transition:'background .1s',
+            }}>{day||''}</div>);
+        })}
+      </div>
     </div>}
   </div>);
 }
@@ -895,7 +932,6 @@ function getDateData(dateNav, D) {
     comp:avg('comp'),flat:avg('flat')||Math.max(0,avg('comp')-2),sleep:avgF('sleep'),
     gym:inRange.filter(x=>x.gym).length,_isRange:true,_count:inRange.length,_days:inRange};
 }
-
 const I={
   grid:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>,
   fork:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>,
