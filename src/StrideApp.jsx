@@ -1,21 +1,65 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, createContext, useContext } from "react";
 
-// STRIDE v6 — AI Coach, Tooltips, Animated Countups, Collapsible Nav, Meal-categorized Food Log
-const C = {
-  bg: "#070B14", bgAlt: "#0C0F15",
-  surface: "rgba(14,19,32,0.72)", surfaceSolid: "#0E1320",
-  card: "rgba(18,23,33,0.65)", cardHover: "rgba(24,30,42,0.75)",
-  cardBorder: "rgba(255,255,255,0.04)", cardBorderHover: "rgba(184,255,87,0.12)",
-  mint: "#B8FF57", mintSoft: "rgba(184,255,87,0.10)",
-  mintMed: "rgba(184,255,87,0.20)", mintHard: "rgba(184,255,87,0.35)",
-  red: "#FF5470", redSoft: "rgba(255,84,112,0.10)",
-  blue: "#5B8CFF", blueSoft: "rgba(91,140,255,0.10)",
-  orange: "#FFB547", orangeSoft: "rgba(255,181,71,0.10)",
-  cyan: "#57FFD8", cyanSoft: "rgba(87,255,216,0.10)",
-  purple: "#A78BFA", purpleSoft: "rgba(167,139,250,0.10)",
-  text: "#EFF1F5", text2: "#8B95A8", text3: "#4B5468",
-  border: "rgba(255,255,255,0.04)",
+// STRIDE v6.1 — Updated Feb 22 2026
+// Theme system: light (default) and dark mode with glassmorphism
+const THEMES = {
+  light: {
+    mode: 'light',
+    bg: "#F0F2F5", bgAlt: "#E8EBF0",
+    surface: "rgba(255,255,255,0.72)", surfaceSolid: "#FFFFFF",
+    card: "rgba(255,255,255,0.65)", cardHover: "rgba(255,255,255,0.85)",
+    cardBorder: "rgba(0,0,0,0.06)", cardBorderHover: "rgba(60,180,100,0.22)",
+    mint: "#2ECC71", mintDark: "#27AE60",
+    mintSoft: "rgba(46,204,113,0.10)", mintMed: "rgba(46,204,113,0.18)", mintHard: "rgba(46,204,113,0.30)",
+    red: "#E74C3C", redSoft: "rgba(231,76,60,0.10)",
+    blue: "#3B82F6", blueSoft: "rgba(59,130,246,0.10)",
+    orange: "#F59E0B", orangeSoft: "rgba(245,158,11,0.10)",
+    cyan: "#06B6D4", cyanSoft: "rgba(6,182,212,0.10)",
+    purple: "#8B5CF6", purpleSoft: "rgba(139,92,246,0.10)",
+    text: "#1A1D23", text2: "#5A6478", text3: "#9CA3AF",
+    border: "rgba(0,0,0,0.06)",
+    // Glassmorphism
+    glass: "rgba(255,255,255,0.55)", glassBorder: "rgba(255,255,255,0.7)", glassBlur: 20,
+    // Gradients
+    gradStart: "#2ECC71", gradEnd: "#06B6D4",
+    // Nav
+    navBg: "rgba(255,255,255,0.85)", navBorder: "rgba(0,0,0,0.06)",
+    // Modal
+    modalBg: "rgba(255,255,255,0.95)", overlayBg: "rgba(0,0,0,0.25)",
+    // Scrollbar
+    scrollThumb: "rgba(0,0,0,0.1)",
+    // Chart/graph dark text
+    chartLine: "#CBD5E1",
+  },
+  dark: {
+    mode: 'dark',
+    bg: "#070B14", bgAlt: "#0C0F15",
+    surface: "rgba(14,19,32,0.72)", surfaceSolid: "#0E1320",
+    card: "rgba(18,23,33,0.65)", cardHover: "rgba(24,30,42,0.75)",
+    cardBorder: "rgba(255,255,255,0.04)", cardBorderHover: "rgba(184,255,87,0.12)",
+    mint: "#B8FF57", mintDark: "#9ADB3B",
+    mintSoft: "rgba(184,255,87,0.10)", mintMed: "rgba(184,255,87,0.20)", mintHard: "rgba(184,255,87,0.35)",
+    red: "#FF5470", redSoft: "rgba(255,84,112,0.10)",
+    blue: "#5B8CFF", blueSoft: "rgba(91,140,255,0.10)",
+    orange: "#FFB547", orangeSoft: "rgba(255,181,71,0.10)",
+    cyan: "#57FFD8", cyanSoft: "rgba(87,255,216,0.10)",
+    purple: "#A78BFA", purpleSoft: "rgba(167,139,250,0.10)",
+    text: "#EFF1F5", text2: "#8B95A8", text3: "#4B5468",
+    border: "rgba(255,255,255,0.04)",
+    glass: "rgba(18,23,33,0.55)", glassBorder: "rgba(255,255,255,0.06)", glassBlur: 20,
+    gradStart: "#B8FF57", gradEnd: "#57FFD8",
+    navBg: "rgba(14,19,32,0.92)", navBorder: "rgba(255,255,255,0.04)",
+    modalBg: "#1a1e24", overlayBg: "rgba(0,0,0,0.8)",
+    scrollThumb: "rgba(255,255,255,0.04)",
+    chartLine: "#2A3040",
+  }
 };
+
+const ThemeContext = createContext(null);
+function useTheme() { return useContext(ThemeContext); }
+
+// Backward compat: C is now a mutable ref populated by the active theme at render
+let C = THEMES.light;
 
 // Local date helper (avoids UTC timezone issues)
 const localDateStr = (d) => { d = d || new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
@@ -367,7 +411,7 @@ function useGymSleep() {
         return merged;
       }
       return stored;
-    } catch { return {}; }
+    } catch(e) { return {}; }
   };
   const [data, setData] = useState(load);
   const save = (d) => { setData(d); localStorage.setItem(KEY, JSON.stringify(d)); };
@@ -391,7 +435,7 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
     if (d <= today) weekDates.push(localDateStr(d));
   }
   const editData = editDate ? gymSleep.getDay(editDate) : null;
-  const inputSt={width:'100%',padding:'10px 12px',borderRadius:10,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text,fontSize:16,fontFamily:'var(--mono)',textAlign:'center',outline:'none'};
+  const editDow = editDate ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(editDate+"T00:00:00").getDay()] : null;
 
   return (<>
     <div style={{display:'grid',gridTemplateColumns:`repeat(${weekDates.length},1fr)`,gap:6}}>
@@ -399,10 +443,13 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
         const dayData = gymSleep.getDay(dateStr);
         const dow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(dateStr+"T00:00:00").getDay()];
         const isToday = dateStr === localDateStr(today);
+        const isEditing = dateStr === editDate;
         return (
-          <div key={dateStr} onClick={()=>setEditDate(dateStr)} style={{padding:'10px 6px',borderRadius:12,background:isToday?C.mintSoft:'rgba(255,255,255,0.02)',
-            border:`1px solid ${isToday?C.mintMed:'rgba(255,255,255,0.04)'}`,textAlign:'center',cursor:'pointer',transition:'all .2s'}}>
-            <div style={{fontSize:11,fontWeight:700,color:isToday?C.mint:C.text2,marginBottom:4}}>{dow}</div>
+          <div key={dateStr} onClick={()=>setEditDate(dateStr)} style={{padding:'10px 6px',borderRadius:12,
+            background:isEditing?C.mintSoft:isToday?'rgba(184,255,87,0.06)':'rgba(255,255,255,0.02)',
+            border:`1px solid ${isEditing?C.mint:isToday?C.mintMed:'rgba(255,255,255,0.04)'}`,
+            textAlign:'center',cursor:'pointer',transition:'all .2s'}}>
+            <div style={{fontSize:11,fontWeight:700,color:isEditing||isToday?C.mint:C.text2,marginBottom:4}}>{dow}</div>
             <div style={{fontSize:20,fontWeight:800,fontFamily:'var(--mono)',color:dayData.steps>0?(dayData.steps>=8000?C.mint:C.orange):C.text3,marginBottom:2}}>
               {dayData.steps>0?dayData.steps.toLocaleString():'–'}</div>
             <div style={{fontSize:8,color:C.text3,marginBottom:6}}>steps</div>
@@ -418,37 +465,53 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
         );
       })}
     </div>
-    {editDate && <div onClick={()=>setEditDate(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:"#1a1e24",border:`1px solid ${C.border}`,borderRadius:16,maxWidth:340,width:'100%',padding:24}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-          <span style={{fontSize:16,fontWeight:700,color:C.mint}}>{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(editDate+"T00:00:00").getDay()]} — {fmt(editDate)}</span>
-          <span onClick={()=>setEditDate(null)} style={{cursor:'pointer',fontSize:20,color:C.text3,padding:'4px 8px'}}>✕</span>
-        </div>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Gym</div>
-          <div style={{display:'flex',gap:8}}>
-            {[{l:'Yes ✓',v:true},{l:'No ✕',v:false}].map(o=>(
-              <button key={String(o.v)} onClick={()=>gymSleep.setGym(editDate,o.v)}
-                style={{flex:1,padding:'10px',borderRadius:10,border:`1px solid ${editData?.gym===o.v?C.mintMed:C.border}`,
-                  background:editData?.gym===o.v?C.mintSoft:'transparent',color:editData?.gym===o.v?C.mint:C.text2,
-                  fontSize:13,fontWeight:700,cursor:'pointer'}}>{o.l}</button>))}
+    {/* Modal */}
+    {editDate && editData && <>
+      <div onClick={()=>setEditDate(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',zIndex:9999}}/>
+      <div style={{position:'fixed',left:'50%',top:'50%',transform:'translate(-50%,-50%)',zIndex:10000,width:'100%',maxWidth:360,padding:'0 20px',animation:'fadeSlideDown .2s ease'}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:'#1a1e24',border:`1px solid ${C.border}`,borderRadius:20,padding:0,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.8)'}}>
+          {/* Header */}
+          <div style={{padding:'20px 24px 16px',borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div>
+              <div style={{fontSize:18,fontWeight:800,color:C.text}}>{editDow}</div>
+              <div style={{fontSize:12,color:C.text3,marginTop:2}}>{fmt(editDate)}</div>
+            </div>
+            <button onClick={()=>setEditDate(null)} style={{width:32,height:32,borderRadius:10,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>✕</button>
+          </div>
+          {/* Body */}
+          <div style={{padding:'20px 24px 24px',display:'flex',flexDirection:'column',gap:20}}>
+            {/* Gym */}
+            <div>
+              <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Gym</div>
+              <div style={{display:'flex',gap:10}}>
+                {[{l:'Yes ✓',v:true},{l:'No ✕',v:false}].map(o=>(
+                  <button key={String(o.v)} onClick={()=>gymSleep.setGym(editDate,o.v)}
+                    style={{flex:1,padding:'14px',borderRadius:12,border:`1px solid ${editData?.gym===o.v?C.mintMed:C.border}`,
+                      background:editData?.gym===o.v?C.mintSoft:'rgba(255,255,255,0.03)',color:editData?.gym===o.v?C.mint:C.text2,
+                      fontSize:15,fontWeight:700,cursor:'pointer',transition:'all .15s'}}>{o.l}</button>))}
+              </div>
+            </div>
+            {/* Sleep */}
+            <div>
+              <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Sleep (hours)</div>
+              <input type="number" inputMode="decimal" min="0" max="12" step="0.5" value={editData?.sleep||''} placeholder="e.g. 7.5"
+                onChange={e=>gymSleep.setSleep(editDate,e.target.value)}
+                style={{width:'100%',padding:'14px 16px',borderRadius:12,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text,fontSize:18,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'}}/>
+            </div>
+            {/* Steps */}
+            <div>
+              <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Steps</div>
+              <input type="number" inputMode="numeric" min="0" max="99999" step="100" value={editData?.steps||''} placeholder="e.g. 8500"
+                onChange={e=>gymSleep.setSteps(editDate,e.target.value)}
+                style={{width:'100%',padding:'14px 16px',borderRadius:12,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text,fontSize:18,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'}}/>
+            </div>
+            {/* Done button */}
+            <button onClick={()=>setEditDate(null)} style={{width:'100%',padding:'14px',borderRadius:12,border:'none',background:C.mint,color:C.bg,fontSize:15,fontWeight:800,cursor:'pointer',marginTop:4}}>Done</button>
           </div>
         </div>
-        <div style={{marginBottom:16}}>
-          <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Sleep (hours)</div>
-          <input type="number" min="0" max="12" step="0.5" value={editData?.sleep||''} placeholder="e.g. 7.5"
-            onChange={e=>gymSleep.setSleep(editDate,e.target.value)} style={inputSt}/>
-        </div>
-        <div style={{marginBottom:20}}>
-          <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Steps</div>
-          <input type="number" min="0" max="99999" step="100" value={editData?.steps||''} placeholder="e.g. 8500"
-            onChange={e=>gymSleep.setSteps(editDate,e.target.value)} style={inputSt}/>
-        </div>
-        <button onClick={()=>setEditDate(null)} style={{width:'100%',padding:'12px',borderRadius:10,border:'none',background:C.mint,color:C.bg,fontSize:14,fontWeight:700,cursor:'pointer'}}>Done</button>
       </div>
-    </div>}
-    </>
-  );
+    </>}
+  </>);
 }
 
 // PHASE TARGETS
@@ -462,7 +525,7 @@ const PHASE_TARGETS = {
 function useSettings() {
   const KEY = 'stride_settings';
   const defaults = {phase:1,goalWeight:68,goalBF:15,startWeight:80.5,startDate:"2026-01-05"};
-  const load = () => { try { return {...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}; } catch { return defaults; } };
+  const load = () => { try { return {...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}; } catch(e) { return defaults; } };
   const [settings, setSettings] = useState(load);
   const save = (s) => { const merged={...settings,...s}; setSettings(merged); localStorage.setItem(KEY,JSON.stringify(merged)); };
   const targets = PHASE_TARGETS[settings.phase] || PHASE_TARGETS[1];
@@ -548,8 +611,10 @@ function InfoModal({id, onClose}) {
   const info = INFO_CONTENT[id];
   if (!info) return null;
   return (
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:"#1a1e24",border:`1px solid ${C.border}`,borderRadius:16,maxWidth:420,width:'100%',maxHeight:'80vh',overflow:'auto',padding:24}}>
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:C.overlayBg,backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.modalBg,border:`1px solid ${C.glassBorder}`,borderRadius:16,maxWidth:420,width:'100%',maxHeight:'80vh',overflow:'auto',padding:24,
+        backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,
+        boxShadow:C.mode==='light'?'0 8px 32px rgba(0,0,0,0.12)':'0 8px 32px rgba(0,0,0,0.5)'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
           <span style={{fontSize:16,fontWeight:700,color:C.mint}}>{info.title}</span>
           <span onClick={onClose} style={{cursor:'pointer',fontSize:20,color:C.text3,padding:'4px 8px'}}>✕</span>
@@ -624,12 +689,13 @@ function CountUp({ to, duration=800, prefix="", suffix="", decimals=0, color, st
 function AnimCard({ children, style={}, glow, delay=0 }) {
   const [ref, inView] = useInView(0.08);
   return (
-    <div ref={ref} style={{background:C.card,borderRadius:20,padding:22,border:`1px solid ${C.cardBorder}`,
-      backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',position:'relative',overflow:'hidden',
+    <div ref={ref} style={{background:C.glass,borderRadius:20,padding:22,border:`1px solid ${C.glassBorder}`,
+      backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,position:'relative',overflow:'hidden',
+      boxShadow:C.mode==='light'?'0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03)':'none',
       transition:`border-color .3s, opacity .55s cubic-bezier(.4,0,.2,1) ${delay}s, transform .55s cubic-bezier(.4,0,.2,1) ${delay}s`,
       opacity:inView?1:0, transform:inView?'translateY(0)':'translateY(16px)', ...style}}
-      onMouseEnter={e=>e.currentTarget.style.borderColor=C.cardBorderHover}
-      onMouseLeave={e=>e.currentTarget.style.borderColor=C.cardBorder}>
+      onMouseEnter={e=>{e.currentTarget.style.borderColor=C.cardBorderHover;if(C.mode==='light')e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05)';}}
+      onMouseLeave={e=>{e.currentTarget.style.borderColor=C.glassBorder;if(C.mode==='light')e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03)';}}>
       {glow&&<div style={{position:'absolute',top:-50,right:-50,width:140,height:140,borderRadius:'50%',background:C.mintSoft,filter:'blur(60px)',pointerEvents:'none'}}/>}
       {children}
     </div>
@@ -936,17 +1002,18 @@ function DateNav({D, value, onChange}) {
   ];
   // Styles
   const dayStyle = (state) => {
-    const base={textAlign:'center',padding:'8px 0',fontSize:12,cursor:'pointer',userSelect:'none',transition:'all .1s',borderRadius:8};
+    const isLt = C.mode==='light';
+    const base={textAlign:'center',padding:'8px 0',fontSize:12,cursor:'pointer',userSelect:'none',transition:'all .1s',borderRadius:8,color:C.text};
     switch(state){
       case'empty':return{...base,cursor:'default'};
-      case'disabled':return{...base,color:'rgba(255,255,255,0.08)',cursor:'default'};
-      case'selected':case'selected-today':return{...base,background:C.mint,color:C.bg,fontWeight:700,borderRadius:8};
+      case'disabled':return{...base,color:isLt?'rgba(0,0,0,0.12)':'rgba(255,255,255,0.08)',cursor:'default'};
+      case'selected':case'selected-today':return{...base,background:C.mint,color:isLt?'#fff':C.bg,fontWeight:700,borderRadius:8};
       case'today':return{...base,color:C.mint,fontWeight:700};
-      case'range-start':return{...base,background:C.mint,color:C.bg,fontWeight:700,borderRadius:'8px 0 0 8px'};
-      case'range-end':return{...base,background:C.mint,color:C.bg,fontWeight:700,borderRadius:'0 8px 8px 0'};
-      case'range-end-preview':return{...base,background:'rgba(184,255,87,0.35)',color:C.mint,fontWeight:700,borderRadius:'0 8px 8px 0',border:`1px dashed ${C.mint}`};
-      case'range-mid':return{...base,background:'rgba(184,255,87,0.15)',color:C.mint,fontWeight:500,borderRadius:0};
-      case'range-mid-preview':return{...base,background:'rgba(184,255,87,0.08)',color:'rgba(184,255,87,0.6)',fontWeight:500,borderRadius:0};
+      case'range-start':return{...base,background:C.mint,color:isLt?'#fff':C.bg,fontWeight:700,borderRadius:'8px 0 0 8px'};
+      case'range-end':return{...base,background:C.mint,color:isLt?'#fff':C.bg,fontWeight:700,borderRadius:'0 8px 8px 0'};
+      case'range-end-preview':return{...base,background:C.mintHard,color:C.mint,fontWeight:700,borderRadius:'0 8px 8px 0',border:`1px dashed ${C.mint}`};
+      case'range-mid':return{...base,background:C.mintSoft,color:C.mint,fontWeight:500,borderRadius:0};
+      case'range-mid-preview':return{...base,background:isLt?'rgba(46,204,113,0.06)':'rgba(184,255,87,0.08)',color:C.mint,fontWeight:500,borderRadius:0,opacity:0.7};
       default:return{...base,color:C.text,fontWeight:400};
     }
   };
@@ -992,7 +1059,7 @@ function DateNav({D, value, onChange}) {
         style={{padding:'5px 8px',borderRadius:8,border:'none',background:C.mintSoft,color:C.mint,fontSize:10,fontWeight:700,cursor:'pointer',flexShrink:0}}>Today</button>}
     </div>
     {showPicker&&<div onClick={handleCancel} style={{position:'fixed',inset:0,zIndex:98,background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)'}}/>}
-    {showPicker&&<div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:6,background:'#1a1e24',border:`1px solid ${C.border}`,borderRadius:16,padding:16,zIndex:100,boxShadow:'0 16px 48px rgba(0,0,0,0.7)',maxWidth:340}}>
+    {showPicker&&<div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:6,background:C.mode==='light'?'rgba(255,255,255,0.95)':C.modalBg,border:`1px solid ${C.glassBorder}`,borderRadius:16,padding:16,zIndex:100,boxShadow:C.mode==='light'?'0 16px 48px rgba(0,0,0,0.12)':'0 16px 48px rgba(0,0,0,0.7)',maxWidth:340,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`}}>
       {/* Presets */}
       <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:12}}>
         {presets.map(p=>{
@@ -1215,7 +1282,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
       const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
       if (resp.ok) {
         const data = await resp.json();
-        if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => data.meals[k]?.length > 0)) {
+        if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => (data.meals[k] || []).length > 0)) {
           setFoodLogCache(prev => ({...prev, [dateStr]: data.meals}));
         } else {
           setFoodLogCache(prev => ({...prev, [dateStr]: null})); // Mark as fetched but empty
@@ -1249,13 +1316,13 @@ function NutritionTab({vis,isD,isT,isM,D}) {
         const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
         if (resp.ok) {
           const data = await resp.json();
-          if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => data.meals[k]?.length > 0)) {
+          if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => (data.meals[k] || []).length > 0)) {
             results[dateStr] = data.meals;
           } else {
             results[dateStr] = null;
           }
         } else { results[dateStr] = null; }
-      } catch { results[dateStr] = null; }
+      } catch(e) { results[dateStr] = null; }
     }));
     setFoodLogCache(prev => ({...prev, ...results}));
     setLoadingFood(false);
@@ -1290,7 +1357,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
       {label && <div style={{fontSize:10,color:C.text3,textAlign:'center',padding:'4px 0'}}>{label}</div>}
       {foods.length === 0 ? (
         <div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>
-          {loadingFood ? 'Loading food data…' : 'No food data available. Food logs are fetched from MFP when you view specific dates.'}
+          {loadingFood ? 'Loading food data...' : 'No food data available. Food logs are fetched from MFP when you view specific dates.'}
         </div>
       ) : (
         <div style={{display:'grid',gridTemplateColumns:isD?'repeat(2,1fr)':'1fr',gap:8}}>
@@ -1353,12 +1420,12 @@ function NutritionTab({vis,isD,isT,isM,D}) {
                 </div>))}
             </div>
           </div>
-          <TopFoodsList foods={popularFoods} label={loadingFood ? 'Loading food data for this period…' : popularFoods.length > 0 ? `Top foods eaten during this ${d._count}-day period ↓` : null} />
+          <TopFoodsList foods={popularFoods} label={loadingFood ? 'Loading food data for this period...' : (popularFoods.length > 0 ? 'Top foods eaten during this period' : null)} />
         </div>)
         :foodTab==="log"?(
           loadingFood ? (
             <div style={{padding:30,textAlign:'center',color:C.text3,fontSize:12}}>
-              <div style={{marginBottom:8}}>Loading food diary…</div>
+              <div style={{marginBottom:8}}>Loading food diary...</div>
               <div style={{width:20,height:20,border:`2px solid ${C.border}`,borderTopColor:C.mint,borderRadius:'50%',margin:'0 auto',animation:'spin 1s linear infinite'}}/>
             </div>
           ) : dayMeals ? (<div style={{display:'flex',flexDirection:'column',gap:12}}>
@@ -1383,7 +1450,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
             <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{['breakfast','lunch','snack','dinner'].flatMap(k=>dayMeals[k]||[]).reduce((a,f)=>a+(f.cal||0),0)} cal</span>
             <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{Math.round(['breakfast','lunch','snack','dinner'].flatMap(k=>dayMeals[k]||[]).reduce((a,f)=>a+(f.pro||0),0))}g pro</span></div>
         </div>) : (<div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>No food log for this day.</div>))
-        :(<TopFoodsList foods={popularFoods} label={loadingFood ? 'Loading…' : null} />)}
+        :(<TopFoodsList foods={popularFoods} label={loadingFood ? 'Loading...' : null} />)}
       </AnimCard>
       <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1',overflowX:'auto'}}>
         <Lbl>Weekly Nutrition Averages</Lbl>
@@ -1722,6 +1789,17 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
 
 // MAIN APP
 export default function Stride() {
+  const [themeMode, setThemeMode] = useState(() => {
+    try { return localStorage.getItem('stride_theme') || 'light'; } catch(e) { return 'light'; }
+  });
+  const toggleTheme = () => {
+    const next = themeMode === 'light' ? 'dark' : 'light';
+    setThemeMode(next);
+    try { localStorage.setItem('stride_theme', next); } catch(e) {}
+  };
+  const theme = THEMES[themeMode] || THEMES.light;
+  C = theme; // Update the mutable C ref for all components
+
   const [tab, setTab] = useState("overview");
   const [ww, setWw] = useState(typeof window!=="undefined"?window.innerWidth:1200);
   const [navCollapsed, setNavCollapsed] = useState(false);
@@ -1896,8 +1974,11 @@ export default function Stride() {
 
   const NotifPanel = () => (
     <div ref={notifRef} style={{position:'absolute',top:'100%',right:0,marginTop:8,width:320,maxHeight:420,overflowY:'auto',
-      background:C.surfaceSolid,border:`1px solid ${C.border}`,borderRadius:16,boxShadow:'0 12px 48px rgba(0,0,0,.6)',zIndex:200,
-      animation:'fadeSlideDown .2s ease'}}>
+      background:C.mode==='light'?'rgba(255,255,255,0.92)':C.surfaceSolid,
+      border:`1px solid ${C.glassBorder}`,borderRadius:16,
+      boxShadow:C.mode==='light'?'0 12px 48px rgba(0,0,0,.12)':'0 12px 48px rgba(0,0,0,.6)',
+      backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,
+      zIndex:200,animation:'fadeSlideDown .2s ease'}}>
       <div style={{padding:'14px 16px 10px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:`1px solid ${C.border}`}}>
         <span style={{fontSize:12,fontWeight:700,color:C.text}}>Notifications</span>
         {unreadCount>0&&<button onClick={(e)=>{e.stopPropagation();setNotifRead(Object.fromEntries(notifications.map(n=>[n.id,true])));}} style={{fontSize:10,fontWeight:600,color:C.text3,background:'none',border:'none',cursor:'pointer',padding:'4px 8px',borderRadius:6,transition:'color .2s'}}
@@ -1909,9 +1990,9 @@ export default function Stride() {
           return (
             <button key={n.id} onClick={(e) => { e.stopPropagation(); setNotifRead(p=>({...p,[n.id]:true})); setNotifOpen(false); setTab(n.tab||"coach"); }}
               style={{display:'flex',alignItems:'flex-start',gap:10,width:'100%',padding:'10px 10px',borderRadius:10,border:'none',cursor:'pointer',
-                background:isRead?'transparent':'rgba(255,255,255,0.02)',textAlign:'left',fontFamily:'var(--sans)',transition:'background .15s',marginBottom:2}}
-              onMouseEnter={e=>e.currentTarget.style.background='rgba(255,255,255,0.04)'}
-              onMouseLeave={e=>e.currentTarget.style.background=isRead?'transparent':'rgba(255,255,255,0.02)'}>
+                background:isRead?'transparent':(C.mode==='light'?'rgba(0,0,0,0.02)':'rgba(255,255,255,0.02)'),textAlign:'left',fontFamily:'var(--sans)',transition:'background .15s',marginBottom:2}}
+              onMouseEnter={e=>e.currentTarget.style.background=C.mode==='light'?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.04)'}
+              onMouseLeave={e=>e.currentTarget.style.background=isRead?'transparent':(C.mode==='light'?'rgba(0,0,0,0.02)':'rgba(255,255,255,0.02)')}>
               <div style={{width:7,height:7,borderRadius:'50%',background:isRead?'transparent':typeColor[n.type]||C.mint,flexShrink:0,marginTop:5,transition:'background .2s',
                 boxShadow:isRead?'none':`0 0 6px ${(typeColor[n.type]||C.mint)}44`}}/>
               <div style={{flex:1,minWidth:0}}>
@@ -1949,42 +2030,63 @@ export default function Stride() {
     }
   };
   const navW = navCollapsed ? 64 : 240;
+  const isDark = themeMode === 'dark';
+  const ThemeToggle = ({size=32}) => (
+    <button onClick={toggleTheme} title={isDark?'Switch to light mode':'Switch to dark mode'}
+      style={{width:size,height:size,borderRadius:size/2.5,border:`1px solid ${C.border}`,
+        background:C.glass,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,
+        display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.text2,transition:'all .2s'}}
+      onMouseEnter={e=>{e.currentTarget.style.borderColor=C.mint;e.currentTarget.style.color=C.mint;}}
+      onMouseLeave={e=>{e.currentTarget.style.borderColor=C.border;e.currentTarget.style.color=C.text2;}}>
+      {isDark
+        ? <svg width={size*.45} height={size*.45} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        : <svg width={size*.45} height={size*.45} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>}
+    </button>
+  );
   return (
-    <div style={{minHeight:'100vh',background:C.bg,color:C.text,fontFamily:'var(--sans)',display:isD?'flex':'block'}}>
+  <ThemeContext.Provider value={{theme,themeMode,toggleTheme}}>
+    <div style={{minHeight:'100vh',background:C.bg,color:C.text,fontFamily:'var(--sans)',display:isD?'flex':'block',transition:'background .4s, color .4s'}}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
         :root{--sans:'Plus Jakarta Sans',-apple-system,sans-serif;--mono:'JetBrains Mono',monospace;}
         *{box-sizing:border-box;margin:0;padding:0;}
-        ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:${C.border};border-radius:3px;}
+        ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:${C.scrollThumb};border-radius:3px;}
         @keyframes fadeSlideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
         @keyframes fadeIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
         @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
+        @keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
       `}</style>
       <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden'}}>
-        <div style={{position:'absolute',top:'-10%',left:'20%',width:600,height:600,borderRadius:'50%',background:`radial-gradient(circle,${C.mintSoft} 0%,transparent 70%)`,filter:'blur(30px)'}}/>
-        <div style={{position:'absolute',bottom:'-15%',right:'5%',width:500,height:500,borderRadius:'50%',background:'radial-gradient(circle,rgba(77,160,255,.03) 0%,transparent 70%)',filter:'blur(30px)'}}/></div>
+        <div style={{position:'absolute',top:'-10%',left:'20%',width:600,height:600,borderRadius:'50%',
+          background:`radial-gradient(circle,${isDark?C.mintSoft:'rgba(46,204,113,0.06)'} 0%,transparent 70%)`,filter:'blur(40px)'}}/>
+        <div style={{position:'absolute',bottom:'-15%',right:'5%',width:500,height:500,borderRadius:'50%',
+          background:`radial-gradient(circle,${isDark?'rgba(77,160,255,.03)':'rgba(6,182,212,0.04)'} 0%,transparent 70%)`,filter:'blur(40px)'}}/></div>
 
       {isD && (
-        <nav style={{width:navW,minHeight:'100vh',background:C.surfaceSolid,borderRight:`1px solid ${C.border}`,
+        <nav style={{width:navW,minHeight:'100vh',background:C.navBg,borderRight:`1px solid ${C.navBorder}`,
+          backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,
           padding:navCollapsed?'20px 8px':'20px 12px',display:'flex',flexDirection:'column',position:'sticky',top:0,zIndex:10,
-          transition:'width .25s cubic-bezier(.4,0,.2,1), padding .25s cubic-bezier(.4,0,.2,1)',overflow:'hidden'}}>
+          transition:'width .25s cubic-bezier(.4,0,.2,1), padding .25s cubic-bezier(.4,0,.2,1), background .4s',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16,padding:navCollapsed?'0':'0 4px',justifyContent:navCollapsed?'center':'space-between'}}>
             {navCollapsed ? (
-              <button onClick={()=>setNavCollapsed(false)} title="Open sidebar"
-                style={{width:36,height:36,borderRadius:10,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',
-                  display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.text2,transition:'all .15s'}}
-                onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.08)';e.currentTarget.style.color=C.text;}}
-                onMouseLeave={e=>{e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.color=C.text2;}}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
-              </button>
+              <div style={{position:'relative',cursor:'pointer'}}
+                onClick={()=>setNavCollapsed(false)} title="Expand sidebar">
+                <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,
+                  color:isDark?C.bg:'#fff',boxShadow:`0 2px 12px ${C.mint}33`,transition:'transform .2s,box-shadow .2s'}}
+                  onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.08)';e.currentTarget.style.boxShadow=`0 4px 20px ${C.mint}55`;}}
+                  onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)';e.currentTarget.style.boxShadow=`0 2px 12px ${C.mint}33`;}}>
+                  S
+                </div>
+              </div>
             ) : (<>
               <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <div style={{width:32,height:32,borderRadius:10,background:'linear-gradient(135deg,#B8FF57,#57FFD8)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:C.bg,flexShrink:0}}>S</div>
-                <div><div style={{fontSize:15,fontWeight:800,letterSpacing:-.3}}>Stride</div><div style={{fontSize:9,color:C.text3,fontWeight:600}}>Week {D.currentWeek} · Phase {settings.phase}</div></div>
+                <div style={{width:32,height:32,borderRadius:10,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:isDark?C.bg:'#fff',flexShrink:0,boxShadow:`0 2px 12px ${C.mint}22`}}>S</div>
+                <div><div style={{fontSize:15,fontWeight:800,letterSpacing:-.3}}}>Stride</div><div style={{fontSize:9,color:C.text3,fontWeight:600}}>Week {D.currentWeek} · Phase {settings.phase}</div></div>
               </div>
               <button onClick={()=>setNavCollapsed(true)} title="Close sidebar"
                 style={{width:32,height:32,borderRadius:8,border:'none',background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.text3,transition:'all .15s',flexShrink:0}}
-                onMouseEnter={e=>{e.currentTarget.style.background='rgba(255,255,255,0.06)';e.currentTarget.style.color=C.text;}}
+                onMouseEnter={e=>{e.currentTarget.style.background=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)';e.currentTarget.style.color=C.text;}}
                 onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color=C.text3;}}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
               </button>
@@ -1994,21 +2096,33 @@ export default function Stride() {
             {NAV.map(n=>{const act=tab===n.id;
               return (<button key={n.id} onClick={()=>setTab(n.id)} title={navCollapsed?n.label:""}
                 style={{display:'flex',alignItems:'center',gap:12,width:'100%',padding:navCollapsed?'10px 0':'10px 12px',justifyContent:navCollapsed?'center':'flex-start',
-                  borderRadius:10,border:'none',background:act?'rgba(255,255,255,0.06)':'transparent',color:act?C.text:C.text2,
+                  borderRadius:10,border:'none',
+                  background:act?(isDark?'rgba(255,255,255,0.06)':'rgba(46,204,113,0.08)'):'transparent',
+                  color:act?C.text:C.text2,
                   fontSize:13,fontWeight:act?600:400,cursor:'pointer',transition:'all .15s',fontFamily:'var(--sans)',textAlign:'left'}}
-                onMouseEnter={e=>{if(!act)e.currentTarget.style.background='rgba(255,255,255,0.04)';}}
+                onMouseEnter={e=>{if(!act)e.currentTarget.style.background=isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)';}}
                 onMouseLeave={e=>{if(!act)e.currentTarget.style.background='transparent';}}>
                 <span style={{opacity:act?1:0.7}}>{n.icon}</span>{!navCollapsed&&<span>{n.label}</span>}
               </button>);
             })}
           </div>
-          {!navCollapsed&&<div style={{padding:'14px 12px',borderRadius:14,background:`linear-gradient(135deg,${C.mintSoft},transparent)`,border:`1px solid ${C.mintSoft}`}}>
-            <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Overall Progress</div>
-            <div style={{fontSize:24,fontWeight:900,fontFamily:'var(--mono)',color:C.mint}}>-{D.lost}kg</div>
-            <div style={{fontSize:11,color:C.text2,marginTop:2}}>of 12.5 kg goal</div>
-            <div style={{height:4,borderRadius:2,background:C.border,marginTop:10,overflow:'hidden'}}>
-              <div style={{height:'100%',width:`${(parseFloat(D.lost)/12.5*100).toFixed(0)}%`,borderRadius:2,background:`linear-gradient(90deg,${C.mint}BB,${C.mint})`,transition:'width 1s ease'}}/></div>
-          </div>}
+          {navCollapsed ? (
+            <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',marginTop:8}}>
+              <ThemeToggle size={32}/>
+            </div>
+          ) : (<>
+            <div style={{padding:10,marginBottom:8}}>
+              <ThemeToggle size={30}/>
+            </div>
+            <div style={{padding:'14px 12px',borderRadius:14,
+              background:`linear-gradient(135deg,${C.mintSoft},transparent)`,border:`1px solid ${C.mintSoft}`,backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)'}}>
+              <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Overall Progress</div>
+              <div style={{fontSize:24,fontWeight:900,fontFamily:'var(--mono)',color:C.mint}}>-{D.lost}kg</div>
+              <div style={{fontSize:11,color:C.text2,marginTop:2}}>of 12.5 kg goal</div>
+              <div style={{height:4,borderRadius:2,background:C.border,marginTop:10,overflow:'hidden'}}>
+                <div style={{height:'100%',width:`${(parseFloat(D.lost)/12.5*100).toFixed(0)}%`,borderRadius:2,background:`linear-gradient(90deg,${C.gradStart},${C.gradEnd})`,transition:'width 1s ease'}}/></div>
+            </div>
+          </>)}
         </nav>
       )}
 
@@ -2016,14 +2130,15 @@ export default function Stride() {
         {!isD && (
           <header style={{padding:'14px 18px 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <div style={{width:36,height:36,borderRadius:12,background:'linear-gradient(135deg,#B8FF57,#57FFD8)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,color:C.bg,boxShadow:`0 4px 16px ${C.mint}33`}}>S</div>
+              <div style={{width:36,height:36,borderRadius:12,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,color:isDark?C.bg:'#fff',boxShadow:`0 4px 16px ${C.mint}33`}}>S</div>
               <div><div style={{fontSize:10,color:C.text3,fontWeight:600}}>Week {D.currentWeek} · Phase 1</div><div style={{fontSize:16,fontWeight:800,letterSpacing:-.3}}>Stride</div></div>
             </div>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
-              <button onClick={handleRefresh} title="Refresh" style={{width:32,height:32,borderRadius:10,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:syncing?C.mint:C.text3,cursor:'pointer'}}>
+              <ThemeToggle size={32}/>
+              <button onClick={handleRefresh} title="Refresh" style={{width:32,height:32,borderRadius:10,background:C.glass,border:`1px solid ${C.glassBorder}`,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,display:'flex',alignItems:'center',justifyContent:'center',color:syncing?C.mint:C.text3,cursor:'pointer'}}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:syncing?'spin 1s linear infinite':'none'}}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
               <div style={{position:'relative'}}>
-                <button ref={bellRef} onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
+                <button ref={bellRef} onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.glass,border:`1px solid ${C.glassBorder}`,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
                   {I.bell}{unreadCount>0&&<div style={{position:'absolute',top:5,right:5,minWidth:14,height:14,borderRadius:7,background:C.red,border:`2px solid ${C.bg}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:800,color:'#fff',padding:'0 3px'}}>{unreadCount}</div>}
                 </button>
                 {notifOpen&&<NotifPanel/>}
@@ -2042,13 +2157,14 @@ export default function Stride() {
               </div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <div style={{padding:'8px 14px',borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,fontSize:12,fontWeight:600,color:C.text2}}>Phase 1 — Fat Loss</div>
-              <button onClick={handleRefresh} title="Refresh stats" style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:syncing?C.mint:C.text2,cursor:'pointer',transition:'color .2s'}}
+              <div style={{padding:'8px 14px',borderRadius:12,background:C.glass,border:`1px solid ${C.glassBorder}`,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,fontSize:12,fontWeight:600,color:C.text2}}>Phase 1 — Fat Loss</div>
+              <ThemeToggle/>
+              <button onClick={handleRefresh} title="Refresh stats" style={{width:36,height:36,borderRadius:12,background:C.glass,border:`1px solid ${C.glassBorder}`,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,display:'flex',alignItems:'center',justifyContent:'center',color:syncing?C.mint:C.text2,cursor:'pointer',transition:'color .2s'}}
                 onMouseEnter={e=>{if(!syncing)e.currentTarget.style.color=C.mint;}} onMouseLeave={e=>{if(!syncing)e.currentTarget.style.color=C.text2;}}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{animation:syncing?'spin 1s linear infinite':'none'}}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
               </button>
               <div style={{position:'relative'}}>
-                <button ref={bellRef} onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.card,border:`1px solid ${C.cardBorder}`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
+                <button ref={bellRef} onClick={()=>setNotifOpen(!notifOpen)} style={{width:36,height:36,borderRadius:12,background:C.glass,border:`1px solid ${C.glassBorder}`,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,display:'flex',alignItems:'center',justifyContent:'center',color:C.text2,position:'relative',cursor:'pointer'}}>
                   {I.bell}{unreadCount>0&&<div style={{position:'absolute',top:5,right:5,minWidth:14,height:14,borderRadius:7,background:C.red,border:`2px solid ${C.bg}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:8,fontWeight:800,color:'#fff',padding:'0 3px'}}>{unreadCount}</div>}
                 </button>
                 {notifOpen&&<NotifPanel/>}
@@ -2062,7 +2178,9 @@ export default function Stride() {
       </div>
 
       {!isD && (
-        <nav style={{position:'fixed',bottom:0,left:0,right:0,background:`linear-gradient(180deg,${C.bg}00 0%,${C.bg}EE 20%,${C.bg} 100%)`,backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',borderTop:`1px solid ${C.border}`,padding:'6px 4px',paddingBottom:'max(6px, env(safe-area-inset-bottom))',zIndex:100,display:'flex',justifyContent:'space-around'}}>
+        <nav style={{position:'fixed',bottom:0,left:0,right:0,
+          background:isDark?`linear-gradient(180deg,${C.bg}00 0%,${C.bg}EE 20%,${C.bg} 100%)`:`linear-gradient(180deg,${C.bg}00 0%,${C.bg}DD 20%,${C.bg} 100%)`,
+          backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',borderTop:`1px solid ${C.border}`,padding:'6px 4px',paddingBottom:'max(6px, env(safe-area-inset-bottom))',zIndex:100,display:'flex',justifyContent:'space-around'}}>
           {NAV.map(n=>{const act=tab===n.id;
             return (<button key={n.id} onClick={()=>setTab(n.id)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'7px 6px',border:'none',background:'none',cursor:'pointer',color:act?C.mint:C.text3,transition:'color .2s',position:'relative',fontFamily:'var(--sans)'}}>
               {act&&<div style={{position:'absolute',top:-6,width:20,height:3,borderRadius:2,background:C.mint,boxShadow:`0 0 10px ${C.mint}55`}}/>}
@@ -2075,5 +2193,6 @@ export default function Stride() {
       <SyncToast message={toast.msg} show={toast.show}/>
       {infoModal && <InfoModal id={infoModal} onClose={()=>setInfoModal(null)}/>}
     </div>
+  </ThemeContext.Provider>
   );
 }
