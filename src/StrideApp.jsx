@@ -890,6 +890,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
   const macros=[{name:"Protein",v:d.pro*4,c:C.mint},{name:"Carbs",v:d.carb*4,c:C.blue},{name:"Fat",v:d.fat*9,c:C.orange}];
   const foodDate=period==="today"?(D.today?.dt||null):period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Today"):null;
   const dayMeals=foodDate?D.FOOD_LOG[foodDate]:null;
+  const foodLabel=period==="today"?"Today's Log":period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Day")+"'s Log":"Summary";
   const mealOrder=[{key:"breakfast",label:"Breakfast",icon:"☀"},{key:"lunch",label:"Lunch",icon:"☕"},{key:"snack",label:"Snack",icon:"🍎"},{key:"dinner",label:"Dinner",icon:"🌙"}];
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
@@ -926,7 +927,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
           <Lbl>{foodTab==="log"?"Food Diary":"Most Eaten Foods"}</Lbl>
           <div style={{display:'flex',gap:4,padding:2,borderRadius:8,background:'rgba(255,255,255,0.03)'}}>
-            <button onClick={()=>setFoodTab("log")} style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',background:foodTab==="log"?C.mintSoft:'transparent',color:foodTab==="log"?C.mint:C.text3,fontSize:10,fontWeight:600,fontFamily:'var(--sans)'}}>Today's Log</button>
+            <button onClick={()=>setFoodTab("log")} style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',background:foodTab==="log"?C.mintSoft:'transparent',color:foodTab==="log"?C.mint:C.text3,fontSize:10,fontWeight:600,fontFamily:'var(--sans)'}}>{foodLabel}</button>
             <button onClick={()=>setFoodTab("popular")} style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',background:foodTab==="popular"?C.mintSoft:'transparent',color:foodTab==="popular"?C.mint:C.text3,fontSize:10,fontWeight:600,fontFamily:'var(--sans)'}}>Top Foods</button></div></div>
         {foodTab==="log"?(dayMeals?(<div style={{display:'flex',flexDirection:'column',gap:12}}>
           {mealOrder.map(meal=>{const items=dayMeals[meal.key]; if(!items||!items.length)return null;
