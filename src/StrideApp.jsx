@@ -5,38 +5,43 @@ import { useState, useEffect, useMemo, useRef, useCallback, createContext, useCo
 const THEMES = {
   light: {
     mode: 'light',
-    bg: "#F0F2F5", bgAlt: "#E8EBF0",
-    surface: "rgba(255,255,255,0.72)", surfaceSolid: "#FFFFFF",
-    card: "rgba(255,255,255,0.65)", cardHover: "rgba(255,255,255,0.85)",
-    cardBorder: "rgba(0,0,0,0.06)", cardBorderHover: "rgba(60,180,100,0.22)",
-    mint: "#2ECC71", mintDark: "#27AE60",
-    mintSoft: "rgba(46,204,113,0.10)", mintMed: "rgba(46,204,113,0.18)", mintHard: "rgba(46,204,113,0.30)",
-    red: "#E74C3C", redSoft: "rgba(231,76,60,0.10)",
-    blue: "#3B82F6", blueSoft: "rgba(59,130,246,0.10)",
-    orange: "#F59E0B", orangeSoft: "rgba(245,158,11,0.10)",
-    cyan: "#06B6D4", cyanSoft: "rgba(6,182,212,0.10)",
-    purple: "#8B5CF6", purpleSoft: "rgba(139,92,246,0.10)",
-    text: "#1A1D23", text2: "#5A6478", text3: "#9CA3AF",
-    border: "rgba(0,0,0,0.06)",
-    // Glassmorphism
-    glass: "rgba(255,255,255,0.55)", glassBorder: "rgba(255,255,255,0.7)", glassBlur: 20,
-    // Gradients
-    gradStart: "#2ECC71", gradEnd: "#06B6D4",
+    bg: "#EAECF3", bgAlt: "#E2E5EE",
+    surface: "rgba(255,255,255,0.55)", surfaceSolid: "#FFFFFF",
+    card: "rgba(255,255,255,0.50)", cardHover: "rgba(255,255,255,0.72)",
+    cardBorder: "rgba(255,255,255,0.65)", cardBorderHover: "rgba(45,140,60,0.18)",
+    // Graph/accent — deep saturated tones for readability on pearlescent glass
+    mint: "#2D8C3C", mintDark: "#1E7A2E",
+    mintSoft: "rgba(45,140,60,0.10)", mintMed: "rgba(45,140,60,0.18)", mintHard: "rgba(45,140,60,0.30)",
+    red: "#D43D3D", redSoft: "rgba(212,61,61,0.08)",
+    blue: "#3360C4", blueSoft: "rgba(51,96,196,0.08)",
+    orange: "#C87A08", orangeSoft: "rgba(200,122,8,0.08)",
+    cyan: "#0C8A82", cyanSoft: "rgba(12,138,130,0.08)",
+    purple: "#6B3FC7", purpleSoft: "rgba(107,63,199,0.08)",
+    text: "#1A1D26", text2: "#454D5E", text3: "#7E8799",
+    border: "rgba(255,255,255,0.45)",
+    // Silvery track for rings/arcs/progress — like the reference
+    track: "rgba(0,0,0,0.08)",
+    // Glassmorphism — pearlescent frosted glass
+    glass: "rgba(255,255,255,0.52)", glassBorder: "rgba(255,255,255,0.72)", glassBlur: 28,
+    // Brand gradients — always brand identity
+    gradStart: "#B8FF57", gradEnd: "#57FFD8",
     // Nav
-    navBg: "rgba(255,255,255,0.85)", navBorder: "rgba(0,0,0,0.06)",
+    navBg: "rgba(255,255,255,0.55)", navBorder: "rgba(255,255,255,0.50)",
     // Modal
-    modalBg: "rgba(255,255,255,0.95)", overlayBg: "rgba(0,0,0,0.25)",
+    modalBg: "rgba(255,255,255,0.90)", overlayBg: "rgba(0,0,0,0.15)",
     // Scrollbar
-    scrollThumb: "rgba(0,0,0,0.1)",
-    // Chart/graph dark text
+    scrollThumb: "rgba(0,0,0,0.08)",
     chartLine: "#CBD5E1",
+    // Ambient bg — soft lavender-tinted pearlescent
+    bgGradient: "linear-gradient(145deg, #EAECF3 0%, #E5E4F0 20%, #E8EAF4 40%, #EBE8F1 60%, #E7E9F3 80%, #EAECF3 100%)",
+    bgAccent1: "rgba(45,140,60,0.04)", bgAccent2: "rgba(12,138,130,0.035)", bgAccent3: "rgba(107,63,199,0.04)",
   },
   dark: {
     mode: 'dark',
     bg: "#070B14", bgAlt: "#0C0F15",
     surface: "rgba(14,19,32,0.72)", surfaceSolid: "#0E1320",
-    card: "rgba(18,23,33,0.65)", cardHover: "rgba(24,30,42,0.75)",
-    cardBorder: "rgba(255,255,255,0.04)", cardBorderHover: "rgba(184,255,87,0.12)",
+    card: "rgba(18,23,33,0.55)", cardHover: "rgba(24,30,42,0.65)",
+    cardBorder: "rgba(255,255,255,0.06)", cardBorderHover: "rgba(184,255,87,0.12)",
     mint: "#B8FF57", mintDark: "#9ADB3B",
     mintSoft: "rgba(184,255,87,0.10)", mintMed: "rgba(184,255,87,0.20)", mintHard: "rgba(184,255,87,0.35)",
     red: "#FF5470", redSoft: "rgba(255,84,112,0.10)",
@@ -45,16 +50,19 @@ const THEMES = {
     cyan: "#57FFD8", cyanSoft: "rgba(87,255,216,0.10)",
     purple: "#A78BFA", purpleSoft: "rgba(167,139,250,0.10)",
     text: "#EFF1F5", text2: "#8B95A8", text3: "#4B5468",
-    border: "rgba(255,255,255,0.04)",
-    glass: "rgba(18,23,33,0.55)", glassBorder: "rgba(255,255,255,0.06)", glassBlur: 20,
+    border: "rgba(255,255,255,0.06)",
+    track: "rgba(255,255,255,0.04)",
+    // Glassmorphism — enhanced
+    glass: "rgba(14,19,32,0.45)", glassBorder: "rgba(255,255,255,0.08)", glassBlur: 24,
     gradStart: "#B8FF57", gradEnd: "#57FFD8",
-    navBg: "rgba(14,19,32,0.92)", navBorder: "rgba(255,255,255,0.04)",
-    modalBg: "#1a1e24", overlayBg: "rgba(0,0,0,0.8)",
+    navBg: "rgba(14,19,32,0.65)", navBorder: "rgba(255,255,255,0.06)",
+    modalBg: "rgba(14,19,32,0.85)", overlayBg: "rgba(0,0,0,0.7)",
     scrollThumb: "rgba(255,255,255,0.04)",
     chartLine: "#2A3040",
+    bgGradient: "linear-gradient(145deg, #070B14 0%, #0A0F1A 25%, #080D16 50%, #0B1020 75%, #070B14 100%)",
+    bgAccent1: "rgba(184,255,87,0.03)", bgAccent2: "rgba(87,255,216,0.025)", bgAccent3: "rgba(91,140,255,0.02)",
   }
 };
-
 const ThemeContext = createContext(null);
 function useTheme() { return useContext(ThemeContext); }
 
@@ -359,9 +367,10 @@ function buildFallbackData() {
 // foodLog is keyed by ISO date string "2026-02-19" → {breakfast:[], lunch:[], ...}
 function computePopularFoods(foodLog, fromDate, toDate) {
   const entries = Object.entries(foodLog || {});
-  const filtered = fromDate && toDate
+  const filtered = (fromDate && toDate
     ? entries.filter(([date]) => date >= fromDate && date <= toDate)
-    : entries;
+    : entries
+  ).filter(([, m]) => m != null);
   const allFoods = filtered.flatMap(([, m]) => [...(m.breakfast||[]),...(m.lunch||[]),...(m.snack||[]),...(m.dinner||[])]);
   const freq = {};
   allFoods.forEach(f => {
@@ -688,14 +697,21 @@ function CountUp({ to, duration=800, prefix="", suffix="", decimals=0, color, st
 // SCROLL-ANIMATED CARD
 function AnimCard({ children, style={}, glow, delay=0 }) {
   const [ref, inView] = useInView(0.08);
+  const isLight = C.mode === 'light';
+  const baseShadow = isLight
+    ? '0 1px 2px rgba(0,0,0,0.03), 0 4px 16px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.02), inset 0 1px 0 rgba(255,255,255,0.7)'
+    : '0 2px 8px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04)';
+  const hoverShadow = isLight
+    ? '0 2px 8px rgba(0,0,0,0.05), 0 12px 40px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)'
+    : '0 4px 16px rgba(0,0,0,0.4), 0 16px 48px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06)';
   return (
     <div ref={ref} style={{background:C.glass,borderRadius:20,padding:22,border:`1px solid ${C.glassBorder}`,
       backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,position:'relative',overflow:'hidden',
-      boxShadow:C.mode==='light'?'0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03)':'none',
-      transition:`border-color .3s, opacity .55s cubic-bezier(.4,0,.2,1) ${delay}s, transform .55s cubic-bezier(.4,0,.2,1) ${delay}s`,
+      boxShadow:baseShadow,
+      transition:`border-color .3s, box-shadow .3s, opacity .55s cubic-bezier(.4,0,.2,1) ${delay}s, transform .55s cubic-bezier(.4,0,.2,1) ${delay}s`,
       opacity:inView?1:0, transform:inView?'translateY(0)':'translateY(16px)', ...style}}
-      onMouseEnter={e=>{e.currentTarget.style.borderColor=C.cardBorderHover;if(C.mode==='light')e.currentTarget.style.boxShadow='0 2px 8px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05)';}}
-      onMouseLeave={e=>{e.currentTarget.style.borderColor=C.glassBorder;if(C.mode==='light')e.currentTarget.style.boxShadow='0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03)';}}>
+      onMouseEnter={e=>{e.currentTarget.style.borderColor=C.cardBorderHover;e.currentTarget.style.boxShadow=hoverShadow;}}
+      onMouseLeave={e=>{e.currentTarget.style.borderColor=C.glassBorder;e.currentTarget.style.boxShadow=baseShadow;}}>
       {glow&&<div style={{position:'absolute',top:-50,right:-50,width:140,height:140,borderRadius:'50%',background:C.mintSoft,filter:'blur(60px)',pointerEvents:'none'}}/>}
       {children}
     </div>
@@ -798,11 +814,14 @@ function Spark({data,color=C.mint,w=200,h=50,fill=true,sw=2,visible=true}) {
 
 function Ring({val,max=100,sz=80,sw=6,color=C.mint,visible=true,children}) {
   const pct=Math.min(val/max,1),r=(sz-sw)/2,circ=2*Math.PI*r,dash=pct*circ;
+  const gid=`rg${sz}${color.replace('#','')}`;
   return (<div style={{position:'relative',width:sz,height:sz}}>
-    <svg width={sz} height={sz}><circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={C.border} strokeWidth={sw}/>
-    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={color} strokeWidth={sw}
+    <svg width={sz} height={sz}>
+      <defs><linearGradient id={gid} x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.4"/><stop offset="100%" stopColor={color} stopOpacity="1"/></linearGradient></defs>
+      <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={C.track||C.border} strokeWidth={sw}/>
+    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={`url(#${gid})`} strokeWidth={sw}
       strokeDasharray={visible?`${dash} ${circ-dash}`:`0 ${circ}`} strokeDashoffset={circ/4} strokeLinecap="round"
-      style={{transition:'stroke-dasharray 1s cubic-bezier(.4,0,.2,1) .15s',filter:`drop-shadow(0 0 4px ${color}33)`}}/></svg>
+      style={{transition:'stroke-dasharray 1s cubic-bezier(.4,0,.2,1) .15s',filter:`drop-shadow(0 0 6px ${color}44)`}}/></svg>
     <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column'}}>{children}</div>
   </div>);
 }
@@ -810,13 +829,15 @@ function Ring({val,max=100,sz=80,sw=6,color=C.mint,visible=true,children}) {
 function Arc({val,max,sz=120,sw=8,color=C.mint,label,unit="",visible=true}) {
   const pct=Math.min(val/max,1),r=(sz-sw*2)/2,circ=Math.PI*r,dash=pct*circ;
   const display=val>=1000?`${(val/1000).toFixed(1)}k`:Math.round(val);
+  const gid=`ag${sz}${color.replace('#','')}`;
   return (<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
     <div style={{position:'relative',width:sz,height:sz*.55}}>
       <svg width={sz} height={sz*.55} viewBox={`0 0 ${sz} ${sz*.58}`}>
-        <path d={`M ${sw} ${sz/2} A ${r} ${r} 0 0 1 ${sz-sw} ${sz/2}`} fill="none" stroke="rgba(255,255,255,0.04)" strokeWidth={sw} strokeLinecap="round"/>
-        <path d={`M ${sw} ${sz/2} A ${r} ${r} 0 0 1 ${sz-sw} ${sz/2}`} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round"
+        <defs><linearGradient id={gid} x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor={color} stopOpacity="0.35"/><stop offset="100%" stopColor={color} stopOpacity="1"/></linearGradient></defs>
+        <path d={`M ${sw} ${sz/2} A ${r} ${r} 0 0 1 ${sz-sw} ${sz/2}`} fill="none" stroke={C.track||"rgba(255,255,255,0.04)"} strokeWidth={sw} strokeLinecap="round"/>
+        <path d={`M ${sw} ${sz/2} A ${r} ${r} 0 0 1 ${sz-sw} ${sz/2}`} fill="none" stroke={`url(#${gid})`} strokeWidth={sw} strokeLinecap="round"
           strokeDasharray={visible?`${dash} ${circ}`:`0 ${circ}`}
-          style={{transition:'stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1) .2s',filter:`drop-shadow(0 0 6px ${color}33)`}}/></svg>
+          style={{transition:'stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1) .2s',filter:`drop-shadow(0 0 8px ${color}44)`}}/></svg>
       <div style={{position:'absolute',bottom:2,left:'50%',transform:'translateX(-50%)',textAlign:'center',opacity:visible?1:0,transition:'opacity .4s ease .5s'}}>
         <div style={{fontSize:sz>100?22:17,fontWeight:800,fontFamily:'var(--mono)',color:C.text,lineHeight:1}}>{display}</div>
         {unit&&<div style={{fontSize:8,color:C.text3,fontWeight:600,marginTop:1}}>{unit}</div>}</div>
@@ -836,8 +857,8 @@ function Bars({data,max,color=C.mint,h=80,activeIdx=-1,visible=true}) {
           padding:'2px 6px',borderRadius:5,background:C.surfaceSolid,border:`1px solid ${color}22`,
           fontSize:9,fontWeight:600,fontFamily:'var(--mono)',color,whiteSpace:'nowrap',zIndex:5}}>{d.v>=1000?d.v.toLocaleString():d.v}</div>}
         <div style={{width:'100%',maxWidth:22,height:visible?bh:0,borderRadius:6,
-          background:isOn?`linear-gradient(180deg,${color},${color}77)`:isHov?`${color}33`:C.border,
-          boxShadow:isOn?`0 0 8px ${color}22`:'none',
+          background:isOn?`linear-gradient(180deg,${color},${color}77)`:isHov?`${color}33`:(C.track||C.border),
+          boxShadow:isOn?`0 0 10px ${color}33`:'none',
           transition:`height .7s cubic-bezier(.4,0,.2,1) ${i*.06}s, background .2s`,
           transform:isHov&&!act?'scaleY(1.04)':'scaleY(1)', transformOrigin:'bottom'}}/>
         <span style={{fontSize:9,color:isOn?color:isHov?C.text2:C.text3,fontWeight:isOn?700:600,transition:'color .2s'}}>{d.label}</span>
@@ -848,12 +869,12 @@ function Bars({data,max,color=C.mint,h=80,activeIdx=-1,visible=true}) {
 function Donut({segs,sz=100,sw=10,visible=true}) {
   const r=(sz-sw)/2,circ=2*Math.PI*r,tot=segs.reduce((a,s)=>a+s.v,0); let off=0;
   return (<svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`}>
-    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={C.border} strokeWidth={sw}/>
+    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={C.track||C.border} strokeWidth={sw}/>
     {segs.map((s,i)=>{const d=(s.v/tot)*circ,g=circ-d,o=off;off+=d;
       return <circle key={i} cx={sz/2} cy={sz/2} r={r} fill="none" stroke={s.c}
         strokeWidth={sw} strokeDasharray={visible?`${d} ${g}`:`0 ${circ}`}
         strokeDashoffset={-o} strokeLinecap="round" transform={`rotate(-90 ${sz/2} ${sz/2})`}
-        style={{transition:`stroke-dasharray .9s cubic-bezier(.4,0,.2,1) ${i*.12}s`}}/>;})}</svg>);
+        style={{transition:`stroke-dasharray .9s cubic-bezier(.4,0,.2,1) ${i*.12}s`,filter:`drop-shadow(0 0 4px ${s.c}33)`}}/>;})}</svg>);
 }
 
 function Progress({val,min,max,color=C.mint,label,unit="g",visible=true}) {
@@ -864,9 +885,9 @@ function Progress({val,min,max,color=C.mint,label,unit="g",visible=true}) {
       <div style={{display:'flex',alignItems:'baseline',gap:4}}>
         <span style={{fontSize:14,fontWeight:700,fontFamily:'var(--mono)',color:C.text}}>{val}</span>
         <span style={{fontSize:10,color:C.text3}}>{unit} / {min}–{max}</span></div></div>
-    <div style={{height:5,borderRadius:3,background:'rgba(255,255,255,0.03)',overflow:'hidden'}}>
+    <div style={{height:5,borderRadius:3,background:C.track||'rgba(255,255,255,0.03)',overflow:'hidden'}}>
       <div style={{height:'100%',width:visible?`${Math.min(pct,100)}%`:'0%',borderRadius:3,
-        background:`linear-gradient(90deg,${clr}BB,${clr})`,boxShadow:`0 0 6px ${clr}22`,
+        background:`linear-gradient(90deg,${clr}88,${clr})`,boxShadow:`0 0 8px ${clr}33`,
         transition:'width 1s cubic-bezier(.4,0,.2,1) .1s'}}/></div>
   </div>);
 }
@@ -2045,7 +2066,13 @@ export default function Stride() {
   );
   return (
   <ThemeContext.Provider value={{theme,themeMode,toggleTheme}}>
-    <div style={{minHeight:'100vh',background:C.bg,color:C.text,fontFamily:'var(--sans)',display:isD?'flex':'block',transition:'background .4s, color .4s'}}>
+    <div style={{minHeight:'100vh',background:C.bgGradient||C.bg,color:C.text,fontFamily:'var(--sans)',display:isD?'flex':'block',transition:'background .4s, color .4s',position:'relative',overflow:'hidden'}}>
+      {/* Ambient gradient blobs */}
+      {C.bgAccent1 && <>
+        <div style={{position:'fixed',top:'-10%',right:'-5%',width:'40vw',height:'40vw',borderRadius:'50%',background:C.bgAccent1,filter:'blur(80px)',pointerEvents:'none',zIndex:0}}/>
+        <div style={{position:'fixed',bottom:'-10%',left:'-5%',width:'35vw',height:'35vw',borderRadius:'50%',background:C.bgAccent2,filter:'blur(80px)',pointerEvents:'none',zIndex:0}}/>
+        <div style={{position:'fixed',top:'40%',left:'30%',width:'25vw',height:'25vw',borderRadius:'50%',background:C.bgAccent3||'transparent',filter:'blur(80px)',pointerEvents:'none',zIndex:0}}/>
+      </>}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
         :root{--sans:'Plus Jakarta Sans',-apple-system,sans-serif;--mono:'JetBrains Mono',monospace;}
@@ -2058,9 +2085,9 @@ export default function Stride() {
       `}</style>
       <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden'}}>
         <div style={{position:'absolute',top:'-10%',left:'20%',width:600,height:600,borderRadius:'50%',
-          background:`radial-gradient(circle,${isDark?C.mintSoft:'rgba(46,204,113,0.06)'} 0%,transparent 70%)`,filter:'blur(40px)'}}/>
+          background:`radial-gradient(circle,${isDark?C.mintSoft:'rgba(184,255,87,0.08)'} 0%,transparent 70%)`,filter:'blur(40px)'}}/>
         <div style={{position:'absolute',bottom:'-15%',right:'5%',width:500,height:500,borderRadius:'50%',
-          background:`radial-gradient(circle,${isDark?'rgba(77,160,255,.03)':'rgba(6,182,212,0.04)'} 0%,transparent 70%)`,filter:'blur(40px)'}}/></div>
+          background:`radial-gradient(circle,${isDark?'rgba(77,160,255,.03)':'rgba(87,255,216,0.06)'} 0%,transparent 70%)`,filter:'blur(40px)'}}/></div>
 
       {isD && (
         <nav style={{width:navW,minHeight:'100vh',background:C.navBg,borderRight:`1px solid ${C.navBorder}`,
@@ -2073,7 +2100,7 @@ export default function Stride() {
                 onClick={()=>setNavCollapsed(false)} title="Expand sidebar">
                 <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
                   display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,
-                  color:isDark?C.bg:'#fff',boxShadow:`0 2px 12px ${C.mint}33`,transition:'transform .2s,box-shadow .2s'}}
+                  color:'#0A1628',boxShadow:`0 2px 12px ${C.mint}33`,transition:'transform .2s,box-shadow .2s'}}
                   onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.08)';e.currentTarget.style.boxShadow=`0 4px 20px ${C.mint}55`;}}
                   onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)';e.currentTarget.style.boxShadow=`0 2px 12px ${C.mint}33`;}}>
                   S
@@ -2081,8 +2108,8 @@ export default function Stride() {
               </div>
             ) : (<>
               <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <div style={{width:32,height:32,borderRadius:10,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:isDark?C.bg:'#fff',flexShrink:0,boxShadow:`0 2px 12px ${C.mint}22`}}>S</div>
-                <div><div style={{fontSize:15,fontWeight:800,letterSpacing:-.3}}}>Stride</div><div style={{fontSize:9,color:C.text3,fontWeight:600}}>Week {D.currentWeek} · Phase {settings.phase}</div></div>
+                <div style={{width:32,height:32,borderRadius:10,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:'#0A1628',flexShrink:0,boxShadow:`0 2px 12px ${C.mint}22`}}>S</div>
+                <div><div style={{fontSize:15,fontWeight:800,letterSpacing:-0.3}}>Stride</div><div style={{fontSize:9,color:C.text3,fontWeight:600}}>Week {D.currentWeek} · Phase {settings.phase}</div></div>
               </div>
               <button onClick={()=>setNavCollapsed(true)} title="Close sidebar"
                 style={{width:32,height:32,borderRadius:8,border:'none',background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.text3,transition:'all .15s',flexShrink:0}}
@@ -2130,7 +2157,7 @@ export default function Stride() {
         {!isD && (
           <header style={{padding:'14px 18px 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <div style={{width:36,height:36,borderRadius:12,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,color:isDark?C.bg:'#fff',boxShadow:`0 4px 16px ${C.mint}33`}}>S</div>
+              <div style={{width:36,height:36,borderRadius:12,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,color:'#0A1628',boxShadow:`0 4px 16px ${C.mint}33`}}>S</div>
               <div><div style={{fontSize:10,color:C.text3,fontWeight:600}}>Week {D.currentWeek} · Phase 1</div><div style={{fontSize:16,fontWeight:800,letterSpacing:-.3}}>Stride</div></div>
             </div>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
@@ -2179,8 +2206,11 @@ export default function Stride() {
 
       {!isD && (
         <nav style={{position:'fixed',bottom:0,left:0,right:0,
-          background:isDark?`linear-gradient(180deg,${C.bg}00 0%,${C.bg}EE 20%,${C.bg} 100%)`:`linear-gradient(180deg,${C.bg}00 0%,${C.bg}DD 20%,${C.bg} 100%)`,
-          backdropFilter:'blur(24px)',WebkitBackdropFilter:'blur(24px)',borderTop:`1px solid ${C.border}`,padding:'6px 4px',paddingBottom:'max(6px, env(safe-area-inset-bottom))',zIndex:100,display:'flex',justifyContent:'space-around'}}>
+          background:isDark?'rgba(7,11,20,0.65)':'rgba(255,255,255,0.70)',
+          backdropFilter:'blur(28px)',WebkitBackdropFilter:'blur(28px)',
+          borderTop:`1px solid ${isDark?'rgba(255,255,255,0.06)':'rgba(255,255,255,0.60)'}`,
+          boxShadow:isDark?'0 -4px 24px rgba(0,0,0,0.3)':'0 -4px 24px rgba(0,0,0,0.04)',
+          padding:'6px 4px',paddingBottom:'max(6px, env(safe-area-inset-bottom))',zIndex:100,display:'flex',justifyContent:'space-around'}}>
           {NAV.map(n=>{const act=tab===n.id;
             return (<button key={n.id} onClick={()=>setTab(n.id)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'7px 6px',border:'none',background:'none',cursor:'pointer',color:act?C.mint:C.text3,transition:'color .2s',position:'relative',fontFamily:'var(--sans)'}}>
               {act&&<div style={{position:'absolute',top:-6,width:20,height:3,borderRadius:2,background:C.mint,boxShadow:`0 0 10px ${C.mint}55`}}/>}
