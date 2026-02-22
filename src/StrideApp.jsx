@@ -334,9 +334,24 @@ function computeInsights(data) {
 }
 
 // GYM & SLEEP TRACKING (localStorage)
+const HIST_GYM_SLEEP={"2026-01-05":{"gym":true,"sleep":5,"steps":1281},"2026-01-06":{"gym":false,"sleep":6,"steps":4306},"2026-01-07":{"gym":true,"sleep":5.5,"steps":2882},"2026-01-08":{"gym":false,"sleep":6,"steps":5796},"2026-01-09":{"gym":false,"sleep":6,"steps":2435},"2026-01-10":{"gym":false,"sleep":6,"steps":3475},"2026-01-11":{"gym":false,"sleep":6,"steps":5922},"2026-01-12":{"gym":true,"sleep":6,"steps":2501},"2026-01-13":{"gym":false,"sleep":6,"steps":6154},"2026-01-14":{"gym":true,"sleep":6,"steps":4945},"2026-01-15":{"gym":false,"sleep":5.5,"steps":7141},"2026-01-16":{"gym":true,"sleep":6,"steps":3366},"2026-01-17":{"gym":false,"sleep":8,"steps":4476},"2026-01-18":{"gym":false,"sleep":6,"steps":10247},"2026-01-19":{"gym":true,"sleep":5.5,"steps":7217},"2026-01-20":{"gym":false,"sleep":6,"steps":1706},"2026-01-21":{"gym":true,"sleep":6,"steps":5024},"2026-01-22":{"gym":false,"sleep":6,"steps":8437},"2026-01-23":{"gym":true,"sleep":6,"steps":4192},"2026-01-24":{"gym":false,"sleep":7,"steps":12544},"2026-01-25":{"gym":false,"sleep":6,"steps":8365},"2026-01-26":{"gym":true,"sleep":6,"steps":2319},"2026-01-27":{"gym":false,"sleep":6,"steps":4724},"2026-01-28":{"gym":true,"sleep":6,"steps":2612},"2026-01-29":{"gym":false,"sleep":6,"steps":6413},"2026-01-30":{"gym":true,"sleep":6,"steps":6999},"2026-01-31":{"gym":false,"sleep":6,"steps":3934},"2026-02-01":{"gym":false,"sleep":6.5,"steps":9836},"2026-02-02":{"gym":true,"sleep":6,"steps":2616},"2026-02-03":{"gym":false,"sleep":5.5,"steps":8986},"2026-02-04":{"gym":true,"sleep":4.25,"steps":6518},"2026-02-05":{"gym":false,"sleep":5.5,"steps":5651},"2026-02-06":{"gym":true,"sleep":5.5,"steps":4039},"2026-02-07":{"gym":false,"sleep":7,"steps":8882},"2026-02-08":{"gym":false,"sleep":6.5,"steps":12307},"2026-02-09":{"gym":true,"sleep":7,"steps":8017},"2026-02-10":{"gym":false,"sleep":7,"steps":7432},"2026-02-11":{"gym":true,"sleep":4,"steps":9885},"2026-02-12":{"gym":false,"sleep":6,"steps":7442},"2026-02-13":{"gym":true,"sleep":7,"steps":9879},"2026-02-14":{"gym":false,"sleep":7,"steps":6845},"2026-02-15":{"gym":false,"sleep":7,"steps":9033},"2026-02-16":{"gym":true,"sleep":7,"steps":5988},"2026-02-17":{"gym":false,"sleep":7,"steps":470},"2026-02-18":{"gym":true,"sleep":6.5,"steps":2153},"2026-02-19":{"gym":false,"sleep":6.5,"steps":5899},"2026-02-20":{"gym":true,"sleep":6.5,"steps":2275},"2026-02-21":{"gym":false,"sleep":7,"steps":1483}};
+
 function useGymSleep() {
   const KEY = 'stride_gym_sleep';
-  const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
+  const load = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(KEY) || '{}');
+      // Seed historical data if not already present
+      const seeded = localStorage.getItem('stride_gs_seeded');
+      if (!seeded) {
+        const merged = {...HIST_GYM_SLEEP, ...stored};
+        localStorage.setItem(KEY, JSON.stringify(merged));
+        localStorage.setItem('stride_gs_seeded', '1');
+        return merged;
+      }
+      return stored;
+    } catch { return {}; }
+  };
   const [data, setData] = useState(load);
   const save = (d) => { setData(d); localStorage.setItem(KEY, JSON.stringify(d)); };
   const getDay = (dateStr) => data[dateStr] || { gym: false, sleep: 0, steps: 0 };
@@ -402,6 +417,82 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
   );
 }
 
+// PHASE TARGETS
+const PHASE_TARGETS = {
+  1: {name:"Fat Loss",cal:1400,pro:145,carb:55,fat:48,sugar:20,fiber:25,steps:8000,fasting:"16:8",training:"3× strength"},
+  2: {name:"Leaning Out",cal:1700,pro:140,carb:105,fat:55,sugar:30,fiber:30,steps:10000,fasting:"Optional",training:"3-4× strength"},
+  3: {name:"Definition",cal:1575,pro:150,carb:80,fat:48,sugar:25,fiber:30,steps:10000,fasting:"Optional",training:"4× strength"},
+  4: {name:"Maintenance",cal:2050,pro:140,carb:185,fat:65,sugar:40,fiber:35,steps:9000,fasting:"Optional",training:"4-5× strength"},
+};
+
+function useSettings() {
+  const KEY = 'stride_settings';
+  const defaults = {phase:1,goalWeight:68,goalBF:15,startWeight:80.5,startDate:"2026-01-05"};
+  const load = () => { try { return {...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}; } catch { return defaults; } };
+  const [settings, setSettings] = useState(load);
+  const save = (s) => { const merged={...settings,...s}; setSettings(merged); localStorage.setItem(KEY,JSON.stringify(merged)); };
+  const targets = PHASE_TARGETS[settings.phase] || PHASE_TARGETS[1];
+  return { ...settings, targets, save };
+}
+
+// INFO TOOLTIP CONTENT
+const INFO_CONTENT = {
+  compliance: {
+    title: "Compliance Score",
+    sections: [
+      {heading:"What is it?",text:"A percentage (0–100%) measuring your adherence to the core pillars of your current phase. It ensures you're hitting the essential numbers for fat loss and muscle preservation."},
+      {heading:"How it's calculated",text:"Average of your progress toward three daily targets: Calories, Protein, and Fiber. Each capped at 100% so over-eating one can't mask a deficiency in another."},
+      {heading:"90–100%: On Target",text:"Perfect execution. You're fueling correctly and protecting muscle mass while in a deficit."},
+      {heading:"Below 70%: Warning",text:"You're likely missing protein or fiber targets significantly, increasing risk of muscle loss and hunger."},
+    ]
+  },
+  flatStomach: {
+    title: "Flat Stomach Score",
+    sections: [
+      {heading:"What is it?",text:"A specialized metric focused on reducing abdominal bloating. While Compliance is about weight, this score is about look and digestive efficiency."},
+      {heading:"How it's calculated",text:"Similar to Compliance but with a stricter fiber emphasis (35g vs 30g) — the clinical sweet spot for gut transit and bloating reduction."},
+      {heading:"90–100%: On Target",text:"You're achieving the high-fiber threshold needed to clear the digestive tract and reduce gut inflammation or water retention in the midsection."},
+      {heading:"Below 70%: Warning",text:"Likely under 20g of fiber. This often leads to increased abdominal pressure (bloating) and slower digestion, hiding your fat-loss progress visually."},
+    ]
+  },
+  protein: {title:"Protein Target",sections:[{heading:"Why it matters",text:"Protein is the absolute priority during a cut. It preserves muscle mass, keeps you satiated, and has the highest thermic effect of any macronutrient."},{heading:"Target",text:"Aim for 130–160g daily depending on your phase. Hitting this consistently is non-negotiable for body recomposition."}]},
+  steps: {title:"Daily Steps",sections:[{heading:"Why steps matter",text:"Non-exercise activity (NEAT) is the single biggest variable in daily calorie burn. Walking 8,000–10,000 steps/day is non-negotiable for belly fat reduction."},{heading:"Impact",text:"Each 2,000 extra steps burns roughly 100 additional calories. Over a week, that's nearly an extra day of deficit."}]},
+};
+
+function InfoModal({id, onClose}) {
+  const info = INFO_CONTENT[id];
+  if (!info) return null;
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',backdropFilter:'blur(6px)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,maxWidth:420,width:'100%',maxHeight:'80vh',overflow:'auto',padding:24}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <span style={{fontSize:16,fontWeight:700,color:C.mint}}>{info.title}</span>
+          <span onClick={onClose} style={{cursor:'pointer',fontSize:20,color:C.text3,padding:'4px 8px'}}>✕</span>
+        </div>
+        {info.sections.map((s,i) => (
+          <div key={i} style={{marginBottom:14}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.text,marginBottom:4}}>{s.heading}</div>
+            <div style={{fontSize:12,color:C.text2,lineHeight:1.6}}>{s.text}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SyncToast({message, show}) {
+  if (!show) return null;
+  const isErr = message?.includes('error') || message?.includes('fail');
+  return (
+    <div style={{position:'fixed',top:20,left:'50%',transform:'translateX(-50%)',zIndex:9999,
+      padding:'10px 20px',borderRadius:10,fontSize:13,fontWeight:600,
+      background:isErr?'rgba(255,60,60,0.9)':'rgba(40,200,80,0.9)',color:'#fff',
+      boxShadow:'0 4px 20px rgba(0,0,0,0.3)',animation:'fadeIn .3s',fontFamily:'var(--mono)'}}>
+      {message}
+    </div>
+  );
+}
+
 // HOOKS
 function useInView(threshold = 0.15) {
   const ref = useRef(null);
@@ -461,14 +552,17 @@ function AnimCard({ children, style={}, glow, delay=0 }) {
 }
 
 // TOOLTIP COMPONENT
-function InfoTip({ text }) {
+function InfoTip({ text, modalId, onModal }) {
   const [show, setShow] = useState(false);
+  const handleClick = () => {
+    if (modalId && onModal) { onModal(modalId); }
+    else { setShow(!show); }
+  };
   return (
-    <span style={{position:'relative',display:'inline-flex',marginLeft:6,cursor:'help'}}
-      onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}
-      onClick={()=>setShow(!show)}>
+    <span style={{position:'relative',display:'inline-flex',marginLeft:6,cursor:'pointer'}}
+      onClick={handleClick}>
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={C.text3} strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-      {show && <div style={{position:'absolute',bottom:'calc(100% + 8px)',left:'50%',transform:'translateX(-50%)',
+      {show && !modalId && <div style={{position:'absolute',bottom:'calc(100% + 8px)',left:'50%',transform:'translateX(-50%)',
         width:260,padding:'12px 14px',borderRadius:12,background:C.surfaceSolid,border:`1px solid ${C.border}`,
         boxShadow:'0 8px 32px rgba(0,0,0,.5)',zIndex:50,fontSize:11,lineHeight:1.5,color:C.text2,fontWeight:400,
         fontFamily:'var(--sans)',letterSpacing:0}}>
@@ -495,7 +589,7 @@ function WeightChart({ data, w=300, h=100, visible=true }) {
   const svgRef = useRef(null);
   const [hover, setHover] = useState(null);
   const mn=Math.min(...data.map(d=>d.kg))-1, mx=Math.max(...data.map(d=>d.kg))+1, rng=mx-mn||1;
-  const padT=10, padB=18, ch=h-padT-padB;
+  const padT=10, padB=6, ch=h-padT-padB;
   const pts=data.map((d,i)=>({x:data.length>1?(i/(data.length-1))*w:w/2, y:padT+ch-((d.kg-mn)/rng)*ch, ...d}));
   const linePath=pts.map((p,i)=>`${i?'L':'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
   const fillPath=`${linePath} L${pts[pts.length-1].x},${h} L0,${h} Z`;
@@ -519,7 +613,7 @@ function WeightChart({ data, w=300, h=100, visible=true }) {
       onTouchMove={e=>{e.preventDefault();handleMove(e.touches[0].clientX);}}
       onTouchEnd={()=>setTimeout(()=>setHover(null),1500)}>
       <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={C.mint} stopOpacity=".12"/><stop offset="100%" stopColor={C.mint} stopOpacity="0"/></linearGradient></defs>
-      {pts.map((p,i)=>{const wk=data[i].week;const isFirst=i===0||data[i-1].week!==wk;return isFirst?<text key={i} x={p.x} y={h-1} textAnchor="middle" style={{fontSize:5,fill:C.text3,fontFamily:'var(--mono)',fontWeight:500,opacity:0.6}}>W{wk}</text>:null;})}
+      
       <path d={fillPath} fill={`url(#${gid})`} style={{opacity:visible?1:0,transition:'opacity .8s ease .6s'}}/>
       <path d={linePath} fill="none" stroke={C.mint} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.6}
         style={{strokeDasharray:totalLen,strokeDashoffset:visible?0:totalLen,transition:'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)'}}/>
@@ -627,7 +721,7 @@ function Progress({val,min,max,color=C.mint,label,unit="g",visible=true}) {
 }
 
 function Tag({children,color=C.mint,bg}){return <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:8,background:bg||(color+'16'),color,fontSize:11,fontWeight:700,letterSpacing:.2}}>{children}</span>;}
-function Lbl({children,tip}){return <div style={{fontSize:10,color:C.text3,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase',marginBottom:10,display:'flex',alignItems:'center'}}>{children}{tip&&<InfoTip text={tip}/>}</div>;}
+function Lbl({children,tip,modalId,onModal}){return <div style={{fontSize:10,color:C.text3,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase',marginBottom:10,display:'flex',alignItems:'center'}}>{children}{(tip||modalId)&&<InfoTip text={tip} modalId={modalId} onModal={onModal}/>}</div>;}
 
 function TimePicker({value,onChange}) {
   const opts=[{id:"today",l:"Today"},{id:"thisWeek",l:"This Week"},{id:"lastWeek",l:"Last Week"},{id:"month",l:"Month"},{id:"day",l:"Day by Day"}];
@@ -638,11 +732,27 @@ function TimePicker({value,onChange}) {
 }
 
 function DayPicker({days,selected,onSelect}) {
+  const dows = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const getDow = (dt) => {
+    if (!dt) return "";
+    const parts = dt.split(' ');
+    if (parts.length === 2) {
+      const mIdx = months.indexOf(parts[0]);
+      const day = parseInt(parts[1]);
+      if (mIdx >= 0 && day) {
+        const d = new Date(2026, mIdx, day);
+        return dows[d.getDay()];
+      }
+    }
+    return "";
+  };
   return (<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,scrollbarWidth:'none'}}>
     {days.map((d,i)=>{const sel=selected===i;
+      const dayName = getDow(d.dt) || d.day || d.d || "";
       return (<button key={i} onClick={()=>onSelect(i)} style={{flexShrink:0,padding:'8px 12px',borderRadius:12,border:`1px solid ${sel?C.mintMed:'transparent'}`,cursor:'pointer',
         background:sel?C.mintSoft:'rgba(255,255,255,0.02)',color:sel?C.mint:C.text2,fontFamily:'var(--sans)',fontSize:11,fontWeight:sel?700:500,transition:'all .2s',minWidth:58,textAlign:'center'}}>
-        <div style={{fontSize:9,color:sel?C.mint:C.text3,fontWeight:700}}>{d.day||d.d}</div>
+        <div style={{fontSize:9,color:sel?C.mint:C.text3,fontWeight:700}}>{dayName}</div>
         <div style={{fontSize:11,fontWeight:700,marginTop:2}}>{d.dt?.split(' ')[1]||''}</div></button>);})}
   </div>);
 }
@@ -679,7 +789,7 @@ function getPeriod(period, dayIdx=0, D) {
   return D.today;
 }
 // TAB RENDERERS
-function OverviewTab({vis,isD,isT,isM,D}) {
+function OverviewTab({vis,isD,isT,isM,D,setInfoModal}) {
   const [period, setPeriod] = useState("today");
   const [dayIdx, setDayIdx] = useState(D.DAILY_W7.length-1);
   const localVis = useAnimateOnMount(`${period}-${dayIdx}`);
@@ -713,7 +823,7 @@ function OverviewTab({vis,isD,isT,isM,D}) {
               <Tag color={C.mint}>{I.down} {D.lost} kg lost</Tag>
               <Tag color={C.text2} bg="rgba(255,255,255,0.04)">{D.lostPct}% total</Tag></div></div>
           <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-            {[{l:"Start",v:"80.5",s:"Jan 5"},{l:"Now",v:String(D.lastW?.kg),s:`Wk ${D.lastW?.week}`},{l:"Goal",v:"68.0",s:"~15% BF"}].map(m=>(
+            {[{l:"Start",v:"80.5",s:"Jan 5"},{l:"Now",v:String(D.lastW?.kg),s:`Wk ${D.lastW?.week}`},{l:"Goal",v:String(settings.goalWeight),s:`~${settings.goalBF}% BF`}].map(m=>(
               <div key={m.l} style={{textAlign:'center',padding:'10px 14px',borderRadius:14,background:m.l==="Now"?C.mintSoft:'rgba(255,255,255,0.02)',minWidth:72}}>
                 <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>{m.l}</div>
                 <div style={{fontSize:17,fontWeight:800,fontFamily:'var(--mono)',color:m.l==="Now"?C.mint:C.text}}>{m.v}</div>
@@ -722,13 +832,13 @@ function OverviewTab({vis,isD,isT,isM,D}) {
       </AnimCard>
       <div style={{gridColumn:isD?'1/4':isT?'1/3':'1',display:'grid',gridTemplateColumns:isM?'1fr':'repeat(3,1fr)',gap:isD?14:12}}>
         <AnimCard delay={0.05} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:isD?'22px 16px':'18px 14px'}}>
-          <Lbl tip={TIPS.compliance}>{label} Compliance</Lbl>
+          <Lbl tip={TIPS.compliance} modalId="compliance" onModal={setInfoModal}>{label} Compliance</Lbl>
           <Ring val={d.comp} sz={isD?86:74} sw={6} color={C.mint} visible={v}><CountUp to={d.comp} style={{fontSize:22}} color={C.text}/></Ring>
           <div style={{width:'100%',height:1,background:C.border,margin:'4px 0'}}/>
           <Arc val={d.cal} max={1500} label="Calories" unit="kcal" color={d.cal>=1200&&d.cal<=1500?C.mint:C.orange} sz={isD?108:92} visible={v}/>
         </AnimCard>
         <AnimCard delay={0.1} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:isD?'22px 16px':'18px 14px'}}>
-          <Lbl tip={TIPS.flatStomach}>{label} Flat Stomach</Lbl>
+          <Lbl tip={TIPS.flatStomach} modalId="flatStomach" onModal={setInfoModal}>{label} Flat Stomach</Lbl>
           <Ring val={d.flat} sz={isD?86:74} sw={6} color={C.cyan} visible={v}><CountUp to={d.flat} style={{fontSize:22}} color={C.cyan}/></Ring>
           <div style={{width:'100%',height:1,background:C.border,margin:'4px 0'}}/>
           <Arc val={d.steps} max={10000} label="Steps" color={d.steps>=8000?C.mint:C.orange} sz={isD?108:92} visible={v}/>
@@ -965,27 +1075,50 @@ function ProgressTab({vis,isD,isT,D}) {
       </AnimCard></div>);
 }
 
-function TargetsTab({vis,isD,isT,D}) {
+function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
+  const [editGoal, setEditGoal] = useState(false);
+  const [gw, setGw] = useState(settings.goalWeight);
+  const [gbf, setGbf] = useState(settings.goalBF);
   const phases=[
-    {n:1,l:"Fat Loss",wk:"Weeks 1–7",goal:"Aggressive fat loss, protect muscle",cal:"1,300–1,500",pro:"130–160",carb:"40–70",fat:"40–55",sug:"< 20",fib:"20–30",steps:"8k–10k",train:"3x strength + rope",active:true},
-    {n:2,l:"Lean Out",wk:"Weeks 8–11",goal:"Continue fat loss, rebuild energy",cal:"1,600–1,800",pro:"130–150",carb:"80–130",fat:"45–65",sug:"< 30",fib:"25–35",steps:"8k–12k",train:"3–4x strength",active:false},
-    {n:3,l:"Abs Reveal",wk:"Weeks 12–14",goal:"Final tightening, visible abs",cal:"1,500–1,650",pro:"140–160",carb:"60–100",fat:"40–55",sug:"< 25",fib:"25–35",steps:"10k+",train:"4x strength + core",active:false},
+    {n:1,l:"Fat Loss",wk:"Weeks 1–7",goal:"Aggressive fat loss, protect muscle",cal:"1,300–1,500",pro:"130–160",carb:"40–70",fat:"40–55",sug:"< 20",fib:"20–30",steps:"8k–10k",train:"3x strength + rope"},
+    {n:2,l:"Lean Out",wk:"Weeks 8–11",goal:"Continue fat loss, rebuild energy",cal:"1,600–1,800",pro:"130–150",carb:"80–130",fat:"45–65",sug:"< 30",fib:"25–35",steps:"8k–12k",train:"3–4x strength"},
+    {n:3,l:"Abs Reveal",wk:"Weeks 12–14",goal:"Final tightening, visible abs",cal:"1,500–1,650",pro:"140–160",carb:"60–100",fat:"40–55",sug:"< 25",fib:"25–35",steps:"10k+",train:"4x strength + core"},
   ];
+  const inputStyle={width:60,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text,fontSize:14,fontFamily:'var(--mono)',textAlign:'center',outline:'none'};
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
-      {phases.map((p,pi)=>(<AnimCard key={p.n} glow={p.active} delay={pi*0.08} style={{gridColumn:isD&&p.active?'1/4':isT&&p.active?'1/3':'1'}}>
+      <AnimCard delay={0} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
+        <Lbl>Goals</Lbl>
+        <div style={{display:'flex',gap:16,alignItems:'center',flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:11,color:C.text3}}>Target Weight:</span>
+            {editGoal?<input type="number" value={gw} onChange={e=>setGw(e.target.value)} style={inputStyle}/>
+              :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>{settings.goalWeight} kg</span>}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:11,color:C.text3}}>Target BF%:</span>
+            {editGoal?<input type="number" value={gbf} onChange={e=>setGbf(e.target.value)} style={inputStyle}/>
+              :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>~{settings.goalBF}%</span>}
+          </div>
+          <button onClick={()=>{if(editGoal){settings.save({goalWeight:parseFloat(gw)||68,goalBF:parseFloat(gbf)||15});}setEditGoal(!editGoal);}}
+            style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${C.mintMed}`,background:editGoal?C.mint:'transparent',
+              color:editGoal?C.bg:C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>{editGoal?'Save':'Edit'}</button>
+        </div>
+      </AnimCard>
+      {phases.map((p,pi)=>{const isActive=settings.phase===p.n;return(<AnimCard key={p.n} glow={isActive} delay={pi*0.08} style={{gridColumn:isD&&isActive?'1/4':isT&&isActive?'1/3':'1'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
-          <div style={{width:36,height:36,borderRadius:12,background:p.active?C.mint:'rgba(255,255,255,0.04)',color:p.active?C.bg:C.text2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,flexShrink:0}}>{p.n}</div>
-          <div><div style={{fontSize:15,fontWeight:800,color:p.active?C.mint:C.text}}>{p.l}</div><div style={{fontSize:11,color:C.text3}}>{p.wk}</div></div>
-          {p.active&&<Tag color={C.mint} bg={C.mintSoft}>Active</Tag>}</div>
+          <div style={{width:36,height:36,borderRadius:12,background:isActive?C.mint:'rgba(255,255,255,0.04)',color:isActive?C.bg:C.text2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,flexShrink:0}}>{p.n}</div>
+          <div><div style={{fontSize:15,fontWeight:800,color:isActive?C.mint:C.text}}>{p.l}</div><div style={{fontSize:11,color:C.text3}}>{p.wk}</div></div>
+          {isActive?<Tag color={C.mint} bg={C.mintSoft}>Active</Tag>
+            :<button onClick={()=>settings.save({phase:p.n})} style={{marginLeft:'auto',padding:'5px 12px',borderRadius:8,border:`1px solid ${C.border}`,background:'transparent',color:C.text2,fontSize:10,fontWeight:600,cursor:'pointer'}}>Activate</button>}</div>
         <div style={{fontSize:12,color:C.text2,marginBottom:14}}>{p.goal}</div>
-        <div style={{display:'grid',gridTemplateColumns:p.active&&isD?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
+        <div style={{display:'grid',gridTemplateColumns:isActive&&isD?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
           {[{l:"Calories",v:p.cal,u:"kcal"},{l:"Protein",v:p.pro,u:"g"},{l:"Carbs",v:p.carb,u:"g"},{l:"Fat",v:p.fat,u:"g"},{l:"Sugar",v:p.sug,u:"g"},{l:"Fiber",v:p.fib,u:"g"},{l:"Steps",v:p.steps,u:"/day"},{l:"Training",v:p.train,u:""}].map(t=>(
             <div key={t.l} style={{padding:'12px 12px',borderRadius:12,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`}}>
               <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,marginBottom:3}}>{t.l}</div>
               <div style={{fontSize:13,fontWeight:700,fontFamily:t.l==="Training"?'var(--sans)':'var(--mono)'}}>{t.v}{t.u&&<span style={{fontSize:9,color:C.text3,marginLeft:3}}>{t.u}</span>}</div></div>))}</div>
-      </AnimCard>))}
+      </AnimCard>)})}
       <AnimCard delay={0.25} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Week 7 — Daily Breakdown</Lbl>
         <div style={{display:'flex',flexDirection:'column',gap:6}}>
@@ -1019,10 +1152,10 @@ function CoachTab({vis,isD,isT,isM,D}) {
   const chatEnd = useRef(null);
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const typeColor = {warning:C.orange,success:C.mint,action:C.blue};
-  const remaining = {cal:Math.max(0,1400-D.today.cal),pro:Math.max(0,140-D.today.pro),fib:Math.max(0,25-D.today.fib),steps:Math.max(0,8000-D.today.steps)};
+  const remaining = {cal:Math.max(0,1400-today.cal),pro:Math.max(0,140-today.pro),fib:Math.max(0,25-today.fib),steps:Math.max(0,8000-today.steps)};
 
   const contextPrompt = `You are a concise, expert fitness coach for Robin on a 14-week fat loss program. Phase 1 (current): aggressive fat loss while protecting muscle.
-CURRENT DATA: Today: ${D.today.cal} cal, ${D.today.pro}g protein, ${D.today.carb}g carbs, ${D.today.fat}g fat, ${D.today.fib}g fiber, ${D.today.sug}g sugar, ${D.today.steps} steps, ${D.today.sleep}h sleep, gym: ${D.today.gym?"yes":"no"}.
+CURRENT DATA: Today: ${today.cal} cal, ${today.pro}g protein, ${today.carb}g carbs, ${today.fat}g fat, ${today.fib}g fiber, ${today.sug}g sugar, ${today.steps} steps, ${today.sleep}h sleep, gym: ${today.gym?"yes":"no"}.
 Targets: 1300-1500 cal, 130-160g protein, 40-70g carbs, 40-55g fat, 20-30g fiber, <20g sugar, 8000+ steps.
 Weight: ${D.lastW?.kg}kg (started 80.5, goal 68, lost ${D.lost}kg). Week ${D.lastW?.week+1}/14. Velocity: -${D.insights.velocity}kg/wk.
 Week 6 avgs: ${D.W_NUTR[5].cal} cal, ${D.W_NUTR[5].pro}g pro. Streak: ${D.insights.streak}d. Protein rate: ${D.insights.proteinRate}%.
@@ -1034,30 +1167,30 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
   const getOfflineTip = (q) => {
     const ql = q.toLowerCase();
     if (ql.includes("eat")||ql.includes("dinner")||ql.includes("meal")||ql.includes("food")||ql.includes("lunch")||ql.includes("snack")||ql.includes("breakfast"))
-      return `You still need ~${remaining.cal} cal and ${remaining.pro}g protein D.today. Try: 150g salmon (280cal, 30g pro) + 200g broccoli (68cal, 6g fiber) + 100g lentils (116cal, 9g pro, 8g fiber). That closes your macro gaps nicely.`;
+      return `You still need ~${remaining.cal} cal and ${remaining.pro}g protein today. Try: 150g salmon (280cal, 30g pro) + 200g broccoli (68cal, 6g fiber) + 100g lentils (116cal, 9g pro, 8g fiber). That closes your macro gaps nicely.`;
     if (ql.includes("protein"))
-      return `You're at ${D.today.pro}g protein (target: 130-160g). ${D.today.pro>=130?"On track! Keep going.":"Add a whey shake (+24g) or 150g chicken (+47g) to close the gap."}`;
+      return `You're at ${today.pro}g protein (target: 130-160g). ${today.pro>=130?"On track! Keep going.":"Add a whey shake (+24g) or 150g chicken (+47g) to close the gap."}`;
     if (ql.includes("step")||ql.includes("walk")||ql.includes("cardio"))
-      return `${D.today.steps.toLocaleString()} steps D.today. ${D.today.steps>=8000?"Target hit! Great work.":"Need "+remaining.steps+" more. A brisk 20-min walk adds ~2,500 steps. Try after dinner."}`;
+      return `${today.steps.toLocaleString()} steps today. ${today.steps>=8000?"Target hit! Great work.":"Need "+remaining.steps+" more. A brisk 20-min walk adds ~2,500 steps. Try after dinner."}`;
     if (ql.includes("weight")||ql.includes("progress")||ql.includes("how am i"))
       return `You've lost ${D.lost}kg in ${D.lastW?.week+1} weeks (${D.lostPct}% of starting weight). At -${D.insights.velocity}kg/week, you're on pace to reach 68kg in ~${Math.ceil((D.lastW?.kg-68)/parseFloat(D.insights.velocity||0.8))} more weeks. That's solid progress.`;
     if (ql.includes("sleep"))
-      return `${D.today.sleep}h sleep D.today. ${D.today.sleep>=7?"Good — sleep above 7h keeps cortisol low and recovery high.":"Below 7h target. Poor sleep raises cortisol and stalls fat loss. Try: no screens 30min before bed, consistent bedtime, cool room."}`;
+      return `${today.sleep}h sleep today. ${today.sleep>=7?"Good — sleep above 7h keeps cortisol low and recovery high.":"Below 7h target. Poor sleep raises cortisol and stalls fat loss. Try: no screens 30min before bed, consistent bedtime, cool room."}`;
     if (ql.includes("fiber"))
-      return `${D.today.fib}g fiber today (target: 20-30g). ${D.today.fib>=20?"On track!":"Add: 200g broccoli (+5g), 1 tbsp chia seeds (+5g), or 100g lentils (+8g). Fiber aids digestion and reduces bloating."}`;
+      return `${today.fib}g fiber today (target: 20-30g). ${today.fib>=20?"On track!":"Add: 200g broccoli (+5g), 1 tbsp chia seeds (+5g), or 100g lentils (+8g). Fiber aids digestion and reduces bloating."}`;
     if (ql.includes("sugar"))
-      return `${D.today.sug}g sugar today (target: <20g). ${D.today.sug<=20?"Well controlled!":"Over target. Check for hidden sugars in sauces, flavored yogurt, and fruit juice. Stick to whole fruits instead."}`;
+      return `${today.sug}g sugar today (target: <20g). ${today.sug<=20?"Well controlled!":"Over target. Check for hidden sugars in sauces, flavored yogurt, and fruit juice. Stick to whole fruits instead."}`;
     if (ql.includes("calorie")||ql.includes("cal"))
-      return `${D.today.cal} calories today (target: 1,300-1,500). ${D.today.cal>=1300&&D.today.cal<=1500?"Right on target.":D.today.cal<1300?"Slightly under — make sure you're eating enough to protect muscle. Add a protein-rich snack.":"Slightly over. Not a disaster, but watch portions at dinner."}`;
+      return `${today.cal} calories today (target: 1,300-1,500). ${today.cal>=1300&&today.cal<=1500?"Right on target.":today.cal<1300?"Slightly under — make sure you're eating enough to protect muscle. Add a protein-rich snack.":"Slightly over. Not a disaster, but watch portions at dinner."}`;
     if (ql.includes("gym")||ql.includes("train")||ql.includes("workout")||ql.includes("exercise"))
-      return `${D.today.gym?"You trained today — great!":"Rest day."} Phase 1 calls for 3x strength + rope per week. Focus on compound lifts (squat, deadlift, bench, row) to preserve muscle in a deficit. Keep rest periods 60-90s.`;
+      return `${today.gym?"You trained today — great!":"Rest day."} Phase 1 calls for 3x strength + rope per week. Focus on compound lifts (squat, deadlift, bench, row) to preserve muscle in a deficit. Keep rest periods 60-90s.`;
     if (ql.includes("target")||ql.includes("hit")||ql.includes("score")||ql.includes("compliance"))
-      return `Compliance today: ${D.today.comp}/100. ${D.today.comp>=90?"Excellent execution!":D.today.comp>=70?"Good but room to improve.":"Below 70 — focus on protein and fiber."} Your streak is ${D.insights.streak} days ≥70. Protein hit rate: ${D.insights.proteinRate}% of all days.`;
+      return `Compliance today: ${today.comp}/100. ${today.comp>=90?"Excellent execution!":today.comp>=70?"Good but room to improve.":"Below 70 — focus on protein and fiber."} Your streak is ${D.insights.streak} days ≥70. Protein hit rate: ${D.insights.proteinRate}% of all days.`;
     if (ql.includes("cheat")||ql.includes("break")||ql.includes("off day"))
       return `One off day won't ruin your progress. You've lost ${D.lost}kg already. The key is consistency: your ${D.insights.streak}-day streak shows commitment. If you go over, just get back on track tomorrow. Don't compensate by under-eating.`;
     if (ql.includes("plateau")||ql.includes("stuck")||ql.includes("stall"))
       return `At -${D.insights.velocity}kg/week, you're still losing well. Plateaus usually last 1-2 weeks and break naturally. Keep hitting protein (${D.insights.proteinRate}% hit rate), stay consistent, and trust the process. If it persists 3+ weeks, consider a 2-day refeed at maintenance calories.`;
-    return `Today: ${D.today.cal} cal (${D.today.cal>=1300&&D.today.cal<=1500?"on target":"needs attention"}), ${D.today.pro}g protein (${D.today.pro>=130?"good":"low"}), ${D.today.fib}g fiber (${D.today.fib>=20?"ok":"add veg"}), ${D.today.steps} steps (${D.today.steps>=8000?"hit":"need more"}). Compliance: ${D.today.comp}/100. Streak: ${D.insights.streak} days. You're doing well — keep at it.`;
+    return `Today: ${today.cal} cal (${today.cal>=1300&&today.cal<=1500?"on target":"needs attention"}), ${today.pro}g protein (${today.pro>=130?"good":"low"}), ${today.fib}g fiber (${today.fib>=20?"ok":"add veg"}), ${today.steps} steps (${today.steps>=8000?"hit":"need more"}). Compliance: ${today.comp}/100. Streak: ${D.insights.streak} days. You're doing well — keep at it.`;
   };
 
   const sendMessage = async (text) => {
@@ -1087,10 +1220,10 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
   };
 
   const staticTips = [
-    {title:"Fiber Gap",tip:`At ${D.today.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action"},
-    {title:D.today.pro>=130?"Protein On Track":"Protein Low",tip:D.today.pro>=130?`${D.today.pro}g protein — solid.`:`${D.today.pro}g protein — below 130g, add a shake.`,type:D.today.pro>=130?"success":"warning"},
-    {title:"Step Check",tip:`${D.today.steps.toLocaleString()} steps. ${D.today.steps>=8000?"Target hit!":"Walk 20 min to close gap."}`,type:D.today.steps>=8000?"success":"action"},
-    {title:"Sugar Watch",tip:`${D.today.sug}g sugar${D.today.sug>20?" — over 20g limit.":" — controlled."}`,type:D.today.sug>20?"warning":"success"},
+    {title:"Fiber Gap",tip:`At ${today.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action"},
+    {title:today.pro>=130?"Protein On Track":"Protein Low",tip:today.pro>=130?`${today.pro}g protein — solid.`:`${today.pro}g protein — below 130g, add a shake.`,type:today.pro>=130?"success":"warning"},
+    {title:"Step Check",tip:`${today.steps.toLocaleString()} steps. ${today.steps>=8000?"Target hit!":"Walk 20 min to close gap."}`,type:today.steps>=8000?"success":"action"},
+    {title:"Sugar Watch",tip:`${today.sug}g sugar${today.sug>20?" — over 20g limit.":" — controlled."}`,type:today.sug>20?"warning":"success"},
     {title:"Weekly Trend",tip:`Compliance at ${D.W_NUTR[5].comp}/100. ${D.W_NUTR[5].comp>=75?"Strong.":"Focus protein & fiber."}`,type:D.W_NUTR[5].comp>=75?"success":"action"},
   ];
   const quickQ = ["What should I eat for dinner?","How's my progress?","Am I hitting my targets?","Tips for better sleep"];
@@ -1140,12 +1273,23 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
       <AnimCard delay={0.15}>
         <Lbl>Meal Suggestion</Lbl>
         <div style={{fontSize:11,color:C.text2,lineHeight:1.5}}>
-          <div style={{fontWeight:700,color:C.mint,marginBottom:8}}>To hit targets tonight:</div>
-          {[{n:"150g Salmon Fillet",m:"280 cal · 30g pro · 17g fat"},{n:"200g Steamed Broccoli",m:"68 cal · 6g pro · 6g fiber"},{n:"100g Lentils",m:"116 cal · 9g pro · 8g fiber"}].map(f=>(
-            <div key={f.n} style={{padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.02)',marginBottom:4}}>
-              <div style={{fontWeight:600,color:C.text,fontSize:11}}>{f.n}</div>
-              <div style={{fontSize:9,color:C.text3}}>{f.m}</div></div>))}
-          <div style={{marginTop:8,fontSize:9,color:C.text3}}>Adds ~464 cal, 45g protein, 14g fiber</div></div>
+          {remaining.cal<=50&&remaining.pro<=10?<div style={{fontWeight:700,color:C.mint}}>All targets hit! Great job today.</div>:<>
+          <div style={{fontWeight:700,color:C.mint,marginBottom:8}}>{remaining.cal>200?"To hit targets tonight:":"Light snack to close gaps:"}</div>
+          {(()=>{
+            const meals=[];const rc=remaining.cal,rp=remaining.pro,rf=remaining.fib;
+            if(rp>30&&rc>200)meals.push({n:`${Math.min(200,Math.round(rc/2.5))}g Chicken Breast`,cal:Math.round(Math.min(200,Math.round(rc/2.5))*1.65),pro:Math.round(Math.min(200,Math.round(rc/2.5))*0.31),extra:"high protein"});
+            else if(rp>15&&rc>150)meals.push({n:`${Math.round(Math.min(150,rc/1.87))}g Salmon Fillet`,cal:Math.round(Math.min(150,rc/1.87)*1.87),pro:Math.round(Math.min(150,rc/1.87)*0.2),extra:"30g pro"});
+            else if(rp>5)meals.push({n:"Greek Yogurt (150g)",cal:90,pro:15,extra:"quick protein"});
+            if(rf>5&&rc>60)meals.push({n:"200g Steamed Broccoli",cal:68,pro:6,extra:"6g fiber"});
+            else if(rf>3)meals.push({n:"1 tbsp Chia Seeds",cal:60,pro:2,extra:"5g fiber"});
+            if(rc>100&&meals.length<2)meals.push({n:"100g Lentils",cal:116,pro:9,extra:"8g fiber"});
+            const totalCal=meals.reduce((s,m)=>s+m.cal,0),totalPro=meals.reduce((s,m)=>s+m.pro,0);
+            return<>{meals.map(f=>(
+              <div key={f.n} style={{padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.02)',marginBottom:4}}>
+                <div style={{fontWeight:600,color:C.text,fontSize:11}}>{f.n}</div>
+                <div style={{fontSize:9,color:C.text3}}>{f.cal} cal · {f.pro}g pro · {f.extra}</div></div>))}
+              <div style={{marginTop:8,fontSize:9,color:C.text3}}>Adds ~{totalCal} cal, {totalPro}g protein</div></>;
+          })()}</>}</div>
       </AnimCard>
     </div>);
 }
@@ -1158,6 +1302,10 @@ export default function Stride() {
   const [ww, setWw] = useState(typeof window!=="undefined"?window.innerWidth:1200);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const gymSleep = useGymSleep();
+  const settings = useSettings();
+  const [toast, setToast] = useState({show:false,msg:''});
+  const [infoModal, setInfoModal] = useState(null);
+  const showToast = (msg) => { setToast({show:true,msg}); setTimeout(()=>setToast({show:false,msg:''}), 2500); };
   const [notifOpen, setNotifOpen] = useState(false);
   const [notifRead, setNotifRead] = useState({});
   const [syncing, setSyncing] = useState(false);
@@ -1170,7 +1318,7 @@ export default function Stride() {
 
   // DATA LOADER
   // CONFIGURATION — Set your Cloudflare Worker URL after deploying
-  const PROXY_URL = localStorage.getItem('stride_proxy_url') || '';
+  const PROXY_URL = 'https://stride-mfp-proxy.robinheering.workers.dev';
 
   const fetchData = useCallback(async () => {
     setSyncing(true);
@@ -1218,7 +1366,7 @@ export default function Stride() {
           console.log('[Stride] Weight entries:', todayLive._weightEntries?.length || 0);
           console.log('[Stride] Steps:', todayLive.steps || 0);
         }
-      } catch (e) { console.log('[Stride] Proxy error:', e.message); }
+      } catch (e) { console.log('[Stride] Proxy error:', e.message); showToast('⚠ Sync error: ' + e.message); }
     }
 
     // Step 3: Transform and merge
@@ -1227,6 +1375,7 @@ export default function Stride() {
       if (transformed && (transformed.DAILY_W7?.length > 0 || transformed.DAILY_ALL?.length > 0)) {
         setLiveData(transformed);
         console.log('[Stride] Data ready:', transformed.DAILY_W7?.length, 'W7 days, weight:', transformed.lastW?.kg);
+        showToast(`✓ Synced — ${transformed.lastW?.kg}kg · ${transformed.today?.cal||0} cal today`);
       }
     }
     setSyncing(false);
@@ -1302,9 +1451,9 @@ export default function Stride() {
   }, [liveData, gymSleep.data]);
 
   const notifications = useMemo(() => [
-    {id:"n1",title:"Fiber Gap",tip:`You're at ${D.today.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action",tab:"coach"},
-    {id:"n2",title:D.today.pro>=130?"Protein On Track":"Protein Low",tip:D.today.pro>=130?`${D.today.pro}g protein today — great execution.`:`${D.today.pro}g protein is below 130g. Add a shake or chicken.`,type:D.today.pro>=130?"success":"warning",tab:"coach"},
-    {id:"n3",title:"Step Check",tip:`${D.today.steps.toLocaleString()} steps. ${D.today.steps>=8000?"Target hit!":"A 20-min walk adds ~2,500 steps."}`,type:D.today.steps>=8000?"success":"action",tab:"activity"},
+    {id:"n1",title:"Fiber Gap",tip:`You're at ${today.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action",tab:"coach"},
+    {id:"n2",title:today.pro>=130?"Protein On Track":"Protein Low",tip:today.pro>=130?`${today.pro}g protein today — great execution.`:`${today.pro}g protein is below 130g. Add a shake or chicken.`,type:today.pro>=130?"success":"warning",tab:"coach"},
+    {id:"n3",title:"Step Check",tip:`${today.steps.toLocaleString()} steps. ${today.steps>=8000?"Target hit!":"A 20-min walk adds ~2,500 steps."}`,type:today.steps>=8000?"success":"action",tab:"activity"},
     {id:"n4",title:"Weekly Trend",tip:`Compliance at ${D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0}/100. ${(D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0)>=75?"Solid.":"Focus on protein & fiber."}`,type:(D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0)>=75?"success":"action",tab:"progress"},
     {id:"n5",title:"Weight Pace",tip:`-${D.insights.velocity}kg/wk over 3 weeks. ${parseFloat(D.insights.velocity)>=0.8?"Sustainable pace.":"Check calorie adherence."}`,type:parseFloat(D.insights.velocity)>=0.8?"success":"warning",tab:"progress"},
   ], [D]);
@@ -1362,7 +1511,7 @@ export default function Stride() {
   const isM=ww<768, isT=ww>=768&&ww<1024, isD=ww>=1024;
   const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"targets",icon:I.target,label:"Targets"},{id:"coach",icon:I.sparkle,label:"AI Coach"}];
   const renderTab = () => {
-    const p = {vis,isD,isT,isM,D,gymSleep};
+    const p = {vis,isD,isT,isM,D,gymSleep,settings,setInfoModal};
     switch(tab) {
       case "overview": return <OverviewTab {...p}/>;
       case "nutrition": return <NutritionTab {...p}/>;
@@ -1382,6 +1531,7 @@ export default function Stride() {
         *{box-sizing:border-box;margin:0;padding:0;}
         ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:${C.border};border-radius:3px;}
         @keyframes fadeSlideDown { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
         @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
       `}</style>
       <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden'}}>
@@ -1392,7 +1542,7 @@ export default function Stride() {
         <nav style={{width:navW,minHeight:'100vh',background:C.surfaceSolid,borderRight:`1px solid ${C.border}`,padding:navCollapsed?'28px 8px':'28px 16px',display:'flex',flexDirection:'column',position:'sticky',top:0,zIndex:10,transition:'width .3s ease, padding .3s ease',overflow:'hidden'}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:navCollapsed?20:36,padding:navCollapsed?'0':'0 8px',justifyContent:navCollapsed?'center':'flex-start'}}>
             <div style={{width:36,height:36,borderRadius:12,background:'linear-gradient(135deg,#B8FF57,#57FFD8)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16,fontWeight:900,color:C.bg,boxShadow:`0 4px 16px ${C.mint}33`,flexShrink:0}}>S</div>
-            {!navCollapsed&&<div><div style={{fontSize:17,fontWeight:800,letterSpacing:-.3}}>Stride</div><div style={{fontSize:10,color:C.text3,fontWeight:600}}>Week {D.currentWeek} · Phase 1</div></div>}
+            {!navCollapsed&&<div><div style={{fontSize:17,fontWeight:800,letterSpacing:-.3}}>Stride</div><div style={{fontSize:10,color:C.text3,fontWeight:600}}>Week {D.currentWeek} · Phase {settings.phase}</div></div>}
           </div>
           {!navCollapsed&&<div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1.5,padding:'0 14px',marginBottom:8}}>Navigation</div>}
           {NAV.map(n=>{const act=tab===n.id;
@@ -1475,6 +1625,8 @@ export default function Stride() {
           })}
         </nav>
       )}
+      <SyncToast message={toast.msg} show={toast.show}/>
+      {infoModal && <InfoModal id={infoModal} onClose={()=>setInfoModal(null)}/>}
     </div>
   );
 }
