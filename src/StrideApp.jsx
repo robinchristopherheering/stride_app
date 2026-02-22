@@ -1056,13 +1056,13 @@ function ProgressTab({vis,isD,isT,D}) {
         <Bars data={D.W_NUTR.map(w=>({v:w.comp,label:`W${w.w}`}))} max={100} color={C.mint} activeIdx={D.W_NUTR.length-1} visible={vis}/>
         <div style={{display:'flex',justifyContent:'space-between',marginTop:14}}>
           <div><div style={{fontSize:9,color:C.text3}}>Best</div><CountUp to={Math.max(...D.W_NUTR.map(w=>w.comp))} style={{fontSize:17}} color={C.mint}/></div>
-          <div style={{textAlign:'right'}}><div style={{fontSize:9,color:C.text3}}>Latest</div><CountUp to={D.W_NUTR[5].comp} style={{fontSize:17}} color={C.mint}/></div></div>
+          <div style={{textAlign:'right'}}><div style={{fontSize:9,color:C.text3}}>Latest</div><CountUp to={(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).comp} style={{fontSize:17}} color={C.mint}/></div></div>
       </AnimCard>
       <AnimCard delay={0.1}><Lbl tip={TIPS.flatStomach}>Flat Stomach Trend</Lbl>
         <Bars data={D.W_NUTR.map(w=>({v:w.flat,label:`W${w.w}`}))} max={100} color={C.cyan} activeIdx={D.W_NUTR.length-1} visible={vis}/>
         <div style={{display:'flex',justifyContent:'space-between',marginTop:14}}>
           <div><div style={{fontSize:9,color:C.text3}}>Best</div><CountUp to={Math.max(...D.W_NUTR.map(w=>w.flat))} style={{fontSize:17}} color={C.cyan}/></div>
-          <div style={{textAlign:'right'}}><div style={{fontSize:9,color:C.text3}}>Latest</div><CountUp to={D.W_NUTR[5].flat} style={{fontSize:17}} color={C.cyan}/></div></div>
+          <div style={{textAlign:'right'}}><div style={{fontSize:9,color:C.text3}}>Latest</div><CountUp to={(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).flat} style={{fontSize:17}} color={C.cyan}/></div></div>
       </AnimCard>
       <AnimCard delay={0.15}><Lbl>Steps Over Weeks</Lbl>
         <Spark data={D.W_STEPS.map(s=>s.v)} color={C.blue} w={200} h={60} visible={vis}/></AnimCard>
@@ -1146,6 +1146,7 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
 
 // AI COACH TAB
 function CoachTab({vis,isD,isT,isM,D}) {
+  const today = D.today || {cal:0,pro:0,carb:0,fat:0,fib:0,sug:0,steps:0,sleep:0,gym:false,comp:0};
   const [chatMsg, setChatMsg] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1158,7 +1159,7 @@ function CoachTab({vis,isD,isT,isM,D}) {
 CURRENT DATA: Today: ${today.cal} cal, ${today.pro}g protein, ${today.carb}g carbs, ${today.fat}g fat, ${today.fib}g fiber, ${today.sug}g sugar, ${today.steps} steps, ${today.sleep}h sleep, gym: ${today.gym?"yes":"no"}.
 Targets: 1300-1500 cal, 130-160g protein, 40-70g carbs, 40-55g fat, 20-30g fiber, <20g sugar, 8000+ steps.
 Weight: ${D.lastW?.kg}kg (started 80.5, goal 68, lost ${D.lost}kg). Week ${D.lastW?.week+1}/14. Velocity: -${D.insights.velocity}kg/wk.
-Week 6 avgs: ${D.W_NUTR[5].cal} cal, ${D.W_NUTR[5].pro}g pro. Streak: ${D.insights.streak}d. Protein rate: ${D.insights.proteinRate}%.
+Week 6 avgs: ${(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).cal} cal, ${(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).pro}g pro. Streak: ${D.insights.streak}d. Protein rate: ${D.insights.proteinRate}%.
 Most eaten: ${D.POPULAR_FOODS.slice(0,5).map(f=>f.name).join(', ')}.
 Be concise (2-4 sentences), practical, reference actual numbers. Suggest specific foods with macros when relevant.`;
 
@@ -1224,7 +1225,7 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
     {title:today.pro>=130?"Protein On Track":"Protein Low",tip:today.pro>=130?`${today.pro}g protein — solid.`:`${today.pro}g protein — below 130g, add a shake.`,type:today.pro>=130?"success":"warning"},
     {title:"Step Check",tip:`${today.steps.toLocaleString()} steps. ${today.steps>=8000?"Target hit!":"Walk 20 min to close gap."}`,type:today.steps>=8000?"success":"action"},
     {title:"Sugar Watch",tip:`${today.sug}g sugar${today.sug>20?" — over 20g limit.":" — controlled."}`,type:today.sug>20?"warning":"success"},
-    {title:"Weekly Trend",tip:`Compliance at ${D.W_NUTR[5].comp}/100. ${D.W_NUTR[5].comp>=75?"Strong.":"Focus protein & fiber."}`,type:D.W_NUTR[5].comp>=75?"success":"action"},
+    {title:"Weekly Trend",tip:`Compliance at ${(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).comp}/100. ${(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).comp>=75?"Strong.":"Focus protein & fiber."}`,type:(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).comp>=75?"success":"action"},
   ];
   const quickQ = ["What should I eat for dinner?","How's my progress?","Am I hitting my targets?","Tips for better sleep"];
 
@@ -1284,7 +1285,7 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
             else if(rf>3)meals.push({n:"1 tbsp Chia Seeds",cal:60,pro:2,extra:"5g fiber"});
             if(rc>100&&meals.length<2)meals.push({n:"100g Lentils",cal:116,pro:9,extra:"8g fiber"});
             const totalCal=meals.reduce((s,m)=>s+m.cal,0),totalPro=meals.reduce((s,m)=>s+m.pro,0);
-            return<>{meals.map(f=>(
+            return <>{meals.map(f=>(
               <div key={f.n} style={{padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.02)',marginBottom:4}}>
                 <div style={{fontWeight:600,color:C.text,fontSize:11}}>{f.n}</div>
                 <div style={{fontSize:9,color:C.text3}}>{f.cal} cal · {f.pro}g pro · {f.extra}</div></div>))}
@@ -1293,8 +1294,6 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
       </AnimCard>
     </div>);
 }
-
-// MAIN APP
 
 // MAIN APP
 export default function Stride() {
@@ -1450,13 +1449,15 @@ export default function Stride() {
     }
   }, [liveData, gymSleep.data]);
 
-  const notifications = useMemo(() => [
-    {id:"n1",title:"Fiber Gap",tip:`You're at ${today.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action",tab:"coach"},
-    {id:"n2",title:today.pro>=130?"Protein On Track":"Protein Low",tip:today.pro>=130?`${today.pro}g protein today — great execution.`:`${today.pro}g protein is below 130g. Add a shake or chicken.`,type:today.pro>=130?"success":"warning",tab:"coach"},
-    {id:"n3",title:"Step Check",tip:`${today.steps.toLocaleString()} steps. ${today.steps>=8000?"Target hit!":"A 20-min walk adds ~2,500 steps."}`,type:today.steps>=8000?"success":"action",tab:"activity"},
+  const notifications = useMemo(() => {
+    const t = D.today || {cal:0,pro:0,carb:0,fat:0,fib:0,sug:0,steps:0,sleep:0,gym:false,comp:0};
+    return [
+    {id:"n1",title:"Fiber Gap",tip:`You're at ${t.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action",tab:"coach"},
+    {id:"n2",title:t.pro>=130?"Protein On Track":"Protein Low",tip:t.pro>=130?`${t.pro}g protein today — great execution.`:`${t.pro}g protein is below 130g. Add a shake or chicken.`,type:t.pro>=130?"success":"warning",tab:"coach"},
+    {id:"n3",title:"Step Check",tip:`${t.steps.toLocaleString()} steps. ${t.steps>=8000?"Target hit!":"A 20-min walk adds ~2,500 steps."}`,type:t.steps>=8000?"success":"action",tab:"activity"},
     {id:"n4",title:"Weekly Trend",tip:`Compliance at ${D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0}/100. ${(D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0)>=75?"Solid.":"Focus on protein & fiber."}`,type:(D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0)>=75?"success":"action",tab:"progress"},
     {id:"n5",title:"Weight Pace",tip:`-${D.insights.velocity}kg/wk over 3 weeks. ${parseFloat(D.insights.velocity)>=0.8?"Sustainable pace.":"Check calorie adherence."}`,type:parseFloat(D.insights.velocity)>=0.8?"success":"warning",tab:"progress"},
-  ], [D]);
+  ];}, [D]);
   const unreadCount = notifications.filter(n => !notifRead[n.id]).length;
 
   useEffect(() => {
