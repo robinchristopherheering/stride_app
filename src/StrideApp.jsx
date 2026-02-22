@@ -435,7 +435,7 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
         <button onClick={()=>setEditDate(null)} style={{width:'100%',padding:'12px',borderRadius:10,border:'none',background:C.mint,color:C.bg,fontSize:14,fontWeight:700,cursor:'pointer'}}>Done</button>
       </div>
     </div>}
-    </div>
+    </>
   );
 }
 
