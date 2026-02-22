@@ -796,38 +796,104 @@ function Progress({val,min,max,color=C.mint,label,unit="g",visible=true}) {
 function Tag({children,color=C.mint,bg}){return <span style={{display:'inline-flex',alignItems:'center',gap:4,padding:'4px 10px',borderRadius:8,background:bg||(color+'16'),color,fontSize:11,fontWeight:700,letterSpacing:.2}}>{children}</span>;}
 function Lbl({children,tip,modalId,onModal}){return <div style={{fontSize:10,color:C.text3,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase',marginBottom:10,display:'flex',alignItems:'center'}}>{children}{(tip||modalId)&&<InfoTip text={tip} modalId={modalId} onModal={onModal}/>}</div>;}
 
-function TimePicker({value,onChange}) {
-  const opts=[{id:"today",l:"Today"},{id:"thisWeek",l:"This Week"},{id:"lastWeek",l:"Last Week"},{id:"month",l:"Month"},{id:"day",l:"Day by Day"}];
-  return (<div style={{display:'flex',gap:4,padding:3,borderRadius:12,background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`,flexWrap:'wrap'}}>
-    {opts.map(o=>(<button key={o.id} onClick={()=>onChange(o.id)} style={{padding:'6px 12px',borderRadius:9,border:'none',cursor:'pointer',
-      background:value===o.id?C.mintSoft:'transparent',color:value===o.id?C.mint:C.text3,
-      fontSize:11,fontWeight:value===o.id?700:500,fontFamily:'var(--sans)',transition:'all .2s'}}>{o.l}</button>))}</div>);
+function DateNav({D, value, onChange}) {
+  const [showPicker, setShowPicker] = useState(false);
+  const startDate = '2026-01-05';
+  const todayDate = localDateStr();
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmtDisplay = (ds) => {
+    if (!ds) return 'Today';
+    const d = new Date(ds+'T12:00:00');
+    const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
+  };
+  const fmtShort = (ds) => {
+    if (!ds) return '';
+    const d = new Date(ds+'T12:00:00');
+    return `${d.getDate()} ${months[d.getMonth()]}`;
+  };
+  const navigate = (dir) => {
+    if (value.mode !== 'day') return;
+    const cur = new Date(value.date+'T12:00:00');
+    cur.setDate(cur.getDate() + dir);
+    const next = localDateStr(cur);
+    if (next < startDate || next > todayDate) return;
+    onChange({...value, date: next});
+  };
+  const isToday = value.date === todayDate;
+  const isRange = value.mode === 'range';
+  const rangeDays = isRange ? Math.round((new Date(value.to+'T12:00:00') - new Date(value.from+'T12:00:00'))/(86400000))+1 : 0;
+  const presets = [
+    {l:'Today',fn:()=>onChange({mode:'day',date:todayDate})},
+    {l:'Yesterday',fn:()=>{const y=new Date();y.setDate(y.getDate()-1);onChange({mode:'day',date:localDateStr(y)});}},
+    {l:'This Week',fn:()=>{const t=new Date();const dow=t.getDay()||7;const mon=new Date(t);mon.setDate(t.getDate()-dow+1);onChange({mode:'range',from:localDateStr(mon),to:todayDate});}},
+    {l:'Last Week',fn:()=>{const t=new Date();const dow=t.getDay()||7;const mon=new Date(t);mon.setDate(t.getDate()-dow-6);const sun=new Date(mon);sun.setDate(mon.getDate()+6);onChange({mode:'range',from:localDateStr(mon),to:localDateStr(sun)});}},
+    {l:'This Month',fn:()=>{const t=new Date();onChange({mode:'range',from:`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-01`,to:todayDate});}},
+    {l:'All Time',fn:()=>onChange({mode:'range',from:startDate,to:todayDate})},
+  ];
+  const inputSt = {padding:'8px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text,fontSize:13,fontFamily:'var(--mono)',width:'100%',colorScheme:'dark'};
+  return (<div style={{position:'relative'}}>
+    <div style={{display:'flex',alignItems:'center',gap:6,padding:3,borderRadius:12,background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`}}>
+      {!isRange && <button onClick={()=>navigate(-1)} disabled={value.date<=startDate}
+        style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:value.date<=startDate?C.border:C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>‹</button>}
+      <div style={{flex:1,textAlign:'center',fontSize:12,fontWeight:600,color:C.text,cursor:'pointer',padding:'5px 0',whiteSpace:'nowrap'}} onClick={()=>setShowPicker(!showPicker)}>
+        {isRange ? `${fmtShort(value.from)} – ${fmtShort(value.to)}` : fmtDisplay(value.date)}
+        {isRange && <span style={{fontSize:10,color:C.text3,marginLeft:6}}>({rangeDays}d avg)</span>}
+      </div>
+      {!isRange && <button onClick={()=>navigate(1)} disabled={isToday}
+        style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:isToday?C.border:C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>›</button>}
+      <button onClick={()=>setShowPicker(!showPicker)} title="Date range"
+        style={{width:30,height:30,borderRadius:8,border:`1px solid ${showPicker?C.mintMed:C.border}`,background:showPicker?C.mintSoft:'rgba(255,255,255,0.04)',color:showPicker?C.mint:C.text3,cursor:'pointer',fontSize:12,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+      </button>
+      {(isRange || !isToday) && <button onClick={()=>onChange({mode:'day',date:todayDate})}
+        style={{padding:'5px 8px',borderRadius:8,border:'none',background:C.mintSoft,color:C.mint,fontSize:10,fontWeight:700,cursor:'pointer',flexShrink:0,whiteSpace:'nowrap'}}>Today</button>}
+    </div>
+    {showPicker && <div onClick={()=>setShowPicker(false)} style={{position:'fixed',inset:0,zIndex:98}}/>}
+    {showPicker && <div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:6,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:14,zIndex:99,boxShadow:'0 8px 32px rgba(0,0,0,0.5)'}}>
+      <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:12}}>
+        {presets.map(p=>(<button key={p.l} onClick={()=>{p.fn();setShowPicker(false);}} style={{padding:'6px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.03)',color:C.text2,fontSize:10,fontWeight:600,cursor:'pointer',transition:'all .15s'}}
+          onMouseEnter={e=>e.currentTarget.style.borderColor=C.mintMed} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>{p.l}</button>))}
+      </div>
+      <div style={{fontSize:10,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Custom Range</div>
+      <div style={{display:'flex',gap:8,alignItems:'center'}}>
+        <input type="date" min={startDate} max={todayDate} value={value.from||value.date} onChange={e=>{onChange({mode:'range',from:e.target.value,to:value.to||todayDate});}} style={inputSt}/>
+        <span style={{color:C.text3,fontSize:11,flexShrink:0}}>to</span>
+        <input type="date" min={startDate} max={todayDate} value={value.to||todayDate} onChange={e=>{onChange({mode:'range',from:value.from||startDate,to:e.target.value});}} style={inputSt}/>
+      </div>
+      <button onClick={()=>setShowPicker(false)} style={{width:'100%',marginTop:10,padding:'8px',borderRadius:8,border:'none',background:C.mint,color:C.bg,fontSize:12,fontWeight:700,cursor:'pointer'}}>Done</button>
+    </div>}
+  </div>);
 }
 
-function DayPicker({days,selected,onSelect}) {
-  const dows = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const getDow = (dt) => {
-    if (!dt) return "";
-    const parts = dt.split(' ');
-    if (parts.length === 2) {
-      const mIdx = months.indexOf(parts[0]);
-      const day = parseInt(parts[1]);
-      if (mIdx >= 0 && day) {
-        const d = new Date(2026, mIdx, day);
-        return dows[d.getDay()];
-      }
-    }
-    return "";
-  };
-  return (<div style={{display:'flex',gap:6,overflowX:'auto',paddingBottom:6,scrollbarWidth:'none'}}>
-    {days.map((d,i)=>{const sel=selected===i;
-      const dayName = getDow(d.dt) || d.day || d.d || "";
-      return (<button key={i} onClick={()=>onSelect(i)} style={{flexShrink:0,padding:'8px 12px',borderRadius:12,border:`1px solid ${sel?C.mintMed:'transparent'}`,cursor:'pointer',
-        background:sel?C.mintSoft:'rgba(255,255,255,0.02)',color:sel?C.mint:C.text2,fontFamily:'var(--sans)',fontSize:11,fontWeight:sel?700:500,transition:'all .2s',minWidth:58,textAlign:'center'}}>
-        <div style={{fontSize:9,color:sel?C.mint:C.text3,fontWeight:700}}>{dayName}</div>
-        <div style={{fontSize:11,fontWeight:700,marginTop:2}}>{d.dt?.split(' ')[1]||''}</div></button>);})}
-  </div>);
+function getDateData(dateNav, D) {
+  if (!D) return D?.today || {};
+  const allDays = D.DAILY_ALL || [];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmtDate = (ds) => {const d=new Date(ds+'T12:00:00');return `${months[d.getMonth()]} ${d.getDate()}`;};
+  if (dateNav.mode === 'day') {
+    const dt = fmtDate(dateNav.date);
+    const found = allDays.find(d => d.dt === dt);
+    if (found) return {...found, _isDay:true, _date:dateNav.date, _dt:dt};
+    if (dateNav.date === localDateStr()) return {...(D.today||{}), _isDay:true, _date:dateNav.date, _dt:dt};
+    return {cal:0,pro:0,carb:0,fat:0,fib:0,sug:0,steps:0,comp:0,flat:0,sleep:0,gym:false,_isDay:true,_date:dateNav.date,_dt:dt,_empty:true};
+  }
+  const fromDate = new Date(dateNav.from+'T12:00:00');
+  const toDate = new Date(dateNav.to+'T12:00:00');
+  const inRange = allDays.filter(d => {
+    const parts = d.dt.split(' ');
+    const mIdx = months.indexOf(parts[0]);
+    const day = parseInt(parts[1]);
+    if (mIdx<0||!day) return false;
+    const dd = new Date(2026, mIdx, day);
+    return dd >= fromDate && dd <= toDate;
+  });
+  if (!inRange.length) return {cal:0,pro:0,carb:0,fat:0,fib:0,sug:0,steps:0,comp:0,flat:0,sleep:0,gym:0,_isRange:true,_count:0,_days:[]};
+  const avg=(key)=>Math.round(inRange.reduce((a,d)=>a+(d[key]||0),0)/inRange.length);
+  const avgF=(key)=>+(inRange.reduce((a,d)=>a+(d[key]||0),0)/inRange.length).toFixed(1);
+  return {cal:avg('cal'),pro:avg('pro'),carb:avg('carb'),fat:avg('fat'),fib:avg('fib'),sug:avg('sug'),steps:avg('steps'),
+    comp:avg('comp'),flat:avg('flat')||Math.max(0,avg('comp')-2),sleep:avgF('sleep'),
+    gym:inRange.filter(x=>x.gym).length,_isRange:true,_count:inRange.length,_days:inRange};
 }
 
 const I={
@@ -850,31 +916,19 @@ const I={
 };
 
 // DATA HELPERS
-function getPeriod(period, dayIdx=0, D) {
-  if (!D) return {};
-  if (period==="today") return D.DAILY_W7[D.DAILY_W7.length-1] || D.today;
-  if (period==="day") return D.DAILY_W7[dayIdx] || D.DAILY_W7[0] || D.today;
-  const avg=(arr,key)=>Math.round(arr.reduce((a,d)=>a+(d[key]||0),0)/arr.length);
-  const avgF=(arr,key)=>+(arr.reduce((a,d)=>a+(d[key]||0),0)/arr.length).toFixed(1);
-  if (period==="thisWeek") {const d=D.DAILY_W7;if(!d.length)return D.today;return{day:`Week ${D.currentWeek}`,dt:"This Week",cal:avg(d,'cal'),pro:avg(d,'pro'),carb:avg(d,'carb'),fat:avg(d,'fat'),fib:avg(d,'fib'),sug:avg(d,'sug'),comp:avg(d,'comp'),flat:avg(d,'flat')||avg(d,'comp')-2,steps:avg(d,'steps'),sleep:avgF(d,'sleep'),gym:d.filter(x=>x.gym).length};}
-  if (period==="lastWeek") {const lw=D.currentWeek-1;const d=D.DAILY_ALL.filter(x=>x.w===lw);if(!d.length)return D.today;return{day:`Week ${lw}`,dt:"Last Week",cal:avg(d,'cal'),pro:avg(d,'pro'),carb:avg(d,'carb'),fat:avg(d,'fat'),fib:avg(d,'fib'),sug:avg(d,'sug'),comp:avg(d,'comp'),flat:avg(d,'comp')-2,steps:avg(d,'steps'),sleep:avgF(d,'sleep'),gym:d.filter(x=>x.gym).length};}
-  if (period==="month") {const cutoff=Math.max(1,D.currentWeek-4);const d=D.DAILY_ALL.filter(x=>x.w>=cutoff);if(!d.length)return D.today;return{day:"Last 4 wks",dt:"Month",cal:avg(d,'cal'),pro:avg(d,'pro'),carb:avg(d,'carb'),fat:avg(d,'fat'),fib:avg(d,'fib'),sug:avg(d,'sug'),comp:avg(d,'comp'),flat:avg(d,'comp')-2,steps:avg(d,'steps'),sleep:avgF(d,'sleep'),gym:d.filter(x=>x.gym).length};}
-  return D.today;
-}
 // TAB RENDERERS
 function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings}) {
-  const [period, setPeriod] = useState("today");
-  const [dayIdx, setDayIdx] = useState(D.DAILY_W7.length-1);
-  const localVis = useAnimateOnMount(`${period}-${dayIdx}`);
+  const [dateNav, setDateNav] = useState({mode:'day',date:localDateStr()});
+  const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const d=period==="day"?getPeriod("day",dayIdx,D):getPeriod(period,0,D);
-  const isAvg=period!=="today"&&period!=="day";
-  const label=period==="today"?"Today":period==="day"?d.dt:period==="thisWeek"?"This Week Avg":period==="lastWeek"?"Last Week Avg":"Month Avg";
+  const d=getDateData(dateNav, D);
+  const isAvg=d._isRange;
+  const label=isAvg?`${d._count}d Average`:(d._dt||"Today");
   const checks=[
     {task:"Protein 130–160g",ok:d.pro>=130,val:`${d.pro}g`},
     {task:`Calories 1,300–1,500${isAvg?' avg':''}`,ok:d.cal>=1300&&d.cal<=1500,val:`${d.cal}`},
-    {task:"Steps 8,000+",ok:d.steps>=8000,val:d.steps?.toLocaleString()},
+    {task:"Steps 8,000+",ok:d.steps>=8000,val:d.steps?.toLocaleString?.()},
     {task:"Fiber 20–30g",ok:d.fib>=20,val:`${d.fib}g`},
     {task:"Sugar < 20g",ok:d.sug<=20,val:`${d.sug}g`},
     {task:"Gym session",ok:isAvg?d.gym>=3:d.gym,val:isAvg?`${d.gym} days`:d.gym?"Done":"Rest"},
@@ -882,9 +936,8 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings}) {
   ];
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
-      <div style={{gridColumn:isD?'1/4':isT?'1/3':'1',display:'flex',flexDirection:'column',gap:8}}>
-        <TimePicker value={period} onChange={setPeriod}/>
-        {period==="day"&&<DayPicker days={D.DAILY_W7} selected={dayIdx} onSelect={setDayIdx}/>}</div>
+      <div style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
+        <DateNav D={D} value={dateNav} onChange={setDateNav}/></div>
       <AnimCard glow style={{gridColumn:isD?'1/4':isT?'1/3':'1',padding:isD?28:22}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:12}}>
           <div>
@@ -951,25 +1004,22 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings}) {
 }
 
 function NutritionTab({vis,isD,isT,isM,D}) {
-  const [period, setPeriod] = useState("today");
-  const [dayIdx, setDayIdx] = useState(D.DAILY_W7.length-1);
+  const [dateNav, setDateNav] = useState({mode:'day',date:localDateStr()});
   const [foodTab, setFoodTab] = useState("log");
-  const localVis = useAnimateOnMount(`${period}-${dayIdx}`);
+  const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const d=period==="day"?getPeriod("day",dayIdx,D):getPeriod(period,0,D);
-  const isAvg=period!=="today"&&period!=="day";
-  const dateLabel=period==="today"?(D.today?.dt||"Today"):period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Today"):period==="thisWeek"?"Week 7 Avg":period==="lastWeek"?"Week 6 Avg":"Month Avg";
+  const d=getDateData(dateNav, D);
+  const isAvg=d._isRange;
+  const dateLabel=isAvg?`${d._count}d Average`:(d._dt||"Today");
   const macros=[{name:"Protein",v:d.pro*4,c:C.mint},{name:"Carbs",v:d.carb*4,c:C.blue},{name:"Fat",v:d.fat*9,c:C.orange}];
-  const foodDate=period==="today"?(D.today?.dt||null):period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Today"):null;
-  const dayMeals=foodDate?D.FOOD_LOG[foodDate]:null;
-  const foodLabel=period==="today"?"Today's Log":period==="day"?(D.DAILY_W7[dayIdx]?.dt||"Day")+"'s Log":"Summary";
+  const dayMeals=d._isDay?D.FOOD_LOG[d._dt]:null;
+  const foodLabel=d._isDay?(d._dt||"Today")+"'s Log":"Top Foods";
   const mealOrder=[{key:"breakfast",label:"Breakfast",icon:"☀"},{key:"lunch",label:"Lunch",icon:"☕"},{key:"snack",label:"Snack",icon:"🍎"},{key:"dinner",label:"Dinner",icon:"🌙"}];
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
-      <div style={{gridColumn:isD?'1/4':isT?'1/3':'1',display:'flex',flexDirection:'column',gap:8}}>
-        <TimePicker value={period} onChange={setPeriod}/>
-        {period==="day"&&<DayPicker days={D.DAILY_W7} selected={dayIdx} onSelect={setDayIdx}/>}</div>
+      <div style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
+        <DateNav D={D} value={dateNav} onChange={setDateNav}/></div>
       <AnimCard style={{gridColumn:isD?'1/3':isT?'1/3':'1'}}>
         <Lbl>{dateLabel} Macros</Lbl>
         <div style={{display:'flex',gap:20,alignItems:'center',flexWrap:isM?'wrap':'nowrap'}}>
@@ -1022,7 +1072,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
             <span style={{fontSize:10,color:C.text3,fontWeight:600}}>Total:</span>
             <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{Object.values(dayMeals).flat().reduce((a,f)=>a+f.cal,0)} cal</span>
             <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{Math.round(Object.values(dayMeals).flat().reduce((a,f)=>a+f.pro,0))}g pro</span></div>
-        </div>):(<div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>{isAvg?"Switch to Today or Day by Day to see meals.":"No food data for this day."}</div>))
+        </div>):(<div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>{isAvg?"Select a single day to see meals.":"No food data for this day."}</div>))
         :(<div style={{display:'grid',gridTemplateColumns:isD?'repeat(2,1fr)':'1fr',gap:8}}>
           {D.POPULAR_FOODS.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`,
             opacity:v?1:0,transform:v?'translateY(0)':'translateY(8px)',transition:`all .3s ease ${i*.04}s`}}>
@@ -1046,21 +1096,19 @@ function NutritionTab({vis,isD,isT,isM,D}) {
 }
 
 function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal}) {
-  const [period, setPeriod] = useState("today");
-  const [dayIdx, setDayIdx] = useState(D.DAILY_W7.length-1);
-  const localVis = useAnimateOnMount(`${period}-${dayIdx}`);
+  const [dateNav, setDateNav] = useState({mode:'day',date:localDateStr()});
+  const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const d=period==="day"?getPeriod("day",dayIdx,D):getPeriod(period,0,D);
-  const label=period==="today"?"Today":period==="day"?d.dt:period==="thisWeek"?"This Week":period==="lastWeek"?"Last Week":"Month";
+  const d=getDateData(dateNav, D);
+  const label=d._isRange?`${d._count}d Avg`:(d._dt||"Today");
   const gymDays=D.DAILY_ALL.filter(x=>x.gym).length, totalDays=D.DAILY_ALL.length;
   const avgSleep=(D.DAILY_ALL.reduce((a,x)=>a+x.sleep,0)/totalDays).toFixed(1);
   const avgSteps=Math.round(D.DAILY_ALL.reduce((a,x)=>a+x.steps,0)/totalDays);
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
-      <div style={{gridColumn:isD?'1/4':isT?'1/3':'1',display:'flex',flexDirection:'column',gap:8}}>
-        <TimePicker value={period} onChange={setPeriod}/>
-        {period==="day"&&<DayPicker days={D.DAILY_W7} selected={dayIdx} onSelect={setDayIdx}/>}</div>
+      <div style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
+        <DateNav D={D} value={dateNav} onChange={setDateNav}/></div>
       <AnimCard style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
         <Lbl modalId="steps" onModal={setInfoModal}>{label} Steps</Lbl>
         <Arc val={d.steps} max={10000} label="" sz={isD?140:120} sw={10} color={d.steps>=8000?C.mint:C.orange} visible={v}/>
