@@ -5,62 +5,74 @@ import { useState, useEffect, useMemo, useRef, useCallback, createContext, useCo
 const THEMES = {
   light: {
     mode: 'light',
-    bg: "#EAECF3", bgAlt: "#E2E5EE",
-    surface: "rgba(255,255,255,0.55)", surfaceSolid: "#FFFFFF",
-    card: "rgba(255,255,255,0.50)", cardHover: "rgba(255,255,255,0.72)",
-    cardBorder: "rgba(255,255,255,0.65)", cardBorderHover: "rgba(45,140,60,0.18)",
-    // Graph/accent — deep saturated tones for readability on pearlescent glass
-    mint: "#2D8C3C", mintDark: "#1E7A2E",
-    mintSoft: "rgba(45,140,60,0.10)", mintMed: "rgba(45,140,60,0.18)", mintHard: "rgba(45,140,60,0.30)",
-    red: "#D43D3D", redSoft: "rgba(212,61,61,0.08)",
-    blue: "#3360C4", blueSoft: "rgba(51,96,196,0.08)",
-    orange: "#C87A08", orangeSoft: "rgba(200,122,8,0.08)",
-    cyan: "#0C8A82", cyanSoft: "rgba(12,138,130,0.08)",
-    purple: "#6B3FC7", purpleSoft: "rgba(107,63,199,0.08)",
-    text: "#1A1D26", text2: "#454D5E", text3: "#7E8799",
-    border: "rgba(255,255,255,0.45)",
-    // Silvery track for rings/arcs/progress — like the reference
-    track: "rgba(0,0,0,0.08)",
-    // Glassmorphism — pearlescent frosted glass
-    glass: "rgba(255,255,255,0.52)", glassBorder: "rgba(255,255,255,0.72)", glassBlur: 28,
-    // Brand gradients — always brand identity
-    gradStart: "#B8FF57", gradEnd: "#57FFD8",
+    bg: "#E0E1EF", bgAlt: "#D8D9E8",
+    surface: "rgba(245,245,255,0.68)", surfaceSolid: "#F2F2FA",
+    card: "rgba(248,248,255,0.60)", cardHover: "rgba(252,252,255,0.72)",
+    cardBorder: "rgba(255,255,255,0.55)", cardBorderHover: "rgba(120,100,200,0.18)",
+    // PRIMARY — lavender-purple (the dominant accent, replaces old mint)
+    mint: "#7C6BC4", mintDark: "#6A58B0",
+    mintSoft: "rgba(124,107,196,0.10)", mintMed: "rgba(124,107,196,0.18)", mintHard: "rgba(124,107,196,0.30)",
+    // SECONDARY accents
+    red: "#C43838", redSoft: "rgba(196,56,56,0.08)",
+    blue: "#4868C0", blueSoft: "rgba(72,104,192,0.08)",
+    orange: "#C47898", orangeSoft: "rgba(196,120,152,0.08)",
+    cyan: "#4CA8B0", cyanSoft: "rgba(76,168,176,0.08)",
+    purple: "#9060D0", purpleSoft: "rgba(144,96,208,0.08)",
+    green: "#3C9456", greenSoft: "rgba(60,148,86,0.08)",
+    // Text — cool slate
+    text: "#2A2C42", text2: "#585E78", text3: "#9098B4",
+    border: "rgba(180,185,225,0.22)",
+    // Track — solid silver-lavender
+    track: "#C4C6D8",
+    subtle: "rgba(160,165,210,0.09)", subtleBorder: "rgba(160,165,210,0.14)",
+    // Glassmorphism
+    glass: "rgba(248,248,255,0.60)", glassBorder: "rgba(255,255,255,0.55)", glassBlur: 32,
+    // Brand gradients — lavender pearl
+    gradStart: "#9B8CE0", gradEnd: "#7CC4D8",
     // Nav
-    navBg: "rgba(255,255,255,0.55)", navBorder: "rgba(255,255,255,0.50)",
+    navBg: "rgba(248,248,255,0.68)", navBorder: "rgba(180,185,225,0.18)",
     // Modal
-    modalBg: "rgba(255,255,255,0.90)", overlayBg: "rgba(0,0,0,0.15)",
+    modalBg: "rgba(248,248,255,0.96)", overlayBg: "rgba(25,25,50,0.12)",
     // Scrollbar
-    scrollThumb: "rgba(0,0,0,0.08)",
-    chartLine: "#CBD5E1",
-    // Ambient bg — soft lavender-tinted pearlescent
-    bgGradient: "linear-gradient(145deg, #EAECF3 0%, #E5E4F0 20%, #E8EAF4 40%, #EBE8F1 60%, #E7E9F3 80%, #EAECF3 100%)",
-    bgAccent1: "rgba(45,140,60,0.04)", bgAccent2: "rgba(12,138,130,0.035)", bgAccent3: "rgba(107,63,199,0.04)",
+    scrollThumb: "rgba(150,155,195,0.24)",
+    chartLine: "#C0C4DA",
+    // Ambient bg
+    bgGradient: "linear-gradient(145deg, #E0E1EF 0%, #D8D2EC 14%, #DCDEED 28%, #E2DAED 42%, #D8DCEE 56%, #DFD8EC 70%, #DBDFEF 85%, #E0E1EF 100%)",
+    bgAccent1: "rgba(124,107,196,0.05)", bgAccent2: "rgba(100,160,200,0.04)", bgAccent3: "rgba(150,110,220,0.055)",
   },
   dark: {
     mode: 'dark',
-    bg: "#070B14", bgAlt: "#0C0F15",
-    surface: "rgba(14,19,32,0.72)", surfaceSolid: "#0E1320",
-    card: "rgba(18,23,33,0.55)", cardHover: "rgba(24,30,42,0.65)",
-    cardBorder: "rgba(255,255,255,0.06)", cardBorderHover: "rgba(184,255,87,0.12)",
-    mint: "#B8FF57", mintDark: "#9ADB3B",
-    mintSoft: "rgba(184,255,87,0.10)", mintMed: "rgba(184,255,87,0.20)", mintHard: "rgba(184,255,87,0.35)",
-    red: "#FF5470", redSoft: "rgba(255,84,112,0.10)",
-    blue: "#5B8CFF", blueSoft: "rgba(91,140,255,0.10)",
-    orange: "#FFB547", orangeSoft: "rgba(255,181,71,0.10)",
-    cyan: "#57FFD8", cyanSoft: "rgba(87,255,216,0.10)",
-    purple: "#A78BFA", purpleSoft: "rgba(167,139,250,0.10)",
-    text: "#EFF1F5", text2: "#8B95A8", text3: "#4B5468",
+    bg: "#0A0C18", bgAlt: "#0E1020",
+    surface: "rgba(16,18,36,0.72)", surfaceSolid: "#12142A",
+    card: "rgba(20,22,42,0.55)", cardHover: "rgba(28,30,52,0.65)",
+    cardBorder: "rgba(255,255,255,0.06)", cardBorderHover: "rgba(155,140,224,0.18)",
+    // PRIMARY — luminous lavender
+    mint: "#B8A8F0", mintDark: "#9B8CE0",
+    mintSoft: "rgba(184,168,240,0.10)", mintMed: "rgba(184,168,240,0.20)", mintHard: "rgba(184,168,240,0.35)",
+    // SECONDARY accents
+    red: "#FF6078", redSoft: "rgba(255,96,120,0.10)",
+    blue: "#7CA0FF", blueSoft: "rgba(124,160,255,0.10)",
+    orange: "#F0A0C0", orangeSoft: "rgba(240,160,192,0.10)",
+    cyan: "#6CD8E0", cyanSoft: "rgba(108,216,224,0.10)",
+    purple: "#C898FF", purpleSoft: "rgba(200,152,255,0.10)",
+    green: "#6CE088", greenSoft: "rgba(108,224,136,0.10)",
+    // Text
+    text: "#ECEEF8", text2: "#8B92B0", text3: "#505878",
     border: "rgba(255,255,255,0.06)",
-    track: "rgba(255,255,255,0.04)",
-    // Glassmorphism — enhanced
-    glass: "rgba(14,19,32,0.45)", glassBorder: "rgba(255,255,255,0.08)", glassBlur: 24,
-    gradStart: "#B8FF57", gradEnd: "#57FFD8",
-    navBg: "rgba(14,19,32,0.65)", navBorder: "rgba(255,255,255,0.06)",
-    modalBg: "rgba(14,19,32,0.85)", overlayBg: "rgba(0,0,0,0.7)",
-    scrollThumb: "rgba(255,255,255,0.04)",
-    chartLine: "#2A3040",
-    bgGradient: "linear-gradient(145deg, #070B14 0%, #0A0F1A 25%, #080D16 50%, #0B1020 75%, #070B14 100%)",
-    bgAccent1: "rgba(184,255,87,0.03)", bgAccent2: "rgba(87,255,216,0.025)", bgAccent3: "rgba(91,140,255,0.02)",
+    // Track
+    track: "rgba(255,255,255,0.05)",
+    subtle: "rgba(255,255,255,0.03)", subtleBorder: "rgba(255,255,255,0.05)",
+    // Glassmorphism
+    glass: "rgba(16,18,36,0.50)", glassBorder: "rgba(255,255,255,0.08)", glassBlur: 24,
+    // Brand gradients — luminous lavender pearl
+    gradStart: "#B8A8F0", gradEnd: "#6CD8E0",
+    // Nav
+    navBg: "rgba(16,18,36,0.65)", navBorder: "rgba(255,255,255,0.06)",
+    modalBg: "rgba(16,18,36,0.90)", overlayBg: "rgba(0,0,0,0.7)",
+    scrollThumb: "rgba(255,255,255,0.05)",
+    chartLine: "#252840",
+    bgGradient: "linear-gradient(145deg, #0A0C18 0%, #0E0E22 25%, #0A0D1C 50%, #100E24 75%, #0A0C18 100%)",
+    bgAccent1: "rgba(184,168,240,0.03)", bgAccent2: "rgba(108,216,224,0.025)", bgAccent3: "rgba(155,140,224,0.035)",
   }
 };
 const ThemeContext = createContext(null);
@@ -455,7 +467,7 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
         const isEditing = dateStr === editDate;
         return (
           <div key={dateStr} onClick={()=>setEditDate(dateStr)} style={{padding:'10px 6px',borderRadius:12,
-            background:isEditing?C.mintSoft:isToday?'rgba(184,255,87,0.06)':'rgba(255,255,255,0.02)',
+            background:isEditing?C.mintSoft:isToday?C.mintSoft:C.subtle,
             border:`1px solid ${isEditing?C.mint:isToday?C.mintMed:'rgba(255,255,255,0.04)'}`,
             textAlign:'center',cursor:'pointer',transition:'all .2s'}}>
             <div style={{fontSize:11,fontWeight:700,color:isEditing||isToday?C.mint:C.text2,marginBottom:4}}>{dow}</div>
@@ -478,14 +490,14 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
     {editDate && editData && <>
       <div onClick={()=>setEditDate(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',zIndex:9999}}/>
       <div style={{position:'fixed',left:'50%',top:'50%',transform:'translate(-50%,-50%)',zIndex:10000,width:'100%',maxWidth:360,padding:'0 20px',animation:'fadeSlideDown .2s ease'}}>
-        <div onClick={e=>e.stopPropagation()} style={{background:'#1a1e24',border:`1px solid ${C.border}`,borderRadius:20,padding:0,overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,0.8)'}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:C.modalBg,border:`1px solid ${C.glassBorder}`,borderRadius:20,padding:0,overflow:'hidden',boxShadow:C.mode==='light'?'0 24px 64px rgba(120,108,180,0.15)':'0 24px 64px rgba(0,0,0,0.8)',backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`}}>
           {/* Header */}
           <div style={{padding:'20px 24px 16px',borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div>
               <div style={{fontSize:18,fontWeight:800,color:C.text}}>{editDow}</div>
               <div style={{fontSize:12,color:C.text3,marginTop:2}}>{fmt(editDate)}</div>
             </div>
-            <button onClick={()=>setEditDate(null)} style={{width:32,height:32,borderRadius:10,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>✕</button>
+            <button onClick={()=>setEditDate(null)} style={{width:32,height:32,borderRadius:10,border:`1px solid ${C.border}`,background:C.subtle,color:C.text3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>✕</button>
           </div>
           {/* Body */}
           <div style={{padding:'20px 24px 24px',display:'flex',flexDirection:'column',gap:20}}>
@@ -505,14 +517,14 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
               <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Sleep (hours)</div>
               <input type="number" inputMode="decimal" min="0" max="12" step="0.5" value={editData?.sleep||''} placeholder="e.g. 7.5"
                 onChange={e=>gymSleep.setSleep(editDate,e.target.value)}
-                style={{width:'100%',padding:'14px 16px',borderRadius:12,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text,fontSize:18,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'}}/>
+                style={{width:'100%',padding:'14px 16px',borderRadius:12,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:18,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'}}/>
             </div>
             {/* Steps */}
             <div>
               <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Steps</div>
               <input type="number" inputMode="numeric" min="0" max="99999" step="100" value={editData?.steps||''} placeholder="e.g. 8500"
                 onChange={e=>gymSleep.setSteps(editDate,e.target.value)}
-                style={{width:'100%',padding:'14px 16px',borderRadius:12,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text,fontSize:18,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'}}/>
+                style={{width:'100%',padding:'14px 16px',borderRadius:12,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:18,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'}}/>
             </div>
             {/* Done button */}
             <button onClick={()=>setEditDate(null)} style={{width:'100%',padding:'14px',borderRadius:12,border:'none',background:C.mint,color:C.bg,fontSize:15,fontWeight:800,cursor:'pointer',marginTop:4}}>Done</button>
@@ -699,11 +711,11 @@ function AnimCard({ children, style={}, glow, delay=0 }) {
   const [ref, inView] = useInView(0.08);
   const isLight = C.mode === 'light';
   const baseShadow = isLight
-    ? '0 1px 2px rgba(0,0,0,0.03), 0 4px 16px rgba(0,0,0,0.04), 0 8px 32px rgba(0,0,0,0.02), inset 0 1px 0 rgba(255,255,255,0.7)'
-    : '0 2px 8px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.04)';
+    ? '0 2px 8px rgba(120,108,180,0.06), 0 8px 28px rgba(120,108,180,0.04), inset 0 1px 0 rgba(255,255,255,0.75), inset 0 -1px 0 rgba(120,108,180,0.03)'
+    : '0 2px 8px rgba(0,0,0,0.35), 0 8px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(184,168,240,0.04)';
   const hoverShadow = isLight
-    ? '0 2px 8px rgba(0,0,0,0.05), 0 12px 40px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)'
-    : '0 4px 16px rgba(0,0,0,0.4), 0 16px 48px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.06)';
+    ? '0 4px 14px rgba(120,108,180,0.09), 0 16px 44px rgba(120,108,180,0.06), inset 0 1px 0 rgba(255,255,255,0.85), inset 0 -1px 0 rgba(120,108,180,0.04)'
+    : '0 4px 16px rgba(0,0,0,0.45), 0 16px 48px rgba(0,0,0,0.28), inset 0 1px 0 rgba(184,168,240,0.06)';
   return (
     <div ref={ref} style={{background:C.glass,borderRadius:20,padding:22,border:`1px solid ${C.glassBorder}`,
       backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,position:'relative',overflow:'hidden',
@@ -745,7 +757,7 @@ function HoverTip({x,y,w,h,padT,padB,d}) {
   const bw=30,bh=11,tx=Math.min(Math.max(x,bw/2+1),w-bw/2-1),ty=Math.max(2,y-16);
   return (<>
     <line x1={x} y1={padT} x2={x} y2={h-padB} stroke={C.mint} strokeWidth="0.3" strokeDasharray="1.5,2" opacity="0.2"/>
-    <rect x={tx-bw/2} y={ty} width={bw} height={bh} rx={3} fill={C.surfaceSolid} fillOpacity="0.9" stroke="rgba(184,255,87,0.08)" strokeWidth="0.3"/>
+    <rect x={tx-bw/2} y={ty} width={bw} height={bh} rx={3} fill={C.surfaceSolid} fillOpacity="0.9" stroke="rgba(184,168,240,0.08)" strokeWidth="0.3"/>
     <text x={tx} y={ty+5} textAnchor="middle" style={{fontSize:4.5,fill:C.mint,fontFamily:'var(--mono)',fontWeight:600}}>{d.kg}kg</text>
     <text x={tx} y={ty+9.5} textAnchor="middle" style={{fontSize:3,fill:C.text3,fontFamily:'var(--mono)'}}>W{d.week} · {d.date}</text>
   </>);
@@ -785,7 +797,7 @@ function WeightChart({ data, w=300, h=100, visible=true }) {
       <path d={linePath} fill="none" stroke={C.mint} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.6}
         style={{strokeDasharray:totalLen,strokeDashoffset:visible?0:totalLen,transition:'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)'}}/>
       {pts.map((p,i)=><circle key={i} cx={p.x} cy={p.y} r={hover?.idx===i?2:1}
-        fill={hover?.idx===i?C.mint:'rgba(184,255,87,0.2)'}
+        fill={hover?.idx===i?C.mint:'rgba(184,168,240,0.2)'}
         stroke={hover?.idx===i?'rgba(255,255,255,0.3)':'none'} strokeWidth={0.5}
         style={{transition:'r .12s, fill .12s'}}>
         {i===pts.length-1&&!hover&&<animate attributeName="r" values="1;1.5;1" dur="2.5s" repeatCount="indefinite"/>}
@@ -815,13 +827,22 @@ function Spark({data,color=C.mint,w=200,h=50,fill=true,sw=2,visible=true}) {
 function Ring({val,max=100,sz=80,sw=6,color=C.mint,visible=true,children}) {
   const pct=Math.min(val/max,1),r=(sz-sw)/2,circ=2*Math.PI*r,dash=pct*circ;
   const gid=`rg${sz}${color.replace('#','')}`;
+  const isLight = C.mode === 'light';
   return (<div style={{position:'relative',width:sz,height:sz}}>
     <svg width={sz} height={sz}>
-      <defs><linearGradient id={gid} x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.4"/><stop offset="100%" stopColor={color} stopOpacity="1"/></linearGradient></defs>
-      <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={C.track||C.border} strokeWidth={sw}/>
-    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={`url(#${gid})`} strokeWidth={sw}
-      strokeDasharray={visible?`${dash} ${circ-dash}`:`0 ${circ}`} strokeDashoffset={circ/4} strokeLinecap="round"
-      style={{transition:'stroke-dasharray 1s cubic-bezier(.4,0,.2,1) .15s',filter:`drop-shadow(0 0 6px ${color}44)`}}/></svg>
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor={isLight?C.track:color} stopOpacity={isLight?"0.6":"0.4"}/>
+          <stop offset="40%" stopColor={color} stopOpacity="0.75"/>
+          <stop offset="85%" stopColor={color} stopOpacity="1"/>
+          <stop offset="100%" stopColor={isLight?'#8CD0E0':'#E0DDFF'} stopOpacity={isLight?"0.9":"0.8"}/>
+        </linearGradient>
+      </defs>
+      <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={isLight?C.track:(C.track||C.border)} strokeWidth={sw}/>
+      <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={`url(#${gid})`} strokeWidth={sw}
+        strokeDasharray={visible?`${dash} ${circ-dash}`:`0 ${circ}`} strokeDashoffset={circ/4} strokeLinecap="round"
+        style={{transition:'stroke-dasharray 1s cubic-bezier(.4,0,.2,1) .15s',filter:isLight?`drop-shadow(0 0 8px ${color}55)`:`drop-shadow(0 0 6px ${color}44)`}}/>
+    </svg>
     <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column'}}>{children}</div>
   </div>);
 }
@@ -830,11 +851,23 @@ function Arc({val,max,sz=120,sw=8,color=C.mint,label,unit="",visible=true}) {
   const pct=Math.min(val/max,1),r=(sz-sw*2)/2,circ=Math.PI*r,dash=pct*circ;
   const display=val>=1000?`${(val/1000).toFixed(1)}k`:Math.round(val);
   const gid=`ag${sz}${color.replace('#','')}`;
+  const isLight = C.mode === 'light';
+  const trkId=`at${sz}`;
   return (<div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
     <div style={{position:'relative',width:sz,height:sz*.55}}>
       <svg width={sz} height={sz*.55} viewBox={`0 0 ${sz} ${sz*.58}`}>
-        <defs><linearGradient id={gid} x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stopColor={color} stopOpacity="0.35"/><stop offset="100%" stopColor={color} stopOpacity="1"/></linearGradient></defs>
-        <path d={`M ${sw} ${sz/2} A ${r} ${r} 0 0 1 ${sz-sw} ${sz/2}`} fill="none" stroke={C.track||"rgba(255,255,255,0.04)"} strokeWidth={sw} strokeLinecap="round"/>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor={isLight?C.track:color} stopOpacity={isLight?"0.5":"0.50"}/>
+            <stop offset="40%" stopColor={color} stopOpacity="0.75"/>
+            <stop offset="85%" stopColor={color} stopOpacity="1"/>
+            <stop offset="100%" stopColor={isLight?'#8CD0E0':'#E0DDFF'} stopOpacity={isLight?"0.9":"0.8"}/>
+          </linearGradient>
+          {isLight && <linearGradient id={trkId} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#AEB2D0" stopOpacity="0.4"/><stop offset="50%" stopColor="#BEC2DC" stopOpacity="0.3"/><stop offset="100%" stopColor="#B5B8D4" stopOpacity="0.4"/>
+          </linearGradient>}
+        </defs>
+        <path d={`M ${sw} ${sz/2} A ${r} ${r} 0 0 1 ${sz-sw} ${sz/2}`} fill="none" stroke={isLight?C.track:(C.track||"rgba(255,255,255,0.04)")} strokeWidth={sw} strokeLinecap="round"/>
         <path d={`M ${sw} ${sz/2} A ${r} ${r} 0 0 1 ${sz-sw} ${sz/2}`} fill="none" stroke={`url(#${gid})`} strokeWidth={sw} strokeLinecap="round"
           strokeDasharray={visible?`${dash} ${circ}`:`0 ${circ}`}
           style={{transition:'stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1) .2s',filter:`drop-shadow(0 0 8px ${color}44)`}}/></svg>
@@ -868,9 +901,16 @@ function Bars({data,max,color=C.mint,h=80,activeIdx=-1,visible=true}) {
 
 function Donut({segs,sz=100,sw=10,visible=true}) {
   const r=(sz-sw)/2,circ=2*Math.PI*r,tot=segs.reduce((a,s)=>a+s.v,0); let off=0;
+  const isLight = C.mode === 'light';
+  const trackColor = isLight ? 'rgba(0,0,0,0.06)' : (C.track||C.border);
   return (<svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`}>
-    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={C.track||C.border} strokeWidth={sw}/>
-    {segs.map((s,i)=>{const d=(s.v/tot)*circ,g=circ-d,o=off;off+=d;
+    <defs>
+      {isLight && <linearGradient id="donutTrack" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#B5B8D4" stopOpacity="0.50"/><stop offset="50%" stopColor="#BEC2DC" stopOpacity="0.38"/><stop offset="100%" stopColor="#AEB2D0" stopOpacity="0.50"/>
+      </linearGradient>}
+    </defs>
+    <circle cx={sz/2} cy={sz/2} r={r} fill="none" stroke={isLight?C.track:trackColor} strokeWidth={sw}/>
+    {tot > 0 && segs.map((s,i)=>{const d=(s.v/tot)*circ,g=circ-d,o=off;off+=d;
       return <circle key={i} cx={sz/2} cy={sz/2} r={r} fill="none" stroke={s.c}
         strokeWidth={sw} strokeDasharray={visible?`${d} ${g}`:`0 ${circ}`}
         strokeDashoffset={-o} strokeLinecap="round" transform={`rotate(-90 ${sz/2} ${sz/2})`}
@@ -878,16 +918,17 @@ function Donut({segs,sz=100,sw=10,visible=true}) {
 }
 
 function Progress({val,min,max,color=C.mint,label,unit="g",visible=true}) {
-  const pct=Math.min((val/max)*100,120), ok=val>=min&&val<=max, clr=ok?color:val<min?C.orange:C.red;
+  const pct=Math.min((val/max)*100,120), ok=val>=min&&val<=max, clr=ok?color:val>max?C.red:C.orange;
+  const gradClr = ok ? `linear-gradient(90deg,${clr}88,${clr})` : `linear-gradient(90deg,${color}66,${clr})`;
   return (<div style={{marginBottom:14}}>
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:5}}>
       <span style={{fontSize:12,fontWeight:600,color:C.text2}}>{label}</span>
       <div style={{display:'flex',alignItems:'baseline',gap:4}}>
         <span style={{fontSize:14,fontWeight:700,fontFamily:'var(--mono)',color:C.text}}>{val}</span>
         <span style={{fontSize:10,color:C.text3}}>{unit} / {min}–{max}</span></div></div>
-    <div style={{height:5,borderRadius:3,background:C.track||'rgba(255,255,255,0.03)',overflow:'hidden'}}>
+    <div style={{height:6,borderRadius:3,background:C.mode==='light'?C.track:(C.track||'rgba(255,255,255,0.03)'),overflow:'hidden'}}>
       <div style={{height:'100%',width:visible?`${Math.min(pct,100)}%`:'0%',borderRadius:3,
-        background:`linear-gradient(90deg,${clr}88,${clr})`,boxShadow:`0 0 8px ${clr}33`,
+        background:gradClr,boxShadow:`0 0 8px ${clr}33`,
         transition:'width 1s cubic-bezier(.4,0,.2,1) .1s'}}/></div>
   </div>);
 }
@@ -1034,7 +1075,7 @@ function DateNav({D, value, onChange}) {
       case'range-end':return{...base,background:C.mint,color:isLt?'#fff':C.bg,fontWeight:700,borderRadius:'0 8px 8px 0'};
       case'range-end-preview':return{...base,background:C.mintHard,color:C.mint,fontWeight:700,borderRadius:'0 8px 8px 0',border:`1px dashed ${C.mint}`};
       case'range-mid':return{...base,background:C.mintSoft,color:C.mint,fontWeight:500,borderRadius:0};
-      case'range-mid-preview':return{...base,background:isLt?'rgba(46,204,113,0.06)':'rgba(184,255,87,0.08)',color:C.mint,fontWeight:500,borderRadius:0,opacity:0.7};
+      case'range-mid-preview':return{...base,background:isLt?C.mintSoft:'rgba(184,168,240,0.08)',color:C.mint,fontWeight:500,borderRadius:0,opacity:0.7};
       default:return{...base,color:C.text,fontWeight:400};
     }
   };
@@ -1058,14 +1099,14 @@ function DateNav({D, value, onChange}) {
         <span style={{color:C.mint,fontWeight:700,fontSize:13}}>{fmt(draft.from)}</span>
         <span style={{color:C.text2,fontSize:11}}>→</span>
         <span style={{color:C.mint,fontWeight:700,fontSize:13}}>{fmt(draft.to)}</span>
-        <span style={{background:'rgba(184,255,87,0.12)',color:C.mint,fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:6}}>{days}d</span>
+        <span style={{background:C.mintSoft,color:C.mint,fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:6}}>{days}d</span>
       </div>;
     }
     return null;
   };
 
   return (<div style={{position:'relative',zIndex:20}}>
-    <div style={{display:'flex',alignItems:'center',gap:6,padding:3,borderRadius:12,background:'rgba(255,255,255,0.03)',border:`1px solid ${C.border}`}}>
+    <div style={{display:'flex',alignItems:'center',gap:6,padding:3,borderRadius:12,background:C.subtle,border:`1px solid ${C.border}`}}>
       {!isRange&&<button onClick={()=>nav(-1)} disabled={value.date<=MIN} style={{width:30,height:30,borderRadius:8,border:'none',background:'transparent',color:value.date<=MIN?'rgba(255,255,255,0.1)':C.text2,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>‹</button>}
       <div style={{flex:1,textAlign:'center',fontSize:12,fontWeight:600,color:C.text,cursor:'pointer',padding:'5px 0',whiteSpace:'nowrap'}} onClick={openPicker}>
         {isRange?`${fmt(value.from)} – ${fmt(value.to)}`:fmtFull(value.date)}
@@ -1080,9 +1121,9 @@ function DateNav({D, value, onChange}) {
         style={{padding:'5px 8px',borderRadius:8,border:'none',background:C.mintSoft,color:C.mint,fontSize:10,fontWeight:700,cursor:'pointer',flexShrink:0}}>Today</button>}
     </div>
     {showPicker&&<div onClick={handleCancel} style={{position:'fixed',inset:0,zIndex:98,background:'rgba(0,0,0,0.6)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)'}}/>}
-    {showPicker&&<div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:6,background:C.mode==='light'?'rgba(255,255,255,0.95)':C.modalBg,border:`1px solid ${C.glassBorder}`,borderRadius:16,padding:16,zIndex:100,boxShadow:C.mode==='light'?'0 16px 48px rgba(0,0,0,0.12)':'0 16px 48px rgba(0,0,0,0.7)',maxWidth:340,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`}}>
+    {showPicker&&<div style={{position:'absolute',top:'100%',left:0,right:0,marginTop:6,background:C.mode==='light'?'rgba(248,248,255,0.97)':C.modalBg,border:`1px solid ${C.glassBorder}`,borderRadius:16,padding:16,zIndex:100,boxShadow:C.mode==='light'?'0 16px 48px rgba(120,108,180,0.12)':'0 16px 48px rgba(0,0,0,0.7)',maxWidth:420,width:'100%',backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`}}>
       {/* Presets */}
-      <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:12}}>
+      <div style={{display:'flex',flexWrap:'nowrap',gap:4,marginBottom:12,overflowX:'auto'}}>
         {presets.map(p=>{
           const active = draft && (
             (draft.mode==='day'&&p.v.mode==='day'&&draft.date===p.v.date)||
@@ -1113,7 +1154,7 @@ function DateNav({D, value, onChange}) {
         })}
       </div>
       {/* Selection summary + help text */}
-      <div style={{marginTop:12,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.04)',border:`1px solid ${C.border}`,textAlign:'center',fontSize:11,color:C.text3}}>
+      <div style={{marginTop:12,padding:'10px 12px',borderRadius:10,background:C.subtle,border:`1px solid ${C.border}`,textAlign:'center',fontSize:11,color:C.text3}}>
         {draftSummary() || <span style={{fontSize:11,color:C.text3}}>Tap a date · tap again for range</span>}
       </div>
       {/* Action buttons */}
@@ -1255,7 +1296,7 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings}) {
             {l:"Weight Pace",v:parseFloat(D.insights.velocity),suf:"kg/wk",pre:"-",sub:"Last 3 weeks",c:C.cyan,icon:I.down,dec:1},
             {l:"Protein Hits",v:D.insights.proteinRate,suf:"%",sub:"Days ≥130g",c:D.insights.proteinRate>=70?C.mint:C.orange,icon:I.target},
             {l:"Most Active",v:0,text:D.insights.mostActive.day,sub:`${D.insights.mostActive.avg.toLocaleString()} steps`,c:C.blue,icon:I.shoe},
-          ].map((s,i)=>(<div key={i} style={{padding:'14px 12px',borderRadius:14,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`}}>
+          ].map((s,i)=>(<div key={i} style={{padding:'14px 12px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
             <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}><div style={{color:s.c}}>{s.icon}</div>
               <span style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8}}>{s.l}</span></div>
             {s.text?<div style={{fontSize:18,fontWeight:800,fontFamily:'var(--mono)',color:s.c}}>{s.text}</div>
@@ -1382,7 +1423,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
         </div>
       ) : (
         <div style={{display:'grid',gridTemplateColumns:isD?'repeat(2,1fr)':'1fr',gap:8}}>
-          {foods.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`,
+          {foods.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`,
             opacity:v?1:0,transform:v?'translateY(0)':'translateY(8px)',transition:`all .3s ease ${i*.04}s`}}>
             <div style={{width:28,height:28,borderRadius:8,background:C.mintSoft,color:C.mint,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,flexShrink:0}}>{f.count}×</div>
             <div style={{flex:1,minWidth:0}}>
@@ -1419,7 +1460,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
         <Lbl>All-Time Averages</Lbl>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
           {[{l:"Calories",v:D.AVGS.cal,u:"kcal",c:C.mint},{l:"Protein",v:D.AVGS.pro,u:"g",c:C.mint},{l:"Carbs",v:D.AVGS.carb,u:"g",c:C.blue},{l:"Fat",v:D.AVGS.fat,u:"g",c:C.orange},{l:"Fiber",v:D.AVGS.fib,u:"g",c:C.cyan},{l:"Sugar",v:D.AVGS.sug,u:"g",c:C.purple}].map((a,i)=>(
-            <div key={a.l} style={{textAlign:'center',padding:'12px 8px',borderRadius:14,background:'rgba(255,255,255,0.02)',opacity:v?1:0,transform:v?'translateY(0)':'translateY(10px)',transition:`all .4s ease ${i*.06}s`}}>
+            <div key={a.l} style={{textAlign:'center',padding:'12px 8px',borderRadius:14,background:C.subtle,opacity:v?1:0,transform:v?'translateY(0)':'translateY(10px)',transition:`all .4s ease ${i*.06}s`}}>
               <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,marginBottom:4}}>{a.l}</div>
               <CountUp to={a.v} style={{fontSize:18}} color={a.c}/>
               <div style={{fontSize:9,color:C.text3}}>{a.u}</div></div>))}</div>
@@ -1427,11 +1468,11 @@ function NutritionTab({vis,isD,isT,isM,D}) {
       <AnimCard delay={0.1} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
           <Lbl>{d._isRange?"Period Overview":"Food Diary"}</Lbl>
-          {d._isDay&&<div style={{display:'flex',gap:4,padding:2,borderRadius:8,background:'rgba(255,255,255,0.03)'}}>
+          {d._isDay&&<div style={{display:'flex',gap:4,padding:2,borderRadius:8,background:C.subtle}}>
             <button onClick={()=>setFoodTab("log")} style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',background:foodTab==="log"?C.mintSoft:'transparent',color:foodTab==="log"?C.mint:C.text3,fontSize:10,fontWeight:600,fontFamily:'var(--sans)'}}>{foodLabel}</button>
             <button onClick={()=>setFoodTab("popular")} style={{padding:'4px 10px',borderRadius:6,border:'none',cursor:'pointer',background:foodTab==="popular"?C.mintSoft:'transparent',color:foodTab==="popular"?C.mint:C.text3,fontSize:10,fontWeight:600,fontFamily:'var(--sans)'}}>Top Foods</button></div>}</div>
         {d._isRange?(<div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <div style={{padding:'14px 16px',borderRadius:12,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`}}>
+          <div style={{padding:'14px 16px',borderRadius:12,background:C.subtle,border:`1px solid ${C.border}`}}>
             <div style={{fontSize:11,color:C.text3,marginBottom:8}}>Daily averages across <span style={{color:C.mint,fontWeight:700}}>{d._count} days</span></div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
               {[{l:'Calories',v:d.cal,u:'kcal',c:C.text},{l:'Protein',v:d.pro,u:'g',c:C.mint},{l:'Carbs',v:d.carb,u:'g',c:C.blue},{l:'Fat',v:d.fat,u:'g',c:C.orange},{l:'Fiber',v:d.fib,u:'g',c:C.cyan},{l:'Sugar',v:d.sug,u:'g',c:C.purple}].map(m=>(
@@ -1455,7 +1496,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
               <div style={{fontSize:10,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:.8,marginBottom:6,display:'flex',alignItems:'center',gap:6}}>
                 <span>{meal.icon}</span>{meal.label}
                 <span style={{fontSize:9,fontWeight:500,color:C.text3,marginLeft:'auto'}}>{items.reduce((a,f)=>a+(f.cal||0),0)} cal</span></div>
-              {items.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 12px',borderRadius:12,background:'rgba(255,255,255,0.02)',marginBottom:4,
+              {items.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 12px',borderRadius:12,background:C.subtle,marginBottom:4,
                 opacity:v?1:0,transform:v?'translateX(0)':'translateX(-6px)',transition:`all .3s ease ${i*.03}s`}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:12,fontWeight:600,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.name}</div>
@@ -1509,7 +1550,7 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal}) {
         <Lbl>All-Time Activity</Lbl>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
           {[{l:"Gym Days",v:gymDays,u:`/ ${totalDays}`,c:C.mint},{l:"Avg Steps",v:avgSteps.toLocaleString(),u:"/day",c:C.blue},{l:"Avg Sleep",v:avgSleep,u:"hrs",c:C.purple},{l:"Gym Rate",v:`${Math.round(gymDays/totalDays*100)}%`,u:"",c:C.cyan}].map((s,i)=>(
-            <div key={s.l} style={{padding:'14px 12px',borderRadius:14,background:'rgba(255,255,255,0.02)',opacity:v?1:0,transform:v?'translateY(0)':'translateY(10px)',transition:`all .4s ease ${i*.08}s`}}>
+            <div key={s.l} style={{padding:'14px 12px',borderRadius:14,background:C.subtle,opacity:v?1:0,transform:v?'translateY(0)':'translateY(10px)',transition:`all .4s ease ${i*.08}s`}}>
               <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,marginBottom:4}}>{s.l}</div>
               <div style={{display:'flex',alignItems:'baseline',gap:3}}><span style={{fontSize:20,fontWeight:800,fontFamily:'var(--mono)',color:s.c}}>{s.v}</span><span style={{fontSize:10,color:C.text3}}>{s.u}</span></div>
             </div>))}</div>
@@ -1598,7 +1639,7 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
     {n:2,l:"Lean Out",wk:"Weeks 8–11",goal:"Continue fat loss, rebuild energy",cal:"1,600–1,800",pro:"130–150",carb:"80–130",fat:"45–65",sug:"< 30",fib:"25–35",steps:"8k–12k",train:"3–4x strength"},
     {n:3,l:"Abs Reveal",wk:"Weeks 12–14",goal:"Final tightening, visible abs",cal:"1,500–1,650",pro:"140–160",carb:"60–100",fat:"40–55",sug:"< 25",fib:"25–35",steps:"10k+",train:"4x strength + core"},
   ];
-  const inputStyle={width:60,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.04)',color:C.text,fontSize:14,fontFamily:'var(--mono)',textAlign:'center',outline:'none'};
+  const inputStyle={width:60,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:14,fontFamily:'var(--mono)',textAlign:'center',outline:'none'};
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       <AnimCard delay={0} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
@@ -1628,7 +1669,7 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
         <div style={{fontSize:12,color:C.text2,marginBottom:14}}>{p.goal}</div>
         <div style={{display:'grid',gridTemplateColumns:isActive&&isD?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
           {[{l:"Calories",v:p.cal,u:"kcal"},{l:"Protein",v:p.pro,u:"g"},{l:"Carbs",v:p.carb,u:"g"},{l:"Fat",v:p.fat,u:"g"},{l:"Sugar",v:p.sug,u:"g"},{l:"Fiber",v:p.fib,u:"g"},{l:"Steps",v:p.steps,u:"/day"},{l:"Training",v:p.train,u:""}].map(t=>(
-            <div key={t.l} style={{padding:'12px 12px',borderRadius:12,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`}}>
+            <div key={t.l} style={{padding:'12px 12px',borderRadius:12,background:C.subtle,border:`1px solid ${C.border}`}}>
               <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,marginBottom:3}}>{t.l}</div>
               <div style={{fontSize:13,fontWeight:700,fontFamily:t.l==="Training"?'var(--sans)':'var(--mono)'}}>{t.v}{t.u&&<span style={{fontSize:9,color:C.text3,marginLeft:3}}>{t.u}</span>}</div></div>))}</div>
       </AnimCard>)})}
@@ -1753,15 +1794,15 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
               background:m.role==="user"?C.mintSoft:'rgba(255,255,255,0.03)',border:`1px solid ${m.role==="user"?C.mintMed:C.border}`,
               fontSize:12,lineHeight:1.5,color:m.role==="user"?C.mint:C.text2,whiteSpace:'pre-wrap'}}>{m.content}</div>
           ))}
-          {loading&&<div style={{alignSelf:'flex-start',padding:'10px 14px',borderRadius:14,background:'rgba(255,255,255,0.03)',fontSize:12,color:C.text3}}>Thinking...</div>}
+          {loading&&<div style={{alignSelf:'flex-start',padding:'10px 14px',borderRadius:14,background:C.subtle,fontSize:12,color:C.text3}}>Thinking...</div>}
           <div ref={chatEnd}/>
         </div>
         {messages.length===0&&<div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
-          {quickQ.map(q=>(<button key={q} onClick={()=>sendMessage(q)} style={{padding:'6px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.02)',color:C.text2,fontSize:10,fontWeight:500,cursor:'pointer',fontFamily:'var(--sans)',transition:'border-color .2s'}}
+          {quickQ.map(q=>(<button key={q} onClick={()=>sendMessage(q)} style={{padding:'6px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text2,fontSize:10,fontWeight:500,cursor:'pointer',fontFamily:'var(--sans)',transition:'border-color .2s'}}
             onMouseEnter={e=>e.currentTarget.style.borderColor=C.mintMed} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>{q}</button>))}</div>}
         <div style={{display:'flex',gap:8}}>
           <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage(chatMsg);}}}
-            placeholder="Ask your coach..." style={{flex:1,padding:'10px 14px',borderRadius:12,border:`1px solid ${C.border}`,background:'rgba(255,255,255,0.03)',color:C.text,fontSize:12,fontFamily:'var(--sans)',outline:'none'}}/>
+            placeholder="Ask your coach..." style={{flex:1,padding:'10px 14px',borderRadius:12,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:12,fontFamily:'var(--sans)',outline:'none'}}/>
           <button onClick={()=>sendMessage(chatMsg)} disabled={loading||!chatMsg.trim()} style={{padding:'10px 16px',borderRadius:12,border:'none',cursor:'pointer',
             background:chatMsg.trim()?`linear-gradient(135deg,${C.mint},${C.cyan})`:C.border,color:C.bg,fontSize:11,fontWeight:700,fontFamily:'var(--sans)',opacity:loading?0.5:1}}>Send</button>
         </div>
@@ -1769,7 +1810,7 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
       <AnimCard delay={0.05} style={{gridColumn:isD?'2/4':isT?'1/3':'1'}}>
         <Lbl>Today's Analysis</Lbl>
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          {staticTips.map((t,i)=>(<div key={i} style={{padding:'12px 14px',borderRadius:12,background:'rgba(255,255,255,0.02)',border:`1px solid ${C.border}`,borderLeft:`3px solid ${typeColor[t.type]||C.mint}`,
+          {staticTips.map((t,i)=>(<div key={i} style={{padding:'12px 14px',borderRadius:12,background:C.subtle,border:`1px solid ${C.border}`,borderLeft:`3px solid ${typeColor[t.type]||C.mint}`,
             opacity:vis?1:0,transform:vis?'translateX(0)':'translateX(-8px)',transition:`all .35s ease ${i*.06}s`}}>
             <div style={{fontSize:11,fontWeight:700,color:typeColor[t.type]||C.mint,marginBottom:3,display:'flex',alignItems:'center',justifyContent:'space-between'}}>{t.title}{t.infoId&&<InfoTip modalId={t.infoId} onModal={setInfoModal}/>}</div>
             <div style={{fontSize:11,color:C.text2,lineHeight:1.4}}>{t.tip}</div></div>))}</div>
@@ -1781,7 +1822,7 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
             <div key={r.l}><div style={{display:'flex',justifyContent:'space-between',fontSize:11,marginBottom:3}}>
               <span style={{color:C.text2,fontWeight:600}}>{r.l}</span>
               <span style={{fontFamily:'var(--mono)',fontWeight:700,color:r.v<=0?C.mint:C.text}}>{r.v<=0?"✓ Done":r.v.toLocaleString()+" "+r.u+" left"}</span></div>
-              <div style={{height:4,borderRadius:2,background:C.border,overflow:'hidden'}}>
+              <div style={{height:4,borderRadius:2,background:C.mode==='light'?C.track:C.border,overflow:'hidden'}}>
                 <div style={{height:'100%',width:`${Math.min(100,100-r.v/r.max*100)}%`,borderRadius:2,background:r.v<=0?C.mint:`${r.c}88`,transition:'width .8s ease'}}/></div></div>))}</div>
       </AnimCard>
       <AnimCard delay={0.15}>
@@ -1799,7 +1840,7 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
             if(rc>100&&meals.length<2)meals.push({n:"100g Lentils",cal:116,pro:9,extra:"8g fiber"});
             const totalCal=meals.reduce((s,m)=>s+m.cal,0),totalPro=meals.reduce((s,m)=>s+m.pro,0);
             return <>{meals.map(f=>(
-              <div key={f.n} style={{padding:'8px 10px',borderRadius:8,background:'rgba(255,255,255,0.02)',marginBottom:4}}>
+              <div key={f.n} style={{padding:'8px 10px',borderRadius:8,background:C.subtle,marginBottom:4}}>
                 <div style={{fontWeight:600,color:C.text,fontSize:11}}>{f.n}</div>
                 <div style={{fontSize:9,color:C.text3}}>{f.cal} cal · {f.pro}g pro · {f.extra}</div></div>))}
               <div style={{marginTop:8,fontSize:9,color:C.text3}}>Adds ~{totalCal} cal, {totalPro}g protein</div></>;
@@ -2069,9 +2110,10 @@ export default function Stride() {
     <div style={{minHeight:'100vh',background:C.bgGradient||C.bg,color:C.text,fontFamily:'var(--sans)',display:isD?'flex':'block',transition:'background .4s, color .4s',position:'relative',overflow:'hidden'}}>
       {/* Ambient gradient blobs */}
       {C.bgAccent1 && <>
-        <div style={{position:'fixed',top:'-10%',right:'-5%',width:'40vw',height:'40vw',borderRadius:'50%',background:C.bgAccent1,filter:'blur(80px)',pointerEvents:'none',zIndex:0}}/>
-        <div style={{position:'fixed',bottom:'-10%',left:'-5%',width:'35vw',height:'35vw',borderRadius:'50%',background:C.bgAccent2,filter:'blur(80px)',pointerEvents:'none',zIndex:0}}/>
-        <div style={{position:'fixed',top:'40%',left:'30%',width:'25vw',height:'25vw',borderRadius:'50%',background:C.bgAccent3||'transparent',filter:'blur(80px)',pointerEvents:'none',zIndex:0}}/>
+        <div style={{position:'fixed',top:'-12%',right:'-8%',width:'45vw',height:'45vw',borderRadius:'50%',background:C.bgAccent1,filter:'blur(90px)',pointerEvents:'none',zIndex:0}}/>
+        <div style={{position:'fixed',bottom:'-12%',left:'-8%',width:'40vw',height:'40vw',borderRadius:'50%',background:C.bgAccent2,filter:'blur(90px)',pointerEvents:'none',zIndex:0}}/>
+        <div style={{position:'fixed',top:'35%',left:'25%',width:'30vw',height:'30vw',borderRadius:'50%',background:C.bgAccent3||'transparent',filter:'blur(100px)',pointerEvents:'none',zIndex:0}}/>
+        {!isDark && <div style={{position:'fixed',top:'10%',right:'30%',width:'20vw',height:'20vw',borderRadius:'50%',background:'rgba(140,120,210,0.035)',filter:'blur(80px)',pointerEvents:'none',zIndex:0}}/>}
       </>}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
@@ -2085,7 +2127,7 @@ export default function Stride() {
       `}</style>
       <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden'}}>
         <div style={{position:'absolute',top:'-10%',left:'20%',width:600,height:600,borderRadius:'50%',
-          background:`radial-gradient(circle,${isDark?C.mintSoft:'rgba(184,255,87,0.08)'} 0%,transparent 70%)`,filter:'blur(40px)'}}/>
+          background:`radial-gradient(circle,${isDark?C.mintSoft:'rgba(184,168,240,0.08)'} 0%,transparent 70%)`,filter:'blur(40px)'}}/>
         <div style={{position:'absolute',bottom:'-15%',right:'5%',width:500,height:500,borderRadius:'50%',
           background:`radial-gradient(circle,${isDark?'rgba(77,160,255,.03)':'rgba(87,255,216,0.06)'} 0%,transparent 70%)`,filter:'blur(40px)'}}/></div>
 
@@ -2100,7 +2142,7 @@ export default function Stride() {
                 onClick={()=>setNavCollapsed(false)} title="Expand sidebar">
                 <div style={{width:36,height:36,borderRadius:10,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
                   display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,
-                  color:'#0A1628',boxShadow:`0 2px 12px ${C.mint}33`,transition:'transform .2s,box-shadow .2s'}}
+                  color:C.mode==='light'?'#2A2C42':'#0A0C18',boxShadow:`0 2px 12px ${C.mint}22`,transition:'transform .2s,box-shadow .2s'}}
                   onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.08)';e.currentTarget.style.boxShadow=`0 4px 20px ${C.mint}55`;}}
                   onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)';e.currentTarget.style.boxShadow=`0 2px 12px ${C.mint}33`;}}>
                   S
@@ -2108,12 +2150,12 @@ export default function Stride() {
               </div>
             ) : (<>
               <div style={{display:'flex',alignItems:'center',gap:10}}>
-                <div style={{width:32,height:32,borderRadius:10,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:'#0A1628',flexShrink:0,boxShadow:`0 2px 12px ${C.mint}22`}}>S</div>
+                <div style={{width:32,height:32,borderRadius:10,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:C.mode==='light'?'#fff':'#0A0C18',flexShrink:0,boxShadow:`0 2px 12px ${C.mint}22`}}>S</div>
                 <div><div style={{fontSize:15,fontWeight:800,letterSpacing:-0.3}}>Stride</div><div style={{fontSize:9,color:C.text3,fontWeight:600}}>Week {D.currentWeek} · Phase {settings.phase}</div></div>
               </div>
               <button onClick={()=>setNavCollapsed(true)} title="Close sidebar"
                 style={{width:32,height:32,borderRadius:8,border:'none',background:'transparent',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:C.text3,transition:'all .15s',flexShrink:0}}
-                onMouseEnter={e=>{e.currentTarget.style.background=isDark?'rgba(255,255,255,0.06)':'rgba(0,0,0,0.04)';e.currentTarget.style.color=C.text;}}
+                onMouseEnter={e=>{e.currentTarget.style.background=isDark?'rgba(184,168,240,0.06)':'rgba(124,107,196,0.06)';e.currentTarget.style.color=C.text;}}
                 onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color=C.text3;}}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
               </button>
@@ -2124,10 +2166,10 @@ export default function Stride() {
               return (<button key={n.id} onClick={()=>setTab(n.id)} title={navCollapsed?n.label:""}
                 style={{display:'flex',alignItems:'center',gap:12,width:'100%',padding:navCollapsed?'10px 0':'10px 12px',justifyContent:navCollapsed?'center':'flex-start',
                   borderRadius:10,border:'none',
-                  background:act?(isDark?'rgba(255,255,255,0.06)':'rgba(46,204,113,0.08)'):'transparent',
+                  background:act?(isDark?'rgba(184,168,240,0.08)':'rgba(124,107,196,0.08)'):'transparent',
                   color:act?C.text:C.text2,
                   fontSize:13,fontWeight:act?600:400,cursor:'pointer',transition:'all .15s',fontFamily:'var(--sans)',textAlign:'left'}}
-                onMouseEnter={e=>{if(!act)e.currentTarget.style.background=isDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.03)';}}
+                onMouseEnter={e=>{if(!act)e.currentTarget.style.background=isDark?'rgba(184,168,240,0.04)':'rgba(124,107,196,0.04)';}}
                 onMouseLeave={e=>{if(!act)e.currentTarget.style.background='transparent';}}>
                 <span style={{opacity:act?1:0.7}}>{n.icon}</span>{!navCollapsed&&<span>{n.label}</span>}
               </button>);
@@ -2146,7 +2188,7 @@ export default function Stride() {
               <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Overall Progress</div>
               <div style={{fontSize:24,fontWeight:900,fontFamily:'var(--mono)',color:C.mint}}>-{D.lost}kg</div>
               <div style={{fontSize:11,color:C.text2,marginTop:2}}>of 12.5 kg goal</div>
-              <div style={{height:4,borderRadius:2,background:C.border,marginTop:10,overflow:'hidden'}}>
+              <div style={{height:4,borderRadius:2,background:C.mode==='light'?C.track:C.border,marginTop:10,overflow:'hidden'}}>
                 <div style={{height:'100%',width:`${(parseFloat(D.lost)/12.5*100).toFixed(0)}%`,borderRadius:2,background:`linear-gradient(90deg,${C.gradStart},${C.gradEnd})`,transition:'width 1s ease'}}/></div>
             </div>
           </>)}
@@ -2157,7 +2199,7 @@ export default function Stride() {
         {!isD && (
           <header style={{padding:'14px 18px 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{display:'flex',alignItems:'center',gap:10}}>
-              <div style={{width:36,height:36,borderRadius:12,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,color:'#0A1628',boxShadow:`0 4px 16px ${C.mint}33`}}>S</div>
+              <div style={{width:36,height:36,borderRadius:12,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,color:C.mode==='light'?'#fff':'#0A0C18',boxShadow:`0 4px 16px ${C.mint}33`}}>S</div>
               <div><div style={{fontSize:10,color:C.text3,fontWeight:600}}>Week {D.currentWeek} · Phase 1</div><div style={{fontSize:16,fontWeight:800,letterSpacing:-.3}}>Stride</div></div>
             </div>
             <div style={{display:'flex',gap:8,alignItems:'center'}}>
@@ -2206,10 +2248,10 @@ export default function Stride() {
 
       {!isD && (
         <nav style={{position:'fixed',bottom:0,left:0,right:0,
-          background:isDark?'rgba(7,11,20,0.65)':'rgba(255,255,255,0.70)',
-          backdropFilter:'blur(28px)',WebkitBackdropFilter:'blur(28px)',
-          borderTop:`1px solid ${isDark?'rgba(255,255,255,0.06)':'rgba(255,255,255,0.60)'}`,
-          boxShadow:isDark?'0 -4px 24px rgba(0,0,0,0.3)':'0 -4px 24px rgba(0,0,0,0.04)',
+          background:isDark?'rgba(10,12,24,0.75)':'rgba(248,248,255,0.75)',
+          backdropFilter:'blur(32px)',WebkitBackdropFilter:'blur(32px)',
+          borderTop:`1px solid ${isDark?'rgba(184,168,240,0.06)':'rgba(255,255,255,0.50)'}`,
+          boxShadow:isDark?'0 -4px 24px rgba(0,0,0,0.35)':'0 -2px 16px rgba(120,108,180,0.06)',
           padding:'6px 4px',paddingBottom:'max(6px, env(safe-area-inset-bottom))',zIndex:100,display:'flex',justifyContent:'space-around'}}>
           {NAV.map(n=>{const act=tab===n.id;
             return (<button key={n.id} onClick={()=>setTab(n.id)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'7px 6px',border:'none',background:'none',cursor:'pointer',color:act?C.mint:C.text3,transition:'color .2s',position:'relative',fontFamily:'var(--sans)'}}>
