@@ -1230,8 +1230,7 @@ const I={
 
 // DATA HELPERS
 // TAB RENDERERS
-function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings}) {
-  const [dateNav, setDateNav] = useState({mode:'day',date:localDateStr()});
+function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings,dateNav,setDateNav}) {
   const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
@@ -1316,8 +1315,7 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings}) {
       </AnimCard></div>);
 }
 
-function NutritionTab({vis,isD,isT,isM,D}) {
-  const [dateNav, setDateNav] = useState({mode:'day',date:localDateStr()});
+function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
   const [foodTab, setFoodTab] = useState("log");
   const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
@@ -1527,8 +1525,7 @@ function NutritionTab({vis,isD,isT,isM,D}) {
       </AnimCard></div>);
 }
 
-function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal}) {
-  const [dateNav, setDateNav] = useState({mode:'day',date:localDateStr()});
+function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav}) {
   const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
@@ -1863,6 +1860,7 @@ export default function Stride() {
   C = theme; // Update the mutable C ref for all components
 
   const [tab, setTab] = useState("overview");
+  const [dateNav, setDateNav] = useState({mode:'day',date:localDateStr()});
   const [ww, setWw] = useState(typeof window!=="undefined"?window.innerWidth:1200);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const gymSleep = useGymSleep();
@@ -2080,7 +2078,7 @@ export default function Stride() {
   const isM=ww<768, isT=ww>=768&&ww<1024, isD=ww>=1024;
   const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"targets",icon:I.target,label:"Targets"},{id:"coach",icon:I.sparkle,label:"AI Coach"}];
   const renderTab = () => {
-    const p = {vis,isD,isT,isM,D,gymSleep,settings,setInfoModal};
+    const p = {vis,isD,isT,isM,D,gymSleep,settings,setInfoModal,dateNav,setDateNav};
     switch(tab) {
       case "overview": return <OverviewTab {...p}/>;
       case "nutrition": return <NutritionTab {...p}/>;
