@@ -1226,6 +1226,9 @@ const I={
   collapse:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M15 18l-6-6 6-6"/></svg>,
   expand:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>,
   sparkle:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4"/></svg>,
+  lifestyle:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6M8 11h8"/></svg>,
+  more:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>,
+  extLink:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></svg>,
 };
 
 // DATA HELPERS
@@ -1534,6 +1537,48 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
   const gymDays=D.DAILY_ALL.filter(x=>x.gym).length, totalDays=D.DAILY_ALL.length;
   const avgSleep=(D.DAILY_ALL.reduce((a,x)=>a+x.sleep,0)/totalDays).toFixed(1);
   const avgSteps=Math.round(D.DAILY_ALL.reduce((a,x)=>a+x.steps,0)/totalDays);
+
+  // Edit modal
+  const [editDate, setEditDate] = useState(null);
+  const editData = editDate ? gymSleep.getDay(editDate) : null;
+  const editDow = editDate ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(editDate+"T00:00:00").getDay()] : null;
+  const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const fmtD = (ds) => { const dt = new Date(ds+"T00:00:00"); return `${MN[dt.getMonth()]} ${dt.getDate()}`; };
+
+  // Build week dates for the selected date/range
+  const getWeekDates = () => {
+    let refDate;
+    if (dateNav.mode === 'day') refDate = new Date(dateNav.date + 'T12:00:00');
+    else refDate = new Date((dateNav.to || dateNav.from) + 'T12:00:00');
+    const dow = refDate.getDay() || 7;
+    const dates = [];
+    const today = new Date();
+    for (let i = 1; i <= 7; i++) {
+      const dd = new Date(refDate);
+      dd.setDate(refDate.getDate() - dow + i);
+      if (dd <= today) dates.push(localDateStr(dd));
+    }
+    return dates;
+  };
+  const weekDates = getWeekDates();
+
+  // Merge proxy DAILY_ALL data with gymSleep localStorage
+  const getMergedDay = (dateStr) => {
+    const gs = gymSleep.getDay(dateStr);
+    const dt = new Date(dateStr + "T00:00:00");
+    const dtFmt = `${MN[dt.getMonth()]} ${dt.getDate()}`;
+    const dailyMatch = D.DAILY_ALL.find(dd => dd.dt === dtFmt);
+    const dow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dt.getDay()];
+    return {
+      date: dateStr, dow,
+      steps: gs.steps || dailyMatch?.steps || 0,
+      sleep: gs.sleep || dailyMatch?.sleep || 0,
+      gym: gs.gym || dailyMatch?.gym || false,
+    };
+  };
+  const weekData = weekDates.map(getMergedDay);
+  const selectedDateStr = dateNav.mode === 'day' ? dateNav.date : null;
+
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       <div style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
@@ -1543,45 +1588,115 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
         <Arc val={d.steps} max={10000} label="" sz={isD?140:120} sw={10} color={d.steps>=8000?C.mint:C.orange} visible={v}/>
         <div style={{marginTop:8}}><Tag color={d.steps>=8000?C.mint:C.orange}>{d.steps>=8000?"On target":"Below target"}</Tag></div>
       </AnimCard>
-      <AnimCard delay={0.05}>
-        <Lbl>All-Time Activity</Lbl>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-          {[{l:"Gym Days",v:gymDays,u:`/ ${totalDays}`,c:C.mint},{l:"Avg Steps",v:avgSteps.toLocaleString(),u:"/day",c:C.blue},{l:"Avg Sleep",v:avgSleep,u:"hrs",c:C.purple},{l:"Gym Rate",v:`${Math.round(gymDays/totalDays*100)}%`,u:"",c:C.cyan}].map((s,i)=>(
-            <div key={s.l} style={{padding:'14px 12px',borderRadius:14,background:C.subtle,opacity:v?1:0,transform:v?'translateY(0)':'translateY(10px)',transition:`all .4s ease ${i*.08}s`}}>
-              <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,marginBottom:4}}>{s.l}</div>
-              <div style={{display:'flex',alignItems:'baseline',gap:3}}><span style={{fontSize:20,fontWeight:800,fontFamily:'var(--mono)',color:s.c}}>{s.v}</span><span style={{fontSize:10,color:C.text3}}>{s.u}</span></div>
-            </div>))}</div>
+      <AnimCard delay={0.05} style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+        <Lbl>{label} Sleep</Lbl>
+        <Ring val={d.sleep} max={9} sz={isD?120:100} sw={8} color={d.sleep>=7?C.cyan:C.orange} visible={v}>
+          <CountUp to={d.sleep} decimals={1} style={{fontSize:26}} color={d.sleep>=7?C.cyan:C.orange}/><span style={{fontSize:9,color:C.text3}}>hrs</span></Ring>
+        <div style={{marginTop:8}}><Tag color={d.sleep>=7?C.cyan:C.orange}>{d.sleep>=7?"Good rest":"Needs more"}</Tag></div>
       </AnimCard>
       <AnimCard delay={0.1}>
-        <Lbl>Weekly Steps Trend</Lbl>
+        <Lbl>Program Averages</Lbl>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,textAlign:'center'}}>
+          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.blue}}>{avgSteps.toLocaleString()}</div><div style={{fontSize:9,color:C.text3}}>steps/day</div></div>
+          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>{avgSleep}</div><div style={{fontSize:9,color:C.text3}}>hrs sleep</div></div>
+          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>{gymDays}</div><div style={{fontSize:9,color:C.text3}}>gym days</div></div>
+        </div>
+      </AnimCard>
+      <AnimCard delay={0.1}>
+        <Lbl>Steps Over Weeks</Lbl>
         <Bars data={D.W_STEPS.map(s=>({v:s.v,label:`W${s.w}`}))} max={12000} color={C.blue} activeIdx={D.W_STEPS.length-1} visible={v}/>
         <div style={{textAlign:'center',marginTop:14}}><CountUp to={(D.W_STEPS[D.W_STEPS.length-1]||{v:0}).v} style={{fontSize:24}} color={C.blue}/><span style={{fontSize:11,color:C.text3,marginLeft:6}}>avg W{D.currentWeek}</span></div>
       </AnimCard>
+
+      {/* Daily Activity — date-aware, merged with gymSleep, tap to edit */}
       <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
-        <Lbl>Week {D.currentWeek} — Daily Activity</Lbl>
-        <div style={{display:'grid',gridTemplateColumns:isD?'repeat(4,1fr)':isT?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
-          {D.DAILY_W7.map((dd,i)=>{const isToday=i===D.DAILY_W7.length-1;
-            return (<div key={i} style={{padding:'16px 14px',borderRadius:16,background:isToday?C.mintSoft:'rgba(255,255,255,0.02)',border:`1px solid ${isToday?C.mintMed:'transparent'}`,
-              cursor:'pointer',opacity:v?1:0,transform:v?'translateY(0)':'translateY(12px)',transition:`all .4s ease ${i*.08}s`}}
-              onMouseEnter={e=>{if(!isToday){e.currentTarget.style.background='rgba(255,255,255,0.04)';e.currentTarget.style.borderColor=C.cardBorderHover;}}}
-              onMouseLeave={e=>{if(!isToday){e.currentTarget.style.background='rgba(255,255,255,0.02)';e.currentTarget.style.borderColor='transparent';}}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+          <Lbl style={{marginBottom:0}}>Daily Activity</Lbl>
+          <span style={{fontSize:10,color:C.text3}}>Tap a day to edit</span>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:isD?`repeat(${Math.min(weekData.length,7)},1fr)`:isT?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
+          {weekData.map((dd,i)=>{
+            const isToday = dd.date === localDateStr();
+            const isSelected = dd.date === selectedDateStr;
+            return (<div key={dd.date} onClick={()=>setEditDate(dd.date)}
+              style={{padding:'16px 14px',borderRadius:16,
+                background:isSelected?C.mintSoft:isToday?C.mintSoft:C.subtle,
+                border:`1px solid ${isSelected?C.mint:isToday?C.mintMed:C.subtleBorder}`,
+                cursor:'pointer',opacity:v?1:0,transform:v?'translateY(0)':'translateY(12px)',
+                transition:`all .4s ease ${i*.08}s`}}
+              onMouseEnter={e=>{if(!isToday&&!isSelected){e.currentTarget.style.background=C.mintSoft;e.currentTarget.style.borderColor=C.mintMed;}}}
+              onMouseLeave={e=>{if(!isToday&&!isSelected){e.currentTarget.style.background=C.subtle;e.currentTarget.style.borderColor=C.subtleBorder;}}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                <span style={{fontSize:13,fontWeight:800,color:isToday?C.mint:C.text}}>{dd.day}</span>
-                {isToday&&<Tag color={C.mint}>Today</Tag>}</div>
-              <div style={{fontSize:18,fontWeight:800,fontFamily:'var(--mono)',color:C.blue}}>{dd.steps.toLocaleString()}</div>
+                <span style={{fontSize:13,fontWeight:800,color:isToday||isSelected?C.mint:C.text}}>{dd.dow}</span>
+                {isToday&&<Tag color={C.mint}>Today</Tag>}
+              </div>
+              <div style={{fontSize:18,fontWeight:800,fontFamily:'var(--mono)',color:dd.steps>0?(dd.steps>=8000?C.mint:C.orange):C.text3}}>
+                {dd.steps>0?dd.steps.toLocaleString():'–'}
+              </div>
               <div style={{fontSize:9,color:C.text3,marginTop:2}}>steps</div>
               <div style={{display:'flex',gap:8,marginTop:10}}>
-                <div><div style={{fontSize:9,color:C.text3}}>Sleep</div><div style={{fontSize:13,fontWeight:700,fontFamily:'var(--mono)',color:dd.sleep>=7?C.cyan:C.orange}}>{dd.sleep}h</div></div>
+                <div><div style={{fontSize:9,color:C.text3}}>Sleep</div><div style={{fontSize:13,fontWeight:700,fontFamily:'var(--mono)',color:dd.sleep>0?(dd.sleep>=7?C.cyan:C.orange):C.text3}}>{dd.sleep>0?`${dd.sleep}h`:'–'}</div></div>
                 <div><div style={{fontSize:9,color:C.text3}}>Gym</div><div style={{color:dd.gym?C.mint:C.text3,display:'flex',alignItems:'center',marginTop:2}}>{dd.gym?I.check:I.x}</div></div>
-              </div></div>);})}
+              </div>
+            </div>);
+          })}
         </div>
       </AnimCard>
-      <AnimCard delay={0.2} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
-        <Lbl>Log Gym, Sleep & Steps</Lbl>
-        <div style={{fontSize:11,color:C.text3,marginBottom:10}}>Tap gym days, enter sleep hours and daily steps</div>
-        <GymSleepEditor days={D.DAILY_W7} gymSleep={gymSleep} currentWeek={D.currentWeek}/>
-      </AnimCard></div>);
+
+      {/* Edit Modal */}
+      {editDate && editData && <>
+        <div onClick={()=>setEditDate(null)} style={{position:'fixed',inset:0,background:C.overlayBg,backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',zIndex:9999}}/>
+        <div style={{position:'fixed',left:'50%',top:'50%',transform:'translate(-50%,-50%)',zIndex:10000,width:'100%',maxWidth:360,padding:'0 20px',animation:'fadeSlideDown .2s ease'}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.modalBg,border:`1px solid ${C.glassBorder}`,borderRadius:20,padding:0,overflow:'hidden',
+            boxShadow:C.mode==='light'?'0 24px 64px rgba(120,108,180,0.15)':'0 24px 64px rgba(0,0,0,0.8)',
+            backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`}}>
+            <div style={{padding:'20px 24px 16px',borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <div style={{fontSize:18,fontWeight:800,color:C.text}}>{editDow}</div>
+                <div style={{fontSize:12,color:C.text3,marginTop:2}}>{fmtD(editDate)}</div>
+              </div>
+              <button onClick={()=>setEditDate(null)} style={{width:32,height:32,borderRadius:10,border:`1px solid ${C.border}`,background:C.subtle,color:C.text3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div style={{padding:'20px 24px 24px',display:'flex',flexDirection:'column',gap:20}}>
+              <div>
+                <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Gym</div>
+                <div style={{display:'flex',gap:10}}>
+                  {[{l:'Yes ✓',v:true},{l:'No ✕',v:false}].map(o=>(
+                    <button key={String(o.v)} onClick={()=>gymSleep.setGym(editDate,o.v)}
+                      style={{flex:1,padding:'14px',borderRadius:12,border:`1px solid ${editData?.gym===o.v?C.mintMed:C.border}`,
+                        background:editData?.gym===o.v?C.mintSoft:C.subtle,color:editData?.gym===o.v?C.mint:C.text2,
+                        fontSize:15,fontWeight:700,cursor:'pointer',transition:'all .15s'}}>{o.l}</button>))}
+                </div>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Sleep (hours)</div>
+                <input type="number" inputMode="decimal" min="0" max="12" step="0.5" value={editData?.sleep||''} placeholder="e.g. 7.5"
+                  onChange={e=>gymSleep.setSleep(editDate,e.target.value)}
+                  style={{width:'100%',padding:'14px 16px',borderRadius:12,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:18,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'}}/>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Steps</div>
+                <input type="number" inputMode="numeric" min="0" max="99999" step="100" value={editData?.steps||''} placeholder="e.g. 8500"
+                  onChange={e=>gymSleep.setSteps(editDate,e.target.value)}
+                  style={{width:'100%',padding:'14px 16px',borderRadius:12,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:18,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'}}/>
+              </div>
+              <div style={{display:'flex',gap:10,marginTop:4}}>
+                <button onClick={()=>setEditDate(null)} style={{flex:1,padding:'14px',borderRadius:12,
+                  border:`1px solid ${C.border}`,background:C.subtle,color:C.text2,
+                  fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'var(--sans)'}}>Cancel</button>
+                <button onClick={()=>setEditDate(null)} style={{flex:1,padding:'14px',borderRadius:12,border:'none',
+                  background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,color:C.mode==='light'?'#fff':'#0A0C18',
+                  fontSize:14,fontWeight:800,cursor:'pointer',fontFamily:'var(--sans)'}}>Confirm</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>}
+    </div>);
 }
+
 
 function ProgressTab({vis,isD,isT,D,setInfoModal}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
@@ -1653,8 +1768,12 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
               :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>~{settings.goalBF}%</span>}
           </div>
           <button onClick={()=>{if(editGoal){settings.save({goalWeight:parseFloat(gw)||68,goalBF:parseFloat(gbf)||15});}setEditGoal(!editGoal);}}
-            style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${C.mintMed}`,background:editGoal?C.mint:'transparent',
-              color:editGoal?C.bg:C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>{editGoal?'Save':'Edit'}</button>
+            style={{padding:'6px 14px',borderRadius:8,border:editGoal?'none':`1px solid ${C.mintMed}`,
+              background:editGoal?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:'transparent',
+              color:editGoal?(C.mode==='light'?'#fff':'#0A0C18'):C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>{editGoal?'Save':'Edit'}</button>
+          {editGoal&&<button onClick={()=>{setGw(settings.goalWeight);setGbf(settings.goalBF);setEditGoal(false);}}
+            style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,
+              color:C.text2,fontSize:11,fontWeight:600,cursor:'pointer'}}>Cancel</button>}
         </div>
       </AnimCard>
       {phases.map((p,pi)=>{const isActive=settings.phase===p.n;return(<AnimCard key={p.n} glow={isActive} delay={pi*0.08} style={{gridColumn:isD&&isActive?'1/4':isT&&isActive?'1/3':'1'}}>
@@ -1695,123 +1814,275 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
       </AnimCard></div>);
 }
 
+// LIFESTYLE TAB — Articles & media feed
+// Data shape: { articles: [{ id, title, link, summary, date, image, source, type }] }
+const LIFESTYLE_FALLBACK = (()=>{
+  // Generate unique branded SVG illustrations as data URIs
+  const mkSvg = (shapes) => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"><defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#9B8CE0" stop-opacity="0.15"/><stop offset="100%" stop-color="#7CC4D8" stop-opacity="0.10"/></linearGradient><linearGradient id="a1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#9B8CE0"/><stop offset="100%" stop-color="#7CC4D8"/></linearGradient></defs><rect width="800" height="400" fill="#E0E1EF"/><rect width="800" height="400" fill="url(#bg)"/>${shapes}</svg>`)}`;
+  const imgs = [
+    // 1: Dumbbell - strength
+    mkSvg(`<circle cx="280" cy="200" r="80" fill="#9B8CE0" opacity="0.12"/><circle cx="520" cy="200" r="80" fill="#7CC4D8" opacity="0.12"/><rect x="310" y="185" width="180" height="30" rx="15" fill="url(#a1)" opacity="0.35"/><rect x="220" y="160" width="60" height="80" rx="10" fill="url(#a1)" opacity="0.5"/><rect x="520" y="160" width="60" height="80" rx="10" fill="url(#a1)" opacity="0.5"/><circle cx="650" cy="100" r="40" fill="#C47898" opacity="0.08"/><circle cx="150" cy="320" r="50" fill="#9B8CE0" opacity="0.06"/>`),
+    // 2: Heart rate - cardio
+    mkSvg(`<polyline points="100,200 200,200 250,120 300,280 350,180 400,220 450,160 500,240 550,200 700,200" stroke="url(#a1)" stroke-width="4" fill="none" opacity="0.45"/><circle cx="400" cy="200" r="120" fill="none" stroke="#9B8CE0" stroke-width="2" opacity="0.12"/><circle cx="400" cy="200" r="80" fill="none" stroke="#7CC4D8" stroke-width="1.5" opacity="0.10"/><circle cx="600" cy="120" r="30" fill="#C47898" opacity="0.08"/>`),
+    // 3: Plate - nutrition
+    mkSvg(`<circle cx="400" cy="200" r="130" fill="none" stroke="url(#a1)" stroke-width="3" opacity="0.30"/><circle cx="400" cy="200" r="100" fill="#9B8CE0" opacity="0.06"/><circle cx="360" cy="180" r="30" fill="#9B8CE0" opacity="0.15"/><circle cx="430" cy="170" r="25" fill="#7CC4D8" opacity="0.15"/><circle cx="400" cy="230" r="28" fill="#C47898" opacity="0.12"/><circle cx="200" cy="100" r="45" fill="#7CC4D8" opacity="0.06"/><circle cx="620" cy="300" r="55" fill="#9B8CE0" opacity="0.06"/>`),
+    // 4: Waves - recovery
+    mkSvg(`<path d="M0,200 Q100,140 200,200 T400,200 T600,200 T800,200" stroke="#9B8CE0" stroke-width="3" fill="none" opacity="0.25"/><path d="M0,220 Q100,160 200,220 T400,220 T600,220 T800,220" stroke="#7CC4D8" stroke-width="2" fill="none" opacity="0.20"/><path d="M0,240 Q100,180 200,240 T400,240 T600,240 T800,240" stroke="#C47898" stroke-width="1.5" fill="none" opacity="0.15"/><circle cx="650" cy="100" r="60" fill="#9B8CE0" opacity="0.06"/><circle cx="150" cy="300" r="50" fill="#7CC4D8" opacity="0.06"/>`),
+    // 5: Path/road - marathon
+    mkSvg(`<path d="M80,350 Q200,200 400,200 Q600,200 720,50" stroke="url(#a1)" stroke-width="6" fill="none" opacity="0.30" stroke-linecap="round"/><circle cx="80" cy="350" r="12" fill="#9B8CE0" opacity="0.4"/><circle cx="720" cy="50" r="12" fill="#7CC4D8" opacity="0.4"/><circle cx="400" cy="200" r="6" fill="#C47898" opacity="0.5"/><circle cx="250" cy="280" r="4" fill="#9B8CE0" opacity="0.3"/><circle cx="570" cy="120" r="4" fill="#7CC4D8" opacity="0.3"/><circle cx="200" cy="100" r="60" fill="#9B8CE0" opacity="0.04"/><circle cx="600" cy="300" r="70" fill="#7CC4D8" opacity="0.04"/>`),
+    // 6: Grid - equipment
+    mkSvg(`<rect x="150" y="100" width="100" height="100" rx="16" fill="#9B8CE0" opacity="0.12"/><rect x="280" y="100" width="100" height="100" rx="16" fill="#7CC4D8" opacity="0.12"/><rect x="410" y="100" width="100" height="100" rx="16" fill="#C47898" opacity="0.10"/><rect x="150" y="230" width="100" height="100" rx="16" fill="#7CC4D8" opacity="0.10"/><rect x="280" y="230" width="100" height="100" rx="16" fill="#9B8CE0" opacity="0.10"/><rect x="410" y="230" width="100" height="100" rx="16" fill="url(#a1)" opacity="0.12"/><circle cx="650" cy="150" r="40" fill="#9B8CE0" opacity="0.06"/>`),
+  ];
+  return {articles:[
+    {id:"1",title:"The Only 5 Exercises You Need to Build Full-Body Strength",link:"https://www.gq.com/story/full-body-strength",summary:"A sports scientist breaks down the essential compound movements that deliver maximum results with minimum time in the gym.",date:"2026-02-20T10:00:00",image:imgs[0],source:"GQ Fitness",type:"article"},
+    {id:"2",title:"Why Zone 2 Cardio Is the Biggest Trend in Fitness Right Now",link:"https://www.gq.com/story/zone-2-cardio",summary:"The low-intensity training method beloved by endurance athletes is going mainstream — and the science backs it up.",date:"2026-02-18T14:00:00",image:imgs[1],source:"GQ Fitness",type:"article"},
+    {id:"3",title:"How to Actually Stick to a High-Protein Diet Without Hating Your Life",link:"https://www.gq.com/story/high-protein-diet",summary:"Dietitians share their top strategies for hitting 150g+ protein daily with meals you'll actually look forward to.",date:"2026-02-15T09:00:00",image:imgs[2],source:"GQ Fitness",type:"article"},
+    {id:"4",title:"The Science of Recovery: What Really Works After a Hard Workout",link:"https://www.gq.com/story/workout-recovery",summary:"Cold plunges, compression boots, stretching — we asked exercise scientists which recovery methods are worth your time.",date:"2026-02-12T11:00:00",image:imgs[3],source:"GQ Fitness",type:"article"},
+    {id:"5",title:"Your Guide to Training for a Half Marathon in 12 Weeks",link:"https://www.gq.com/story/half-marathon-training",summary:"A progressive plan that builds endurance without burning out, plus nutrition tips for race day performance.",date:"2026-02-10T08:00:00",image:imgs[4],source:"GQ Fitness",type:"article"},
+    {id:"6",title:"The Best Home Gym Equipment That's Actually Worth Buying",link:"https://www.gq.com/story/home-gym-equipment",summary:"From adjustable dumbbells to compact rowers, these are the pieces that personal trainers recommend for a small-space setup.",date:"2026-02-08T12:00:00",image:imgs[5],source:"GQ Fitness",type:"article"},
+  ]};
+})();
+
+function LifestyleTab({vis,isD,isT,isM}) {
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all"); // all | article | video | podcast
+
+  useEffect(()=>{
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('/data/lifestyle.json');
+        if (!res.ok) throw new Error('No data');
+        const data = await res.json();
+        if (!cancelled) setArticles(data.articles || []);
+      } catch {
+        if (!cancelled) setArticles(LIFESTYLE_FALLBACK.articles);
+      }
+      if (!cancelled) setLoading(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  const filtered = filter === "all" ? articles : articles.filter(a => a.type === filter);
+  const types = [...new Set(articles.map(a=>a.type))];
+
+  const fmtDate = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffH = Math.floor(diffMs / 3600000);
+    if (diffH < 1) return 'Just now';
+    if (diffH < 24) return `${diffH}h ago`;
+    const diffD = Math.floor(diffH / 24);
+    if (diffD < 7) return `${diffD}d ago`;
+    return d.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+  };
+
+  // Masonry-inspired layout: featured (first) card is large, rest in grid
+  const featured = filtered[0];
+  const rest = filtered.slice(1);
+  const cols = isD ? 3 : isT ? 2 : 1;
+
+  // Placeholder gradient for cards without images
+  const placeholderGrad = (idx) => {
+    const grads = [
+      `linear-gradient(135deg, ${C.mint}22, ${C.mint}08)`,
+      `linear-gradient(135deg, ${C.blue}22, ${C.cyan}08)`,
+      `linear-gradient(135deg, ${C.purple}22, ${C.mint}08)`,
+      `linear-gradient(135deg, ${C.cyan}22, ${C.blue}08)`,
+      `linear-gradient(135deg, ${C.orange}22, ${C.purple}08)`,
+      `linear-gradient(135deg, ${C.mint}18, ${C.purple}12)`,
+    ];
+    return grads[idx % grads.length];
+  };
+
+  const sourceIcon = (type) => {
+    switch(type) {
+      case 'video': return '▶';
+      case 'podcast': return '🎧';
+      default: return null;
+    }
+  };
+
+  const ArticleCard = ({item, idx, featured: isFeatured}) => {
+    const hasImg = !!item.image;
+    const cardH = isFeatured ? (isM ? 240 : 300) : (isM ? 180 : 210);
+    const [imgLoaded, setImgLoaded] = useState(true);
+    const showImg = hasImg && imgLoaded;
+    const isSvgData = item.image?.startsWith('data:image/svg');
+    const isExternalImg = showImg && !isSvgData;
+    return (
+      <a href={item.link} target="_blank" rel="noopener noreferrer"
+        style={{display:'block',textDecoration:'none',color:'inherit',
+          borderRadius:20,overflow:'hidden',position:'relative',
+          background:C.glass,border:`1px solid ${C.glassBorder}`,
+          backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,
+          boxShadow:C.mode==='light'
+            ?'0 2px 8px rgba(120,108,180,0.06), 0 8px 28px rgba(120,108,180,0.04), inset 0 1px 0 rgba(255,255,255,0.75)'
+            :'0 2px 8px rgba(0,0,0,0.35), 0 8px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(184,168,240,0.04)',
+          transition:'transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s',
+          cursor:'pointer',gridColumn:isFeatured?(isD?'1/4':isT?'1/3':'1'):'auto'}}
+        onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=C.mode==='light'?'0 4px 14px rgba(120,108,180,0.10), 0 16px 40px rgba(120,108,180,0.07)':'0 4px 16px rgba(0,0,0,0.45), 0 16px 48px rgba(0,0,0,0.28)';}}
+        onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=C.mode==='light'?'0 2px 8px rgba(120,108,180,0.06), 0 8px 28px rgba(120,108,180,0.04), inset 0 1px 0 rgba(255,255,255,0.75)':'0 2px 8px rgba(0,0,0,0.35), 0 8px 32px rgba(0,0,0,0.22), inset 0 1px 0 rgba(184,168,240,0.04)';}}>
+        {/* Image / Gradient header */}
+        <div style={{height:cardH,position:'relative',overflow:'hidden',
+          background:showImg?'#1a1a2e':placeholderGrad(idx)}}>
+          {showImg && <img src={item.image} alt="" loading="lazy"
+            style={{width:'100%',height:'100%',objectFit:'cover',display:'block',
+              filter:isExternalImg?C.mode==='light'?'brightness(0.92) saturate(0.85)':'brightness(0.8) saturate(0.9)':'none',
+              transition:'transform .4s ease,filter .3s'}}
+            onError={()=>setImgLoaded(false)}/>}
+          {/* Multi-layer overlay for legibility */}
+          {isExternalImg && <>
+            <div style={{position:'absolute',inset:0,
+              background:'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.30) 40%, rgba(0,0,0,0.08) 70%, transparent 100%)'}}/>
+            <div style={{position:'absolute',inset:0,
+              background:C.mode==='light'
+                ?'linear-gradient(135deg, rgba(124,107,196,0.12) 0%, rgba(108,200,220,0.06) 100%)'
+                :'linear-gradient(135deg, rgba(184,168,240,0.10) 0%, rgba(108,216,224,0.05) 100%)',
+              mixBlendMode:'screen'}}/>
+          </>}
+          {isSvgData && <div style={{position:'absolute',inset:0,
+            background:`linear-gradient(to top, ${C.mode==='light'?'rgba(224,225,239,0.85)':'rgba(10,12,24,0.80)'} 0%, transparent 55%)`}}/>}
+          {!showImg && <div style={{position:'absolute',inset:0,
+            background:`linear-gradient(to top, ${C.mode==='light'?'rgba(220,220,240,0.95)':'rgba(10,12,24,0.90)'} 0%, transparent 100%)`}}/>}
+          {/* Source badge */}
+          <div style={{position:'absolute',top:14,left:14,display:'flex',gap:6,alignItems:'center'}}>
+            <span style={{padding:'5px 12px',borderRadius:10,
+              background:isExternalImg?'rgba(0,0,0,0.35)':(C.mode==='light'?'rgba(255,255,255,0.85)':'rgba(0,0,0,0.55)'),
+              backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',
+              fontSize:10,fontWeight:700,color:isExternalImg?'rgba(255,255,255,0.95)':C.mint,letterSpacing:.3,
+              border:isExternalImg?'1px solid rgba(255,255,255,0.12)':`1px solid ${C.border}`}}>
+              {sourceIcon(item.type)&&<span style={{marginRight:4}}>{sourceIcon(item.type)}</span>}
+              {item.source}
+            </span>
+          </div>
+          {/* Title overlaid on image */}
+          <div style={{position:'absolute',bottom:0,left:0,right:0,padding:isFeatured?'20px 20px':'14px 16px'}}>
+            <h3 style={{margin:0,fontSize:isFeatured?(isM?18:24):14,fontWeight:800,lineHeight:1.25,
+              color:isExternalImg?'#fff':C.text,
+              textShadow:isExternalImg?'0 1px 3px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.2)':'none',
+              letterSpacing:isFeatured?-0.3:0}}>
+              {item.title}
+            </h3>
+          </div>
+        </div>
+        {/* Body */}
+        <div style={{padding:'14px 16px 16px'}}>
+          <p style={{margin:0,fontSize:12,lineHeight:1.55,color:C.text2,
+            display:'-webkit-box',WebkitLineClamp:isFeatured?3:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
+            {item.summary}
+          </p>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:12}}>
+            <span style={{fontSize:10,color:C.text3,fontWeight:600}}>{fmtDate(item.date)}</span>
+            <span style={{display:'inline-flex',alignItems:'center',gap:4,fontSize:10,fontWeight:700,color:C.mint}}>
+              Read on GQ {I.extLink}
+            </span>
+          </div>
+        </div>
+      </a>
+    );
+  };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{marginBottom:16}}>
+        <Lbl>Lifestyle & Fitness</Lbl>
+        <p style={{fontSize:12,color:C.text3,margin:0}}>Curated reads from GQ Fitness and more</p>
+      </div>
+
+      {/* Type filter pills */}
+      {types.length > 1 && (
+        <div style={{display:'flex',gap:6,marginBottom:16,flexWrap:'wrap'}}>
+          {['all',...types].map(t=>(
+            <button key={t} onClick={()=>setFilter(t)}
+              style={{padding:'5px 14px',borderRadius:10,border:`1px solid ${filter===t?C.mint:C.border}`,
+                background:filter===t?C.mintSoft:C.subtle,
+                color:filter===t?C.mint:C.text2,fontSize:11,fontWeight:filter===t?700:500,
+                cursor:'pointer',fontFamily:'var(--sans)',textTransform:'capitalize',transition:'all .15s'}}>
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',padding:60,color:C.text3}}>
+          <div style={{width:24,height:24,border:`2px solid ${C.border}`,borderTopColor:C.mint,borderRadius:'50%',
+            animation:'spin 0.8s linear infinite'}}/>
+        </div>
+      ) : filtered.length === 0 ? (
+        <AnimCard>
+          <div style={{textAlign:'center',padding:32,color:C.text3}}>
+            <div style={{fontSize:32,marginBottom:8}}>📰</div>
+            <div style={{fontSize:13,fontWeight:600}}>No articles yet</div>
+            <div style={{fontSize:11,marginTop:4}}>Run <code style={{background:C.subtle,padding:'2px 6px',borderRadius:4,fontSize:10}}>python sync/sync_gq.py</code> to fetch content</div>
+          </div>
+        </AnimCard>
+      ) : (
+        <div style={{display:'grid',gridTemplateColumns:isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr',gap:isD?16:12}}>
+          {/* Featured article — spans full width */}
+          {featured && <ArticleCard item={featured} idx={0} featured={true}/>}
+          {/* Remaining articles */}
+          {rest.map((a,i)=><ArticleCard key={a.id||i} item={a} idx={i+1} featured={false}/>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // AI COACH TAB
-function CoachTab({vis,isD,isT,isM,D,setInfoModal}) {
+function CoachTab({vis,isD,isT,isM,D,setInfoModal,setChatOpen}) {
   const today = D.today || {cal:0,pro:0,carb:0,fat:0,fib:0,sug:0,steps:0,sleep:0,gym:false,comp:0};
-  const [chatMsg, setChatMsg] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const chatEnd = useRef(null);
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const typeColor = {warning:C.orange,success:C.mint,action:C.blue};
   const remaining = {cal:Math.max(0,1400-today.cal),pro:Math.max(0,140-today.pro),fib:Math.max(0,25-today.fib),steps:Math.max(0,8000-today.steps)};
-
-  const contextPrompt = `You are a concise, expert fitness coach for Robin on a 14-week fat loss program. Phase 1 (current): aggressive fat loss while protecting muscle.
-CURRENT DATA: Today: ${today.cal} cal, ${today.pro}g protein, ${today.carb}g carbs, ${today.fat}g fat, ${today.fib}g fiber, ${today.sug}g sugar, ${today.steps} steps, ${today.sleep}h sleep, gym: ${today.gym?"yes":"no"}.
-Targets: 1300-1500 cal, 130-160g protein, 40-70g carbs, 40-55g fat, 20-30g fiber, <20g sugar, 8000+ steps.
-Weight: ${D.lastW?.kg}kg (started 80.5, goal 68, lost ${D.lost}kg). Week ${D.lastW?.week+1}/14. Velocity: -${D.insights.velocity}kg/wk.
-Week 6 avgs: ${(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).cal} cal, ${(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).pro}g pro. Streak: ${D.insights.streak}d. Protein rate: ${D.insights.proteinRate}%.
-Most eaten: ${D.POPULAR_FOODS.slice(0,5).map(f=>f.name).join(', ')}.
-Be concise (2-4 sentences), practical, reference actual numbers. Suggest specific foods with macros when relevant.`;
-
-  useEffect(() => { chatEnd.current?.scrollIntoView({behavior:'smooth'}); }, [messages]);
-
-  const getOfflineTip = (q) => {
-    const ql = q.toLowerCase();
-    if (ql.includes("eat")||ql.includes("dinner")||ql.includes("meal")||ql.includes("food")||ql.includes("lunch")||ql.includes("snack")||ql.includes("breakfast"))
-      return `You still need ~${remaining.cal} cal and ${remaining.pro}g protein today. Try: 150g salmon (280cal, 30g pro) + 200g broccoli (68cal, 6g fiber) + 100g lentils (116cal, 9g pro, 8g fiber). That closes your macro gaps nicely.`;
-    if (ql.includes("protein"))
-      return `You're at ${today.pro}g protein (target: 130-160g). ${today.pro>=130?"On track! Keep going.":"Add a whey shake (+24g) or 150g chicken (+47g) to close the gap."}`;
-    if (ql.includes("step")||ql.includes("walk")||ql.includes("cardio"))
-      return `${today.steps.toLocaleString()} steps today. ${today.steps>=8000?"Target hit! Great work.":"Need "+remaining.steps+" more. A brisk 20-min walk adds ~2,500 steps. Try after dinner."}`;
-    if (ql.includes("weight")||ql.includes("progress")||ql.includes("how am i"))
-      return `You've lost ${D.lost}kg in ${D.lastW?.week+1} weeks (${D.lostPct}% of starting weight). At -${D.insights.velocity}kg/week, you're on pace to reach 68kg in ~${Math.ceil((D.lastW?.kg-68)/parseFloat(D.insights.velocity||0.8))} more weeks. That's solid progress.`;
-    if (ql.includes("sleep"))
-      return `${today.sleep}h sleep today. ${today.sleep>=7?"Good — sleep above 7h keeps cortisol low and recovery high.":"Below 7h target. Poor sleep raises cortisol and stalls fat loss. Try: no screens 30min before bed, consistent bedtime, cool room."}`;
-    if (ql.includes("fiber"))
-      return `${today.fib}g fiber today (target: 20-30g). ${today.fib>=20?"On track!":"Add: 200g broccoli (+5g), 1 tbsp chia seeds (+5g), or 100g lentils (+8g). Fiber aids digestion and reduces bloating."}`;
-    if (ql.includes("sugar"))
-      return `${today.sug}g sugar today (target: <20g). ${today.sug<=20?"Well controlled!":"Over target. Check for hidden sugars in sauces, flavored yogurt, and fruit juice. Stick to whole fruits instead."}`;
-    if (ql.includes("calorie")||ql.includes("cal"))
-      return `${today.cal} calories today (target: 1,300-1,500). ${today.cal>=1300&&today.cal<=1500?"Right on target.":today.cal<1300?"Slightly under — make sure you're eating enough to protect muscle. Add a protein-rich snack.":"Slightly over. Not a disaster, but watch portions at dinner."}`;
-    if (ql.includes("gym")||ql.includes("train")||ql.includes("workout")||ql.includes("exercise"))
-      return `${today.gym?"You trained today — great!":"Rest day."} Phase 1 calls for 3x strength + rope per week. Focus on compound lifts (squat, deadlift, bench, row) to preserve muscle in a deficit. Keep rest periods 60-90s.`;
-    if (ql.includes("target")||ql.includes("hit")||ql.includes("score")||ql.includes("compliance"))
-      return `Compliance today: ${today.comp}/100. ${today.comp>=90?"Excellent execution!":today.comp>=70?"Good but room to improve.":"Below 70 — focus on protein and fiber."} Your streak is ${D.insights.streak} days ≥70. Protein hit rate: ${D.insights.proteinRate}% of all days.`;
-    if (ql.includes("cheat")||ql.includes("break")||ql.includes("off day"))
-      return `One off day won't ruin your progress. You've lost ${D.lost}kg already. The key is consistency: your ${D.insights.streak}-day streak shows commitment. If you go over, just get back on track tomorrow. Don't compensate by under-eating.`;
-    if (ql.includes("plateau")||ql.includes("stuck")||ql.includes("stall"))
-      return `At -${D.insights.velocity}kg/week, you're still losing well. Plateaus usually last 1-2 weeks and break naturally. Keep hitting protein (${D.insights.proteinRate}% hit rate), stay consistent, and trust the process. If it persists 3+ weeks, consider a 2-day refeed at maintenance calories.`;
-    return `Today: ${today.cal} cal (${today.cal>=1300&&today.cal<=1500?"on target":"needs attention"}), ${today.pro}g protein (${today.pro>=130?"good":"low"}), ${today.fib}g fiber (${today.fib>=20?"ok":"add veg"}), ${today.steps} steps (${today.steps>=8000?"hit":"need more"}). Compliance: ${today.comp}/100. Streak: ${D.insights.streak} days. You're doing well — keep at it.`;
-  };
-
-  const sendMessage = async (text) => {
-    if (!text.trim()) return;
-    const userMsg = {role:"user",content:text};
-    setMessages(prev => [...prev, userMsg]);
-    setChatMsg(""); setLoading(true);
-    // Try API with short timeout, fall back to smart offline tips
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST", headers:{"Content-Type":"application/json"}, signal: controller.signal,
-        body: JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:contextPrompt,
-          messages:[...messages,userMsg].map(m=>({role:m.role,content:m.content}))}),
-      });
-      clearTimeout(timeout);
-      const data = await resp.json();
-      const reply = data.content?.map(i=>i.text||"").join("");
-      if (reply) { setMessages(prev => [...prev, {role:"assistant",content:reply}]); }
-      else { setMessages(prev => [...prev, {role:"assistant",content:getOfflineTip(text)}]); }
-    } catch (e) {
-      clearTimeout(timeout);
-      setMessages(prev => [...prev, {role:"assistant",content:getOfflineTip(text)}]);
-    }
-    setLoading(false);
-  };
-
   const staticTips = [
-    {title:"Fiber Gap",tip:`At ${today.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action",infoId:"fiberGap"},
-    {title:today.pro>=130?"Protein On Track":"Protein Low",tip:today.pro>=130?`${today.pro}g protein — solid.`:`${today.pro}g protein — below 130g, add a shake.`,type:today.pro>=130?"success":"warning",infoId:"protein"},
-    {title:"Step Check",tip:`${today.steps.toLocaleString()} steps. ${today.steps>=8000?"Target hit!":"Walk 20 min to close gap."}`,type:today.steps>=8000?"success":"action",infoId:"stepCheck"},
-    {title:"Sugar Watch",tip:`${today.sug}g sugar${today.sug>20?" — over 20g limit.":" — controlled."}`,type:today.sug>20?"warning":"success",infoId:"sugarWatch"},
-    {title:"Weekly Trend",tip:`Compliance at ${(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).comp}/100. ${(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).comp>=75?"Strong.":"Focus protein & fiber."}`,type:(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).comp>=75?"success":"action",infoId:"weeklyTrend"},
+    {title:"Fiber Gap",tip:`At ${today.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action"},
+    {title:today.pro>=130?"Protein On Track":"Protein Low",tip:today.pro>=130?`${today.pro}g protein — solid.`:`${today.pro}g protein — below 130g, add a shake.`,type:today.pro>=130?"success":"warning"},
+    {title:"Step Check",tip:`${today.steps.toLocaleString()} steps. ${today.steps>=8000?"Target hit!":"Walk 20 min to close gap."}`,type:today.steps>=8000?"success":"action"},
+    {title:"Sugar Watch",tip:`${today.sug}g sugar${today.sug>20?" — over 20g limit.":" — controlled."}`,type:today.sug>20?"warning":"success"},
+    {title:"Weekly Trend",tip:`Compliance at ${(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0}).comp}/100. ${(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0}).comp>=75?"Strong.":"Focus protein & fiber."}`,type:(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0}).comp>=75?"success":"action"},
   ];
-  const quickQ = ["What should I eat for dinner?","How's my progress?","Am I hitting my targets?","Tips for better sleep"];
 
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
-      <AnimCard style={{gridColumn:isD?'1/2':isT?'1/3':'1',display:'flex',flexDirection:'column',minHeight:isM?360:440}}>
-        <Lbl>Chat with Coach</Lbl>
-        <div style={{flex:1,overflowY:'auto',display:'flex',flexDirection:'column',gap:8,marginBottom:12,paddingRight:4}}>
-          {messages.length===0&&<div style={{fontSize:11,color:C.text3,lineHeight:1.5,padding:'8px 0'}}>Ask me anything about your nutrition, training, or progress. I have full context on your data.</div>}
-          {messages.map((m,i)=>(
-            <div key={i} style={{alignSelf:m.role==="user"?'flex-end':'flex-start',maxWidth:'85%',padding:'10px 14px',borderRadius:m.role==="user"?'14px 14px 4px 14px':'14px 14px 14px 4px',
-              background:m.role==="user"?C.mintSoft:'rgba(255,255,255,0.03)',border:`1px solid ${m.role==="user"?C.mintMed:C.border}`,
-              fontSize:12,lineHeight:1.5,color:m.role==="user"?C.mint:C.text2,whiteSpace:'pre-wrap'}}>{m.content}</div>
-          ))}
-          {loading&&<div style={{alignSelf:'flex-start',padding:'10px 14px',borderRadius:14,background:C.subtle,fontSize:12,color:C.text3}}>Thinking...</div>}
-          <div ref={chatEnd}/>
-        </div>
-        {messages.length===0&&<div style={{display:'flex',flexWrap:'wrap',gap:6,marginBottom:10}}>
-          {quickQ.map(q=>(<button key={q} onClick={()=>sendMessage(q)} style={{padding:'6px 10px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text2,fontSize:10,fontWeight:500,cursor:'pointer',fontFamily:'var(--sans)',transition:'border-color .2s'}}
-            onMouseEnter={e=>e.currentTarget.style.borderColor=C.mintMed} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>{q}</button>))}</div>}
-        <div style={{display:'flex',gap:8}}>
-          <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage(chatMsg);}}}
-            placeholder="Ask your coach..." style={{flex:1,padding:'10px 14px',borderRadius:12,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:12,fontFamily:'var(--sans)',outline:'none'}}/>
-          <button onClick={()=>sendMessage(chatMsg)} disabled={loading||!chatMsg.trim()} style={{padding:'10px 16px',borderRadius:12,border:'none',cursor:'pointer',
-            background:chatMsg.trim()?`linear-gradient(135deg,${C.mint},${C.cyan})`:C.border,color:C.bg,fontSize:11,fontWeight:700,fontFamily:'var(--sans)',opacity:loading?0.5:1}}>Send</button>
-        </div>
+      {/* Hero — open chat CTA */}
+      <AnimCard glow style={{gridColumn:isD?'1/4':isT?'1/3':'1',padding:isD?32:24,textAlign:'center'}}>
+        <div style={{width:56,height:56,borderRadius:16,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
+          display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px',
+          boxShadow:`0 4px 20px ${C.mint}33`}}>{I.sparkle}</div>
+        <div style={{fontSize:isM?20:24,fontWeight:900,color:C.text,marginBottom:6}}>AI Coach</div>
+        <div style={{fontSize:12,color:C.text3,marginBottom:20,maxWidth:320,margin:'0 auto 20px',lineHeight:1.5}}>
+          Context-aware assistant with full visibility into your nutrition, training, and progress data.</div>
+        <button onClick={()=>setChatOpen(true)}
+          style={{padding:'14px 32px',borderRadius:14,border:'none',cursor:'pointer',
+            background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
+            color:C.mode==='light'?'#fff':'#0A0C18',fontSize:14,fontWeight:800,
+            fontFamily:'var(--sans)',boxShadow:`0 4px 16px ${C.mint}33`,
+            transition:'transform .15s, box-shadow .15s'}}
+          onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow=`0 6px 24px ${C.mint}55`;}}
+          onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=`0 4px 16px ${C.mint}33`;}}>
+          {I.sparkle} Start Chat
+        </button>
       </AnimCard>
-      <AnimCard delay={0.05} style={{gridColumn:isD?'2/4':isT?'1/3':'1'}}>
+
+      {/* Today's Analysis */}
+      <AnimCard delay={0.05} style={{gridColumn:isD?'1/2':'1'}}>
         <Lbl>Today's Analysis</Lbl>
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
           {staticTips.map((t,i)=>(<div key={i} style={{padding:'12px 14px',borderRadius:12,background:C.subtle,border:`1px solid ${C.border}`,borderLeft:`3px solid ${typeColor[t.type]||C.mint}`,
             opacity:vis?1:0,transform:vis?'translateX(0)':'translateX(-8px)',transition:`all .35s ease ${i*.06}s`}}>
-            <div style={{fontSize:11,fontWeight:700,color:typeColor[t.type]||C.mint,marginBottom:3,display:'flex',alignItems:'center',justifyContent:'space-between'}}>{t.title}{t.infoId&&<InfoTip modalId={t.infoId} onModal={setInfoModal}/>}</div>
+            <div style={{fontSize:11,fontWeight:700,color:typeColor[t.type]||C.mint,marginBottom:3}}>{t.title}</div>
             <div style={{fontSize:11,color:C.text2,lineHeight:1.4}}>{t.tip}</div></div>))}</div>
       </AnimCard>
+
+      {/* Remaining Today */}
       <AnimCard delay={0.1}>
         <Lbl>Remaining Today</Lbl>
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
@@ -1822,6 +2093,8 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
               <div style={{height:4,borderRadius:2,background:C.mode==='light'?C.track:C.border,overflow:'hidden'}}>
                 <div style={{height:'100%',width:`${Math.min(100,100-r.v/r.max*100)}%`,borderRadius:2,background:r.v<=0?C.mint:`${r.c}88`,transition:'width .8s ease'}}/></div></div>))}</div>
       </AnimCard>
+
+      {/* Meal Suggestion */}
       <AnimCard delay={0.15}>
         <Lbl>Meal Suggestion</Lbl>
         <div style={{fontSize:11,color:C.text2,lineHeight:1.5}}>
@@ -1846,6 +2119,7 @@ Be concise (2-4 sentences), practical, reference actual numbers. Suggest specifi
     </div>);
 }
 
+
 // MAIN APP
 export default function Stride() {
   const [themeMode, setThemeMode] = useState(() => {
@@ -1866,6 +2140,10 @@ export default function Stride() {
   const gymSleep = useGymSleep();
   const settings = useSettings();
   const [toast, setToast] = useState({show:false,msg:''});
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatLoading, setChatLoading] = useState(false);
   const [infoModal, setInfoModal] = useState(null);
   const showToast = (msg) => { setToast({show:true,msg}); setTimeout(()=>setToast({show:false,msg:''}), 2500); };
   const [notifOpen, setNotifOpen] = useState(false);
@@ -2087,7 +2365,7 @@ export default function Stride() {
   );
 
   const isM=ww<768, isT=ww>=768&&ww<1024, isD=ww>=1024;
-  const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"targets",icon:I.target,label:"Targets"},{id:"coach",icon:I.sparkle,label:"AI Coach"}];
+  const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"lifestyle",icon:I.lifestyle,label:"Lifestyle"},{id:"targets",icon:I.target,label:"Targets"},{id:"coach",icon:I.sparkle,label:"AI Coach"}];
   const renderTab = () => {
     const p = {vis,isD,isT,isM,D,gymSleep,settings,setInfoModal,dateNav,setDateNav};
     switch(tab) {
@@ -2095,8 +2373,9 @@ export default function Stride() {
       case "nutrition": return <NutritionTab {...p}/>;
       case "activity": return <ActivityTab {...p}/>;
       case "progress": return <ProgressTab {...p}/>;
+      case "lifestyle": return <LifestyleTab {...p}/>;
       case "targets": return <TargetsTab {...p}/>;
-      case "coach": return <CoachTab {...p}/>;
+      case "coach": return <CoachTab {...p} setChatOpen={setChatOpen}/>;
       default: return null;
     }
   };
@@ -2133,6 +2412,7 @@ export default function Stride() {
         @keyframes fadeIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
         @keyframes spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
         @keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+        @keyframes pulse { 0%,100%{opacity:0.3;} 50%{opacity:1;} }
       `}</style>
       <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0,overflow:'hidden'}}>
         <div style={{position:'absolute',top:'-10%',left:'20%',width:600,height:600,borderRadius:'50%',
@@ -2228,7 +2508,7 @@ export default function Stride() {
           <header style={{padding:'24px 36px 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div>
               <div style={{fontSize:22,fontWeight:800}}>
-                {tab==="overview"?"Dashboard":tab==="nutrition"?"Nutrition Tracking":tab==="activity"?"Activity & Training":tab==="progress"?"Progress Analytics":tab==="coach"?"AI Coach":"Phase Targets"}</div>
+                {tab==="overview"?"Dashboard":tab==="nutrition"?"Nutrition Tracking":tab==="activity"?"Activity & Training":tab==="progress"?"Progress Analytics":tab==="lifestyle"?"Lifestyle & Fitness":tab==="coach"?"AI Coach":"Phase Targets"}</div>
               <div style={{fontSize:12,color:C.text3,marginTop:2}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}
                 {isLive?<span style={{marginLeft:8,fontSize:10,color:C.mint,opacity:0.8}}>· Live data{dataAge!==null?` (${dataAge}h ago)`:''}</span>
                 :<span style={{marginLeft:8,fontSize:10,color:C.orange,opacity:0.9}}>· Demo data — sync needed</span>}
@@ -2262,16 +2542,177 @@ export default function Stride() {
           borderTop:`1px solid ${isDark?'rgba(184,168,240,0.06)':'rgba(255,255,255,0.50)'}`,
           boxShadow:isDark?'0 -4px 24px rgba(0,0,0,0.35)':'0 -2px 16px rgba(120,108,180,0.06)',
           padding:'6px 4px',paddingBottom:'max(6px, env(safe-area-inset-bottom))',zIndex:100,display:'flex',justifyContent:'space-around'}}>
-          {NAV.map(n=>{const act=tab===n.id;
-            return (<button key={n.id} onClick={()=>setTab(n.id)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'7px 6px',border:'none',background:'none',cursor:'pointer',color:act?C.mint:C.text3,transition:'color .2s',position:'relative',fontFamily:'var(--sans)'}}>
+          {/* Primary tabs — first 4 + More */}
+          {NAV.slice(0,4).map(n=>{const act=tab===n.id;
+            return (<button key={n.id} onClick={()=>{setTab(n.id);setMoreOpen(false);}} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'7px 6px',border:'none',background:'none',cursor:'pointer',color:act?C.mint:C.text3,transition:'color .2s',position:'relative',fontFamily:'var(--sans)',flex:1}}>
               {act&&<div style={{position:'absolute',top:-6,width:20,height:3,borderRadius:2,background:C.mint,boxShadow:`0 0 10px ${C.mint}55`}}/>}
               <div style={{transform:act?'scale(1.1)':'scale(1)',transition:'transform .2s'}}>{n.icon}</div>
               <span style={{fontSize:8,fontWeight:act?800:500,letterSpacing:.2}}>{n.label}</span>
             </button>);
           })}
+          {/* More button */}
+          {(()=>{const moreActive=NAV.slice(4).some(n=>n.id===tab);
+            return (<div style={{position:'relative',flex:1,display:'flex',justifyContent:'center'}}>
+              <button onClick={()=>setMoreOpen(!moreOpen)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,padding:'7px 6px',border:'none',background:'none',cursor:'pointer',color:moreActive?C.mint:C.text3,transition:'color .2s',position:'relative',fontFamily:'var(--sans)'}}>
+                {moreActive&&<div style={{position:'absolute',top:-6,width:20,height:3,borderRadius:2,background:C.mint,boxShadow:`0 0 10px ${C.mint}55`}}/>}
+                <div style={{transform:moreOpen?'rotate(90deg)':'rotate(0deg)',transition:'transform .2s'}}>{I.more}</div>
+                <span style={{fontSize:8,fontWeight:moreActive?800:500,letterSpacing:.2}}>More</span>
+              </button>
+              {/* More dropdown */}
+              {moreOpen&&<>
+                <div onClick={()=>setMoreOpen(false)} style={{position:'fixed',inset:0,zIndex:98}}/>
+                <div style={{position:'absolute',bottom:'calc(100% + 12px)',right:-8,
+                  background:isDark?'rgba(16,18,36,0.92)':'rgba(248,248,255,0.96)',
+                  border:`1px solid ${C.glassBorder}`,borderRadius:16,padding:8,minWidth:170,zIndex:99,
+                  backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,
+                  boxShadow:isDark?'0 -8px 32px rgba(0,0,0,0.5)':'0 -8px 32px rgba(120,108,180,0.12)',
+                  animation:'fadeSlideDown .15s ease'}}>
+                  {NAV.slice(4).map(n=>{const act=tab===n.id;
+                    return (<button key={n.id} onClick={()=>{setTab(n.id);setMoreOpen(false);}}
+                      style={{display:'flex',alignItems:'center',gap:10,width:'100%',padding:'10px 12px',
+                        borderRadius:10,border:'none',background:act?C.mintSoft:'transparent',
+                        color:act?C.mint:C.text2,fontSize:12,fontWeight:act?700:500,cursor:'pointer',
+                        fontFamily:'var(--sans)',transition:'all .15s'}}
+                      onMouseEnter={e=>{if(!act)e.currentTarget.style.background=C.subtle;}}
+                      onMouseLeave={e=>{if(!act)e.currentTarget.style.background='transparent';}}>
+                      <span style={{opacity:act?1:0.7}}>{n.icon}</span>{n.label}
+                    </button>);
+                  })}
+                </div>
+              </>}
+            </div>);
+          })()}
         </nav>
       )}
       <SyncToast message={toast.msg} show={toast.show}/>
+
+      {/* Global AI Coach Chat — slide-in panel */}
+      {(()=>{
+        const today = D.today || {cal:0,pro:0,carb:0,fat:0,fib:0,sug:0,steps:0,sleep:0,gym:false,comp:0};
+        const remaining = {cal:Math.max(0,1400-today.cal),pro:Math.max(0,140-today.pro),fib:Math.max(0,25-today.fib),steps:Math.max(0,8000-today.steps)};
+        const contextPrompt = `You are a concise, expert fitness coach for Robin on a 14-week fat loss program. Phase 1 (current): aggressive fat loss while protecting muscle.
+CURRENT DATA: Today: ${today.cal} cal, ${today.pro}g protein, ${today.carb}g carbs, ${today.fat}g fat, ${today.fib}g fiber, ${today.sug}g sugar, ${today.steps} steps, ${today.sleep}h sleep, gym: ${today.gym?"yes":"no"}.
+Targets: 1300-1500 cal, 130-160g protein, 40-70g carbs, 40-55g fat, 20-30g fiber, <20g sugar, 8000+ steps.
+Weight: ${D.lastW?.kg}kg (started 80.5, goal 68, lost ${D.lost}kg). Week ${D.lastW?.week+1}/14. Velocity: -${D.insights.velocity}kg/wk.
+Be concise (2-4 sentences), practical, reference actual numbers. Suggest specific foods with macros when relevant.`;
+        const getOfflineTip = (q) => {
+          const ql = q.toLowerCase();
+          if (ql.includes("eat")||ql.includes("dinner")||ql.includes("meal")||ql.includes("food"))
+            return `You still need ~${remaining.cal} cal and ${remaining.pro}g protein. Try: 150g salmon (280cal, 30g pro) + 200g broccoli (68cal, 6g fiber).`;
+          if (ql.includes("protein")) return `You're at ${today.pro}g protein (target: 130-160g). ${today.pro>=130?"On track!":"Add a whey shake (+24g) or 150g chicken (+47g)."}`;
+          if (ql.includes("step")||ql.includes("walk")) return `${today.steps.toLocaleString()} steps. ${today.steps>=8000?"Target hit!":"Need "+(8000-today.steps)+" more. A 20-min walk adds ~2,500."}`;
+          if (ql.includes("weight")||ql.includes("progress")) return `Lost ${D.lost}kg in ${D.lastW?.week+1} weeks. At -${D.insights.velocity}kg/week, ~${Math.ceil((D.lastW?.kg-68)/parseFloat(D.insights.velocity||0.8))} weeks to 68kg.`;
+          return `Today: ${today.cal} cal, ${today.pro}g pro, ${today.fib}g fiber, ${today.steps} steps. Compliance: ${today.comp}/100. Keep at it.`;
+        };
+        const sendChat = async (text) => {
+          if (!text.trim()) return;
+          const userMsg = {role:"user",content:text};
+          setChatMessages(prev => [...prev, userMsg]);
+          setChatLoading(true);
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 3000);
+          try {
+            const resp = await fetch("https://api.anthropic.com/v1/messages", {
+              method:"POST", headers:{"Content-Type":"application/json"}, signal: controller.signal,
+              body: JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:contextPrompt,
+                messages:[...chatMessages,userMsg].map(m=>({role:m.role,content:m.content}))}),
+            });
+            clearTimeout(timeout);
+            const data = await resp.json();
+            const reply = data.content?.map(i=>i.text||"").join("");
+            setChatMessages(prev => [...prev, {role:"assistant",content:reply||getOfflineTip(text)}]);
+          } catch (e) {
+            clearTimeout(timeout);
+            setChatMessages(prev => [...prev, {role:"assistant",content:getOfflineTip(text)}]);
+          }
+          setChatLoading(false);
+        };
+        const chatRef = useRef(null);
+        const inputRef = useRef(null);
+        const [chatInput, setChatInput] = useState("");
+        const quickQ = ["What should I eat?","How's my progress?","Am I on target?","Sleep tips"];
+
+        return (<>
+          {/* FAB — always visible, bottom-right */}
+          {!chatOpen && (
+            <button onClick={()=>setChatOpen(true)}
+              style={{position:'fixed',bottom:isD?24:80,right:isD?24:16,zIndex:90,
+                width:52,height:52,borderRadius:16,border:'none',cursor:'pointer',
+                background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
+                color:C.mode==='light'?'#fff':'#0A0C18',
+                boxShadow:`0 4px 20px ${C.mint}44, 0 8px 32px rgba(0,0,0,0.15)`,
+                display:'flex',alignItems:'center',justifyContent:'center',
+                transition:'transform .2s, box-shadow .2s',animation:'fadeIn .3s ease'}}
+              onMouseEnter={e=>{e.currentTarget.style.transform='scale(1.08)';e.currentTarget.style.boxShadow=`0 6px 28px ${C.mint}66, 0 12px 40px rgba(0,0,0,0.2)`;}}
+              onMouseLeave={e=>{e.currentTarget.style.transform='scale(1)';e.currentTarget.style.boxShadow=`0 4px 20px ${C.mint}44, 0 8px 32px rgba(0,0,0,0.15)`;}}>
+              {I.sparkle}
+            </button>
+          )}
+
+          {/* Chat Panel — slides in from right like Gemini */}
+          {chatOpen && <>
+            <div onClick={()=>setChatOpen(false)} style={{position:'fixed',inset:0,background:C.overlayBg,backdropFilter:'blur(4px)',WebkitBackdropFilter:'blur(4px)',zIndex:200}}/>
+            <div style={{position:'fixed',top:0,right:0,bottom:0,width:isD?420:isT?380:'100%',maxWidth:'100vw',zIndex:201,
+              background:isDark?'rgba(10,12,24,0.97)':'rgba(245,245,255,0.97)',
+              backdropFilter:'blur(32px)',WebkitBackdropFilter:'blur(32px)',
+              borderLeft:`1px solid ${C.glassBorder}`,
+              boxShadow:isDark?'-8px 0 40px rgba(0,0,0,0.5)':'-8px 0 40px rgba(120,108,180,0.10)',
+              display:'flex',flexDirection:'column',animation:'fadeIn .2s ease'}}>
+              {/* Header */}
+              <div style={{padding:'16px 20px',borderBottom:`1px solid ${C.border}`,display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{width:32,height:32,borderRadius:10,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
+                    display:'flex',alignItems:'center',justifyContent:'center'}}>{I.sparkle}</div>
+                  <div><div style={{fontSize:14,fontWeight:800,color:C.text}}>AI Coach</div>
+                  <div style={{fontSize:10,color:C.text3}}>Context-aware fitness assistant</div></div>
+                </div>
+                <button onClick={()=>setChatOpen(false)} style={{width:32,height:32,borderRadius:10,border:`1px solid ${C.border}`,background:C.subtle,color:C.text3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',fontSize:14}}>✕</button>
+              </div>
+              {/* Messages */}
+              <div ref={chatRef} style={{flex:1,overflowY:'auto',padding:'16px 20px',display:'flex',flexDirection:'column',gap:10}}>
+                {chatMessages.length===0 && (
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',flex:1,gap:16,padding:'40px 0'}}>
+                    <div style={{width:48,height:48,borderRadius:14,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
+                      display:'flex',alignItems:'center',justifyContent:'center',opacity:0.6}}>{I.sparkle}</div>
+                    <div style={{fontSize:13,color:C.text3,textAlign:'center',lineHeight:1.5,maxWidth:260}}>Ask me anything about your nutrition, training, or progress. I have full context on your data.</div>
+                    <div style={{display:'flex',flexWrap:'wrap',gap:6,justifyContent:'center'}}>
+                      {quickQ.map(q=>(<button key={q} onClick={()=>{sendChat(q);setChatInput("");}}
+                        style={{padding:'7px 12px',borderRadius:10,border:`1px solid ${C.border}`,background:C.subtle,color:C.text2,fontSize:11,fontWeight:500,cursor:'pointer',fontFamily:'var(--sans)',transition:'border-color .2s'}}
+                        onMouseEnter={e=>e.currentTarget.style.borderColor=C.mintMed} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>{q}</button>))}
+                    </div>
+                  </div>
+                )}
+                {chatMessages.map((m,i)=>(
+                  <div key={i} style={{alignSelf:m.role==="user"?'flex-end':'flex-start',maxWidth:'85%',padding:'10px 14px',
+                    borderRadius:m.role==="user"?'16px 16px 4px 16px':'16px 16px 16px 4px',
+                    background:m.role==="user"?C.mintSoft:C.subtle,
+                    border:`1px solid ${m.role==="user"?C.mintMed:C.border}`,
+                    fontSize:12,lineHeight:1.55,color:m.role==="user"?C.mint:C.text2,whiteSpace:'pre-wrap'}}>
+                    {m.content}
+                  </div>
+                ))}
+                {chatLoading&&<div style={{alignSelf:'flex-start',padding:'10px 14px',borderRadius:16,background:C.subtle,fontSize:12,color:C.text3,display:'flex',gap:4,alignItems:'center'}}>
+                  <span style={{animation:'pulse 1.2s ease infinite'}}>●</span> Thinking...</div>}
+              </div>
+              {/* Input */}
+              <div style={{padding:'12px 20px',borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+                <div style={{display:'flex',gap:8}}>
+                  <input ref={inputRef} value={chatInput} onChange={e=>setChatInput(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat(chatInput);setChatInput("");}}}
+                    placeholder="Ask your coach..." autoFocus
+                    style={{flex:1,padding:'12px 16px',borderRadius:14,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:13,fontFamily:'var(--sans)',outline:'none'}}/>
+                  <button onClick={()=>{sendChat(chatInput);setChatInput("");}} disabled={chatLoading||!chatInput.trim()}
+                    style={{padding:'12px 18px',borderRadius:14,border:'none',cursor:'pointer',
+                      background:chatInput.trim()?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:C.border,
+                      color:C.mode==='light'?'#fff':'#0A0C18',fontSize:12,fontWeight:700,fontFamily:'var(--sans)',opacity:chatLoading?0.5:1}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>}
+        </>);
+      })()}
       {infoModal && <InfoModal id={infoModal} onClose={()=>setInfoModal(null)}/>}
     </div>
   </ThemeContext.Provider>
