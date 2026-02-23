@@ -2466,12 +2466,8 @@ export default function Stride() {
           </div>
           {navCollapsed ? (
             <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',marginTop:8}}>
-              <ThemeToggle size={32}/>
             </div>
           ) : (<>
-            <div style={{padding:10,marginBottom:8}}>
-              <ThemeToggle size={30}/>
-            </div>
             <div style={{padding:'14px 12px',borderRadius:14,
               background:`linear-gradient(135deg,${C.mintSoft},transparent)`,border:`1px solid ${C.mintSoft}`,backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)'}}>
               <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:6}}>Overall Progress</div>
