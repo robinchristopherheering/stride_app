@@ -1878,6 +1878,17 @@ export default function Stride() {
   const vis = useAnimateOnMount(tab);
   useEffect(()=>{const h=()=>setWw(window.innerWidth);window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);},[]);
 
+  // Dynamic favicon — S logo in brand gradient
+  useEffect(()=>{
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><defs><linearGradient id="fg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${theme.gradStart}"/><stop offset="100%" stop-color="${theme.gradEnd}"/></linearGradient></defs><rect width="32" height="32" rx="7" fill="url(#fg)"/><text x="16" y="23.5" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="20" font-weight="800" fill="${theme.mode==='light'?'#fff':'#0A0C18'}">S</text></svg>`;
+    const blob = new Blob([svg], {type:'image/svg+xml'});
+    const url = URL.createObjectURL(blob);
+    let link = document.querySelector("link[rel*='icon']");
+    if(!link){link=document.createElement('link');link.rel='icon';document.head.appendChild(link);}
+    link.type='image/svg+xml';link.href=url;
+    return()=>URL.revokeObjectURL(url);
+  },[theme]);
+
   // DATA LOADER
   // CONFIGURATION — Set your Cloudflare Worker URL after deploying
   const PROXY_URL = 'https://stride-mfp-proxy.robinheering.workers.dev';
