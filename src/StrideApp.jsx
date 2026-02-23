@@ -246,7 +246,7 @@ function transformSyncData(json, todayLive) {
   const fmt = (iso) => { const d=new Date(iso+"T00:00:00"); return `${m[d.getMonth()]} ${d.getDate()}`; };
 
   // Current week
-  const currentWeek = json.meta?.currentWeek || 7;
+  const currentWeek = Math.max(json.meta?.currentWeek || 1, Math.floor((new Date() - new Date(json.meta?.programStart || "2026-01-05")) / (7*86400000)) + 1);
 
   // Transform daily → DAILY_ALL format
   const dailyAll = json.daily.filter(d=>d.calories>0).map(d => ({
@@ -371,7 +371,7 @@ function buildFallbackData() {
     today: todayData, lastW: lastW,
     lost: (80.5-lastW.kg).toFixed(1),
     lostPct: ((80.5-lastW.kg)/80.5*100).toFixed(1),
-    startKg: 80.5, currentWeek: 7,
+    startKg: 80.5, currentWeek: Math.floor((new Date() - new Date("2026-01-05")) / (7*86400000)) + 1,
   };
 }
 
@@ -1534,35 +1534,41 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const d=getDateData(dateNav, D);
   const label=d._isRange?`${d._count}d Avg`:(d._dt||"Today");
-  const gymDays=D.DAILY_ALL.filter(x=>x.gym).length, totalDays=D.DAILY_ALL.length;
+  const gymDays=D.DAILY_ALL.filter(x=>x.gym).length, totalDays=Math.max(1,D.DAILY_ALL.length);
   const avgSleep=(D.DAILY_ALL.reduce((a,x)=>a+x.sleep,0)/totalDays).toFixed(1);
   const avgSteps=Math.round(D.DAILY_ALL.reduce((a,x)=>a+x.steps,0)/totalDays);
-
-  // Edit modal
   const [editDate, setEditDate] = useState(null);
   const editData = editDate ? gymSleep.getDay(editDate) : null;
   const editDow = editDate ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(editDate+"T00:00:00").getDay()] : null;
   const MN = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const fmtD = (ds) => { const dt = new Date(ds+"T00:00:00"); return `${MN[dt.getMonth()]} ${dt.getDate()}`; };
 
-  // Build week dates for the selected date/range
+  // Build week dates for the selected date
   const getWeekDates = () => {
-    let refDate;
-    if (dateNav.mode === 'day') refDate = new Date(dateNav.date + 'T12:00:00');
-    else refDate = new Date((dateNav.to || dateNav.from) + 'T12:00:00');
-    const dow = refDate.getDay() || 7;
-    const dates = [];
-    const today = new Date();
-    for (let i = 1; i <= 7; i++) {
-      const dd = new Date(refDate);
-      dd.setDate(refDate.getDate() - dow + i);
-      if (dd <= today) dates.push(localDateStr(dd));
-    }
-    return dates;
+    try {
+      let refDate;
+      if (dateNav.mode === 'day' && dateNav.date) {
+        refDate = new Date(dateNav.date + 'T12:00:00');
+      } else if (dateNav.to || dateNav.from) {
+        refDate = new Date((dateNav.to || dateNav.from) + 'T12:00:00');
+      } else {
+        refDate = new Date();
+      }
+      if (isNaN(refDate.getTime())) refDate = new Date();
+      const dow = refDate.getDay() || 7;
+      const dates = [];
+      const today = new Date();
+      today.setHours(23,59,59,999);
+      for (let i = 1; i <= 7; i++) {
+        const dd = new Date(refDate);
+        dd.setDate(refDate.getDate() - dow + i);
+        if (dd <= today) dates.push(localDateStr(dd));
+      }
+      return dates;
+    } catch(e) { return [localDateStr()]; }
   };
   const weekDates = getWeekDates();
 
-  // Merge proxy DAILY_ALL data with gymSleep localStorage
   const getMergedDay = (dateStr) => {
     const gs = gymSleep.getDay(dateStr);
     const dt = new Date(dateStr + "T00:00:00");
@@ -1577,7 +1583,7 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
     };
   };
   const weekData = weekDates.map(getMergedDay);
-  const selectedDateStr = dateNav.mode === 'day' ? dateNav.date : null;
+  const todayStr = localDateStr();
 
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
@@ -1608,87 +1614,133 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
         <div style={{textAlign:'center',marginTop:14}}><CountUp to={(D.W_STEPS[D.W_STEPS.length-1]||{v:0}).v} style={{fontSize:24}} color={C.blue}/><span style={{fontSize:11,color:C.text3,marginLeft:6}}>avg W{D.currentWeek}</span></div>
       </AnimCard>
 
-      {/* Daily Activity — date-aware, merged with gymSleep, tap to edit */}
+      {/* Daily Activity — tap to edit */}
       <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
           <Lbl style={{marginBottom:0}}>Daily Activity</Lbl>
           <span style={{fontSize:10,color:C.text3}}>Tap a day to edit</span>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:isD?`repeat(${Math.min(weekData.length,7)},1fr)`:isT?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
-          {weekData.map((dd,i)=>{
-            const isToday = dd.date === localDateStr();
-            const isSelected = dd.date === selectedDateStr;
-            return (<div key={dd.date} onClick={()=>setEditDate(dd.date)}
-              style={{padding:'16px 14px',borderRadius:16,
-                background:isSelected?C.mintSoft:isToday?C.mintSoft:C.subtle,
-                border:`1px solid ${isSelected?C.mint:isToday?C.mintMed:C.subtleBorder}`,
-                cursor:'pointer',opacity:v?1:0,transform:v?'translateY(0)':'translateY(12px)',
-                transition:`all .4s ease ${i*.08}s`}}
-              onMouseEnter={e=>{if(!isToday&&!isSelected){e.currentTarget.style.background=C.mintSoft;e.currentTarget.style.borderColor=C.mintMed;}}}
-              onMouseLeave={e=>{if(!isToday&&!isSelected){e.currentTarget.style.background=C.subtle;e.currentTarget.style.borderColor=C.subtleBorder;}}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-                <span style={{fontSize:13,fontWeight:800,color:isToday||isSelected?C.mint:C.text}}>{dd.dow}</span>
-                {isToday&&<Tag color={C.mint}>Today</Tag>}
-              </div>
-              <div style={{fontSize:18,fontWeight:800,fontFamily:'var(--mono)',color:dd.steps>0?(dd.steps>=8000?C.mint:C.orange):C.text3}}>
-                {dd.steps>0?dd.steps.toLocaleString():'–'}
-              </div>
-              <div style={{fontSize:9,color:C.text3,marginTop:2}}>steps</div>
-              <div style={{display:'flex',gap:8,marginTop:10}}>
-                <div><div style={{fontSize:9,color:C.text3}}>Sleep</div><div style={{fontSize:13,fontWeight:700,fontFamily:'var(--mono)',color:dd.sleep>0?(dd.sleep>=7?C.cyan:C.orange):C.text3}}>{dd.sleep>0?`${dd.sleep}h`:'–'}</div></div>
-                <div><div style={{fontSize:9,color:C.text3}}>Gym</div><div style={{color:dd.gym?C.mint:C.text3,display:'flex',alignItems:'center',marginTop:2}}>{dd.gym?I.check:I.x}</div></div>
-              </div>
-            </div>);
-          })}
-        </div>
+        {weekData.length === 0 ? (
+          <div style={{padding:24,textAlign:'center',color:C.text3,fontSize:12}}>No days available for this week</div>
+        ) : (
+          <div style={{display:'grid',gridTemplateColumns:isD?`repeat(${Math.min(weekData.length,7)},1fr)`:isT?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
+            {weekData.map((dd,i)=>{
+              const isToday = dd.date === todayStr;
+              const hasData = dd.steps > 0 || dd.sleep > 0 || dd.gym;
+              return (
+                <button key={dd.date}
+                  onClick={(e)=>{e.preventDefault();e.stopPropagation();setEditDate(dd.date);}}
+                  style={{padding:'14px 12px',borderRadius:16,textAlign:'left',
+                    background:isToday?C.mintSoft:C.subtle,
+                    border:`1px solid ${isToday?C.mintMed:C.subtleBorder}`,
+                    cursor:'pointer',opacity:v?1:0,transform:v?'translateY(0)':'translateY(12px)',
+                    transition:`all .4s ease ${i*.06}s`,
+                    fontFamily:'var(--sans)',WebkitAppearance:'none',outline:'none',
+                    WebkitTapHighlightColor:'transparent'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:8}}>
+                    <span style={{fontSize:13,fontWeight:800,color:isToday?C.mint:C.text}}>{dd.dow}</span>
+                    {isToday && <Tag color={C.mint}>Today</Tag>}
+                    {!isToday && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={C.text3} strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>}
+                  </div>
+                  <div style={{fontSize:18,fontWeight:800,fontFamily:'var(--mono)',
+                    color:dd.steps>0?(dd.steps>=8000?C.mint:C.orange):C.text3}}>
+                    {dd.steps>0?dd.steps.toLocaleString():'\u2013'}
+                  </div>
+                  <div style={{fontSize:9,color:C.text3,marginTop:1}}>steps</div>
+                  <div style={{display:'flex',gap:10,marginTop:8}}>
+                    <div>
+                      <div style={{fontSize:9,color:C.text3}}>Sleep</div>
+                      <div style={{fontSize:13,fontWeight:700,fontFamily:'var(--mono)',
+                        color:dd.sleep>0?(dd.sleep>=7?C.cyan:C.orange):C.text3}}>
+                        {dd.sleep>0?`${dd.sleep}h`:'\u2013'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:9,color:C.text3}}>Gym</div>
+                      <div style={{color:dd.gym?C.mint:C.text3,display:'flex',alignItems:'center',marginTop:2,fontSize:12}}>
+                        {dd.gym?'\u2713':'\u2715'}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </AnimCard>
 
       {/* Edit Modal */}
       {editDate && editData && <>
         <div onClick={()=>setEditDate(null)} style={{position:'fixed',inset:0,background:C.overlayBg,backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',zIndex:9999}}/>
-        <div style={{position:'fixed',left:'50%',top:'50%',transform:'translate(-50%,-50%)',zIndex:10000,width:'100%',maxWidth:360,padding:'0 20px',animation:'fadeSlideDown .2s ease'}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:C.modalBg,border:`1px solid ${C.glassBorder}`,borderRadius:20,padding:0,overflow:'hidden',
-            boxShadow:C.mode==='light'?'0 24px 64px rgba(120,108,180,0.15)':'0 24px 64px rgba(0,0,0,0.8)',
+        <div style={{position:'fixed',left:'50%',top:'50%',transform:'translate(-50%,-50%)',zIndex:10000,
+          width:'100%',maxWidth:360,padding:'0 20px',boxSizing:'border-box',animation:'fadeSlideDown .2s ease'}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:C.modalBg,border:`1px solid ${C.glassBorder}`,
+            borderRadius:20,padding:0,overflow:'hidden',
+            boxShadow:C.mode==='light'?'0 24px 64px rgba(120,108,180,0.18)':'0 24px 64px rgba(0,0,0,0.8)',
             backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`}}>
+            {/* Header */}
             <div style={{padding:'20px 24px 16px',borderBottom:`1px solid ${C.border}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div>
-                <div style={{fontSize:18,fontWeight:800,color:C.text}}>{editDow}</div>
+                <div style={{fontSize:20,fontWeight:800,color:C.text}}>{editDow}</div>
                 <div style={{fontSize:12,color:C.text3,marginTop:2}}>{fmtD(editDate)}</div>
               </div>
-              <button onClick={()=>setEditDate(null)} style={{width:32,height:32,borderRadius:10,border:`1px solid ${C.border}`,background:C.subtle,color:C.text3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              <button onClick={()=>setEditDate(null)} style={{width:36,height:36,borderRadius:12,border:`1px solid ${C.border}`,
+                background:C.subtle,color:C.text3,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+                WebkitAppearance:'none',fontSize:0}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
               </button>
             </div>
+            {/* Fields */}
             <div style={{padding:'20px 24px 24px',display:'flex',flexDirection:'column',gap:20}}>
+              {/* Gym */}
               <div>
                 <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Gym</div>
                 <div style={{display:'flex',gap:10}}>
-                  {[{l:'Yes ✓',v:true},{l:'No ✕',v:false}].map(o=>(
+                  {[{l:'Yes \u2713',v:true},{l:'No \u2715',v:false}].map(o=>(
                     <button key={String(o.v)} onClick={()=>gymSleep.setGym(editDate,o.v)}
-                      style={{flex:1,padding:'14px',borderRadius:12,border:`1px solid ${editData?.gym===o.v?C.mintMed:C.border}`,
-                        background:editData?.gym===o.v?C.mintSoft:C.subtle,color:editData?.gym===o.v?C.mint:C.text2,
-                        fontSize:15,fontWeight:700,cursor:'pointer',transition:'all .15s'}}>{o.l}</button>))}
+                      style={{flex:1,padding:'16px',borderRadius:14,
+                        border:`2px solid ${editData?.gym===o.v?C.mintMed:C.border}`,
+                        background:editData?.gym===o.v?C.mintSoft:C.subtle,
+                        color:editData?.gym===o.v?C.mint:C.text2,
+                        fontSize:16,fontWeight:700,cursor:'pointer',transition:'all .15s',
+                        WebkitAppearance:'none',fontFamily:'var(--sans)'}}>{o.l}</button>))}
                 </div>
               </div>
+              {/* Sleep */}
               <div>
                 <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Sleep (hours)</div>
-                <input type="number" inputMode="decimal" min="0" max="12" step="0.5" value={editData?.sleep||''} placeholder="e.g. 7.5"
+                <input type="number" inputMode="decimal" min="0" max="12" step="0.5"
+                  value={editData?.sleep||''} placeholder="e.g. 7.5"
                   onChange={e=>gymSleep.setSleep(editDate,e.target.value)}
-                  style={{width:'100%',padding:'14px 16px',borderRadius:12,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:18,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'}}/>
+                  style={{width:'100%',padding:'16px',borderRadius:14,border:`2px solid ${C.border}`,
+                    background:C.subtle,color:C.text,fontSize:20,fontFamily:'var(--mono)',
+                    textAlign:'center',outline:'none',boxSizing:'border-box',
+                    WebkitAppearance:'none'}}/>
               </div>
+              {/* Steps */}
               <div>
                 <div style={{fontSize:11,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:8}}>Steps</div>
-                <input type="number" inputMode="numeric" min="0" max="99999" step="100" value={editData?.steps||''} placeholder="e.g. 8500"
+                <input type="number" inputMode="numeric" min="0" max="99999" step="100"
+                  value={editData?.steps||''} placeholder="e.g. 8500"
                   onChange={e=>gymSleep.setSteps(editDate,e.target.value)}
-                  style={{width:'100%',padding:'14px 16px',borderRadius:12,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:18,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'}}/>
+                  style={{width:'100%',padding:'16px',borderRadius:14,border:`2px solid ${C.border}`,
+                    background:C.subtle,color:C.text,fontSize:20,fontFamily:'var(--mono)',
+                    textAlign:'center',outline:'none',boxSizing:'border-box',
+                    WebkitAppearance:'none'}}/>
               </div>
+              {/* Buttons */}
               <div style={{display:'flex',gap:10,marginTop:4}}>
-                <button onClick={()=>setEditDate(null)} style={{flex:1,padding:'14px',borderRadius:12,
-                  border:`1px solid ${C.border}`,background:C.subtle,color:C.text2,
-                  fontSize:14,fontWeight:600,cursor:'pointer',fontFamily:'var(--sans)'}}>Cancel</button>
-                <button onClick={()=>setEditDate(null)} style={{flex:1,padding:'14px',borderRadius:12,border:'none',
-                  background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,color:C.mode==='light'?'#fff':'#0A0C18',
-                  fontSize:14,fontWeight:800,cursor:'pointer',fontFamily:'var(--sans)'}}>Confirm</button>
+                <button onClick={()=>setEditDate(null)}
+                  style={{flex:1,padding:'16px',borderRadius:14,
+                    border:`1px solid ${C.border}`,background:C.subtle,color:C.text2,
+                    fontSize:15,fontWeight:600,cursor:'pointer',fontFamily:'var(--sans)',
+                    WebkitAppearance:'none'}}>Cancel</button>
+                <button onClick={()=>setEditDate(null)}
+                  style={{flex:1,padding:'16px',borderRadius:14,border:'none',
+                    background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
+                    color:C.mode==='light'?'#fff':'#0A0C18',
+                    fontSize:15,fontWeight:800,cursor:'pointer',fontFamily:'var(--sans)',
+                    WebkitAppearance:'none'}}>Confirm</button>
               </div>
             </div>
           </div>
@@ -1834,19 +1886,35 @@ const LIFESTYLE_FALLBACK = (()=>{
     mkSvg(`<rect x="150" y="100" width="100" height="100" rx="16" fill="#9B8CE0" opacity="0.12"/><rect x="280" y="100" width="100" height="100" rx="16" fill="#7CC4D8" opacity="0.12"/><rect x="410" y="100" width="100" height="100" rx="16" fill="#C47898" opacity="0.10"/><rect x="150" y="230" width="100" height="100" rx="16" fill="#7CC4D8" opacity="0.10"/><rect x="280" y="230" width="100" height="100" rx="16" fill="#9B8CE0" opacity="0.10"/><rect x="410" y="230" width="100" height="100" rx="16" fill="url(#a1)" opacity="0.12"/><circle cx="650" cy="150" r="40" fill="#9B8CE0" opacity="0.06"/>`),
   ];
   return {articles:[
-    {id:"1",title:"The Only 5 Exercises You Need to Build Full-Body Strength",link:"https://www.gq.com/story/full-body-strength",summary:"A sports scientist breaks down the essential compound movements that deliver maximum results with minimum time in the gym.",date:"2026-02-20T10:00:00",image:imgs[0],source:"GQ Fitness",type:"article"},
-    {id:"2",title:"Why Zone 2 Cardio Is the Biggest Trend in Fitness Right Now",link:"https://www.gq.com/story/zone-2-cardio",summary:"The low-intensity training method beloved by endurance athletes is going mainstream — and the science backs it up.",date:"2026-02-18T14:00:00",image:imgs[1],source:"GQ Fitness",type:"article"},
-    {id:"3",title:"How to Actually Stick to a High-Protein Diet Without Hating Your Life",link:"https://www.gq.com/story/high-protein-diet",summary:"Dietitians share their top strategies for hitting 150g+ protein daily with meals you'll actually look forward to.",date:"2026-02-15T09:00:00",image:imgs[2],source:"GQ Fitness",type:"article"},
-    {id:"4",title:"The Science of Recovery: What Really Works After a Hard Workout",link:"https://www.gq.com/story/workout-recovery",summary:"Cold plunges, compression boots, stretching — we asked exercise scientists which recovery methods are worth your time.",date:"2026-02-12T11:00:00",image:imgs[3],source:"GQ Fitness",type:"article"},
-    {id:"5",title:"Your Guide to Training for a Half Marathon in 12 Weeks",link:"https://www.gq.com/story/half-marathon-training",summary:"A progressive plan that builds endurance without burning out, plus nutrition tips for race day performance.",date:"2026-02-10T08:00:00",image:imgs[4],source:"GQ Fitness",type:"article"},
-    {id:"6",title:"The Best Home Gym Equipment That's Actually Worth Buying",link:"https://www.gq.com/story/home-gym-equipment",summary:"From adjustable dumbbells to compact rowers, these are the pieces that personal trainers recommend for a small-space setup.",date:"2026-02-08T12:00:00",image:imgs[5],source:"GQ Fitness",type:"article"},
+    {id:"1",title:"Why Lifting Weights Is for Everyone",link:"https://www.gq.com/story/why-lifting-weights-is-for-everyone",summary:"A sports scientist breaks down why strength training delivers results for every body type — and how to get started with compound movements.",date:"2026-02-20T10:00:00",image:imgs[0],source:"GQ Fitness",type:"article"},
+    {id:"2",title:"Why Easy Zone 2 Workouts Became the Biggest Thing in Fitness",link:"https://www.gq.com/story/why-easy-zone-2-workouts-became-the-biggest-thing-in-fitness-1",summary:"Low-intensity training is great for you, no matter what your fitness-tracking gadget says. Experts explain the science.",date:"2026-02-18T14:00:00",image:imgs[1],source:"GQ Fitness",type:"article"},
+    {id:"3",title:"How Fit Can You Get From Just Walking?",link:"https://www.gq.com/story/how-fit-can-you-get-from-just-walking",summary:"A sports medicine physician shares a step-by-step guide to burning fat and building fitness without breaking into a jog.",date:"2026-02-15T09:00:00",image:imgs[2],source:"GQ Fitness",type:"article"},
+    {id:"4",title:"Better Sleep Starts With More Sunshine",link:"https://www.gq.com/story/better-sleep-starts-with-more-sunshine",summary:"The counterintuitive connection between daylight exposure and quality rest — and how to optimise your circadian rhythm.",date:"2026-02-12T11:00:00",image:imgs[3],source:"GQ Fitness",type:"article"},
+    {id:"5",title:"Is Cardio or Muscular Strength More Important for Longevity?",link:"https://www.gq.com/story/is-cardio-fitness-or-muscular-strength-more-important-for-longevity",summary:"Researchers weigh in on the fitness debate that could determine how long — and how well — you live.",date:"2026-02-10T08:00:00",image:imgs[4],source:"GQ Fitness",type:"article"},
+    {id:"6",title:"The Best Home Gym Equipment Worth Buying in 2025",link:"https://www.gq.com/gallery/best-home-gym-equipment",summary:"From adjustable dumbbells to compact rowers, these are the pieces that personal trainers recommend for a small-space setup.",date:"2026-02-08T12:00:00",image:imgs[5],source:"GQ Fitness",type:"article"},
   ]};
 })();
 
 function LifestyleTab({vis,isD,isT,isM}) {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all"); // all | article | video | podcast
+  const [filter, setFilter] = useState("all");
+  const READ_KEY = 'stride_read_articles';
+  const [readIds, setReadIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(READ_KEY) || '[]'); } catch { return []; }
+  });
+  const markRead = (id) => {
+    if (!readIds.includes(id)) {
+      const next = [...readIds, id];
+      setReadIds(next);
+      try { localStorage.setItem(READ_KEY, JSON.stringify(next)); } catch {}
+    }
+  };
+  const isNew = (article) => {
+    const d = new Date(article.date);
+    const now = new Date();
+    return (now - d) < 7 * 86400000; // published within last 7 days
+  }; // all | article | video | podcast
 
   useEffect(()=>{
     let cancelled = false;
@@ -1908,7 +1976,7 @@ function LifestyleTab({vis,isD,isT,isM}) {
     }
   };
 
-  const ArticleCard = ({item, idx, featured: isFeatured}) => {
+  const ArticleCard = ({item, idx, featured: isFeatured, isUnread, isNewArticle, onRead}) => {
     const hasImg = !!item.image;
     const cardH = isFeatured ? (isM ? 240 : 300) : (isM ? 180 : 210);
     const [imgLoaded, setImgLoaded] = useState(true);
@@ -1917,6 +1985,7 @@ function LifestyleTab({vis,isD,isT,isM}) {
     const isExternalImg = showImg && !isSvgData;
     return (
       <a href={item.link} target="_blank" rel="noopener noreferrer"
+        onClick={()=>onRead && onRead(item.id)}
         style={{display:'block',textDecoration:'none',color:'inherit',
           borderRadius:20,overflow:'hidden',position:'relative',
           background:C.glass,border:`1px solid ${C.glassBorder}`,
@@ -1950,7 +2019,7 @@ function LifestyleTab({vis,isD,isT,isM}) {
             background:`linear-gradient(to top, ${C.mode==='light'?'rgba(224,225,239,0.85)':'rgba(10,12,24,0.80)'} 0%, transparent 55%)`}}/>}
           {!showImg && <div style={{position:'absolute',inset:0,
             background:`linear-gradient(to top, ${C.mode==='light'?'rgba(220,220,240,0.95)':'rgba(10,12,24,0.90)'} 0%, transparent 100%)`}}/>}
-          {/* Source badge */}
+          {/* Source badge + New/Unread indicators */}
           <div style={{position:'absolute',top:14,left:14,display:'flex',gap:6,alignItems:'center'}}>
             <span style={{padding:'5px 12px',borderRadius:10,
               background:isExternalImg?'rgba(0,0,0,0.35)':(C.mode==='light'?'rgba(255,255,255,0.85)':'rgba(0,0,0,0.55)'),
@@ -1960,7 +2029,14 @@ function LifestyleTab({vis,isD,isT,isM}) {
               {sourceIcon(item.type)&&<span style={{marginRight:4}}>{sourceIcon(item.type)}</span>}
               {item.source}
             </span>
+            {isNewArticle && <span style={{padding:'3px 8px',borderRadius:8,
+              background:'linear-gradient(135deg,#9B8CE0,#7CC4D8)',
+              fontSize:9,fontWeight:800,color:'#fff',letterSpacing:.5,textTransform:'uppercase'}}>New</span>}
           </div>
+          {/* Unread dot indicator */}
+          {isUnread && <div style={{position:'absolute',top:14,right:14,width:10,height:10,borderRadius:5,
+            background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
+            boxShadow:`0 0 8px ${C.mint}66`,border:'2px solid rgba(255,255,255,0.5)'}}/>}
           {/* Title overlaid on image */}
           <div style={{position:'absolute',bottom:0,left:0,right:0,padding:isFeatured?'20px 20px':'14px 16px'}}>
             <h3 style={{margin:0,fontSize:isFeatured?(isM?18:24):14,fontWeight:800,lineHeight:1.25,
@@ -1993,7 +2069,10 @@ function LifestyleTab({vis,isD,isT,isM}) {
       {/* Header */}
       <div style={{marginBottom:16}}>
         <Lbl>Lifestyle & Fitness</Lbl>
-        <p style={{fontSize:12,color:C.text3,margin:0}}>Curated reads from GQ Fitness and more</p>
+        <p style={{fontSize:12,color:C.text3,margin:0}}>Curated reads from GQ Fitness and more{(()=>{
+          const unread = articles.filter(a=>!readIds.includes(a.id)).length;
+          return unread > 0 ? <span style={{marginLeft:8,padding:'2px 8px',borderRadius:8,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,color:'#fff',fontSize:10,fontWeight:700}}>{unread} unread</span> : null;
+        })()}</p>
       </div>
 
       {/* Type filter pills */}
@@ -2027,9 +2106,9 @@ function LifestyleTab({vis,isD,isT,isM}) {
       ) : (
         <div style={{display:'grid',gridTemplateColumns:isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr',gap:isD?16:12}}>
           {/* Featured article — spans full width */}
-          {featured && <ArticleCard item={featured} idx={0} featured={true}/>}
+          {featured && <ArticleCard item={featured} idx={0} featured={true} isUnread={!readIds.includes(featured.id)} isNewArticle={isNew(featured)} onRead={markRead}/>}
           {/* Remaining articles */}
-          {rest.map((a,i)=><ArticleCard key={a.id||i} item={a} idx={i+1} featured={false}/>)}
+          {rest.map((a,i)=><ArticleCard key={a.id||i} item={a} idx={i+1} featured={false} isUnread={!readIds.includes(a.id)} isNewArticle={isNew(a)} onRead={markRead}/>)}
         </div>
       )}
     </div>
