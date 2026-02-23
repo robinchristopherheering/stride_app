@@ -2380,15 +2380,45 @@ export default function Stride() {
     }
   }, [liveData, gymSleep.data]);
 
+  // Lifestyle article tracking for notifications
+  const [lifestyleArticles, setLifestyleArticles] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/data/lifestyle.json');
+        if (res.ok) { const data = await res.json(); setLifestyleArticles(data.articles || []); }
+        else setLifestyleArticles(LIFESTYLE_FALLBACK.articles);
+      } catch { setLifestyleArticles(LIFESTYLE_FALLBACK.articles); }
+    })();
+  }, []);
+  const readArticleIds = (() => { try { return JSON.parse(localStorage.getItem('stride_read_articles') || '[]'); } catch { return []; } })();
+
   const notifications = useMemo(() => {
     const t = D.today || {cal:0,pro:0,carb:0,fat:0,fib:0,sug:0,steps:0,sleep:0,gym:false,comp:0};
-    return [
-    {id:"n1",title:"Fiber Gap",tip:`You're at ${t.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action",tab:"coach"},
-    {id:"n2",title:t.pro>=130?"Protein On Track":"Protein Low",tip:t.pro>=130?`${t.pro}g protein today — great execution.`:`${t.pro}g protein is below 130g. Add a shake or chicken.`,type:t.pro>=130?"success":"warning",tab:"coach"},
-    {id:"n3",title:"Step Check",tip:`${t.steps.toLocaleString()} steps. ${t.steps>=8000?"Target hit!":"A 20-min walk adds ~2,500 steps."}`,type:t.steps>=8000?"success":"action",tab:"activity"},
-    {id:"n4",title:"Weekly Trend",tip:`Compliance at ${D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0}/100. ${(D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0)>=75?"Solid.":"Focus on protein & fiber."}`,type:(D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0)>=75?"success":"action",tab:"progress"},
-    {id:"n5",title:"Weight Pace",tip:`-${D.insights.velocity}kg/wk over 3 weeks. ${parseFloat(D.insights.velocity)>=0.8?"Sustainable pace.":"Check calorie adherence."}`,type:parseFloat(D.insights.velocity)>=0.8?"success":"warning",tab:"progress"},
-  ];}, [D]);
+    const items = [
+      {id:"n1",title:"Fiber Gap",tip:`You're at ${t.fib}g fiber — add broccoli or chia seeds to reach 20g.`,type:"action",tab:"coach",source:"AI Coach",sourceColor:C.purple},
+      {id:"n2",title:t.pro>=130?"Protein On Track":"Protein Low",tip:t.pro>=130?`${t.pro}g protein today — great execution.`:`${t.pro}g protein is below 130g. Add a shake or chicken.`,type:t.pro>=130?"success":"warning",tab:"coach",source:"AI Coach",sourceColor:C.purple},
+      {id:"n3",title:"Step Check",tip:`${t.steps.toLocaleString()} steps. ${t.steps>=8000?"Target hit!":"A 20-min walk adds ~2,500 steps."}`,type:t.steps>=8000?"success":"action",tab:"activity",source:"Activity",sourceColor:C.blue},
+      {id:"n4",title:"Weekly Trend",tip:`Compliance at ${D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0}/100. ${(D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0)>=75?"Solid.":"Focus on protein & fiber."}`,type:(D.W_NUTR.length?D.W_NUTR[D.W_NUTR.length-1].comp:0)>=75?"success":"action",tab:"progress",source:"Progress",sourceColor:C.cyan},
+      {id:"n5",title:"Weight Pace",tip:`-${D.insights.velocity}kg/wk over 3 weeks. ${parseFloat(D.insights.velocity)>=0.8?"Sustainable pace.":"Check calorie adherence."}`,type:parseFloat(D.insights.velocity)>=0.8?"success":"warning",tab:"progress",source:"Progress",sourceColor:C.cyan},
+    ];
+    // Add unread lifestyle articles as notifications
+    const now = new Date();
+    lifestyleArticles.filter(a => !readArticleIds.includes(a.id)).slice(0, 3).forEach((a, i) => {
+      const isRecent = (now - new Date(a.date)) < 7 * 86400000;
+      items.push({
+        id: `article_${a.id}`,
+        title: isRecent ? `New: ${a.title}` : a.title,
+        tip: a.summary,
+        type: isRecent ? "action" : "success",
+        tab: "lifestyle",
+        source: "Lifestyle",
+        sourceColor: C.mint,
+        link: a.link,
+      });
+    });
+    return items;
+  }, [D, lifestyleArticles, readArticleIds]);
   const unreadCount = notifications.filter(n => !notifRead[n.id]).length;
 
   useEffect(() => {
@@ -2401,8 +2431,8 @@ export default function Stride() {
   const typeColor = {warning:C.orange,success:C.mint,action:C.blue};
 
   const NotifPanel = () => (
-    <div ref={notifRef} style={{position:'absolute',top:'100%',right:0,marginTop:8,width:320,maxHeight:420,overflowY:'auto',
-      background:C.mode==='light'?'rgba(255,255,255,0.92)':C.surfaceSolid,
+    <div ref={notifRef} style={{position:'absolute',top:'100%',right:0,marginTop:8,width:340,maxHeight:460,overflowY:'auto',
+      background:C.mode==='light'?'rgba(255,255,255,0.95)':C.surfaceSolid,
       border:`1px solid ${C.glassBorder}`,borderRadius:16,
       boxShadow:C.mode==='light'?'0 12px 48px rgba(0,0,0,.12)':'0 12px 48px rgba(0,0,0,.6)',
       backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,
@@ -2416,7 +2446,7 @@ export default function Stride() {
         {notifications.map(n => {
           const isRead = !!notifRead[n.id];
           return (
-            <button key={n.id} onClick={(e) => { e.stopPropagation(); setNotifRead(p=>({...p,[n.id]:true})); setNotifOpen(false); setTab(n.tab||"coach"); }}
+            <button key={n.id} onClick={(e) => { e.stopPropagation(); setNotifRead(p=>({...p,[n.id]:true})); setNotifOpen(false); if(n.link){window.open(n.link,'_blank');}else{setTab(n.tab||"coach");} }}
               style={{display:'flex',alignItems:'flex-start',gap:10,width:'100%',padding:'10px 10px',borderRadius:10,border:'none',cursor:'pointer',
                 background:isRead?'transparent':(C.mode==='light'?'rgba(0,0,0,0.02)':'rgba(255,255,255,0.02)'),textAlign:'left',fontFamily:'var(--sans)',transition:'background .15s',marginBottom:2}}
               onMouseEnter={e=>e.currentTarget.style.background=C.mode==='light'?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.04)'}
@@ -2424,8 +2454,16 @@ export default function Stride() {
               <div style={{width:7,height:7,borderRadius:'50%',background:isRead?'transparent':typeColor[n.type]||C.mint,flexShrink:0,marginTop:5,transition:'background .2s',
                 boxShadow:isRead?'none':`0 0 6px ${(typeColor[n.type]||C.mint)}44`}}/>
               <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+                  <span style={{padding:'2px 6px',borderRadius:5,fontSize:8,fontWeight:700,letterSpacing:.4,textTransform:'uppercase',
+                    background:n.sourceColor?`${n.sourceColor}18`:(C.mode==='light'?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.06)'),
+                    color:n.sourceColor||C.text3,border:`1px solid ${n.sourceColor?`${n.sourceColor}25`:C.border}`}}>{n.source||'System'}</span>
+                  {n.id.startsWith('article_')&&<span style={{padding:'1px 5px',borderRadius:4,fontSize:7,fontWeight:800,letterSpacing:.5,textTransform:'uppercase',
+                    background:'linear-gradient(135deg,#9B8CE0,#7CC4D8)',color:'#fff'}}>New Article</span>}
+                </div>
                 <div style={{fontSize:11,fontWeight:isRead?500:700,color:isRead?C.text3:C.text}}>{n.title}</div>
-                <div style={{fontSize:10,color:C.text3,marginTop:2,lineHeight:1.4,opacity:isRead?0.6:1}}>{n.tip}</div>
+                <div style={{fontSize:10,color:C.text3,marginTop:2,lineHeight:1.4,opacity:isRead?0.6:1,
+                  overflow:'hidden',textOverflow:'ellipsis',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical'}}>{n.tip}</div>
               </div>
               <div style={{color:C.text3,flexShrink:0,marginTop:2,opacity:0.5}}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9 18l6-6-6-6"/></svg>
