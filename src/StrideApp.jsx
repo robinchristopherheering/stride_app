@@ -1855,49 +1855,66 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
   const weekData = weekDates.map(getMergedDay);
   const todayStr = localDateStr();
 
+  // Compute weekly avg steps from ALL sources (DAILY_ALL + gymSleep history)
+  const weeklySteps = useMemo(() => {
+    const programStart = new Date('2026-01-05T00:00:00');
+    const byWeek = {};
+    // Pull from DAILY_ALL (synced data)
+    (D.DAILY_ALL||[]).forEach(dd => {
+      const w = dd.w || 1;
+      if (!byWeek[w]) byWeek[w] = {total:0,count:0};
+      if (dd.steps > 0) { byWeek[w].total += dd.steps; byWeek[w].count++; }
+    });
+    // Pull from gymSleep localStorage (which has steps for every day)
+    const gsData = gymSleep.data || {};
+    Object.entries(gsData).forEach(([dateStr, dd]) => {
+      if (!dd.steps || dd.steps <= 0) return;
+      const dt = new Date(dateStr + 'T00:00:00');
+      const w = Math.max(1, Math.floor((dt - programStart) / (7*86400000)) + 1);
+      if (!byWeek[w]) byWeek[w] = {total:0,count:0};
+      // Only add if DAILY_ALL didn't already cover this day
+      const mm = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const fmtCheck = `${mm[dt.getMonth()]} ${dt.getDate()}`;
+      const alreadyCovered = (D.DAILY_ALL||[]).some(d => d.dt === fmtCheck && d.steps > 0);
+      if (!alreadyCovered) { byWeek[w].total += dd.steps; byWeek[w].count++; }
+    });
+    const result = Object.entries(byWeek)
+      .filter(([,v]) => v.count > 0)
+      .map(([w,v]) => ({w:parseInt(w), v:Math.round(v.total/v.count)}))
+      .sort((a,b) => a.w - b.w);
+    return result.length > 0 ? result : [{w:D.currentWeek||8, v:avgSteps}];
+  }, [D.DAILY_ALL, gymSleep.data, D.currentWeek, avgSteps]);
+
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       <div style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <DateNav D={D} value={dateNav} onChange={setDateNav}/></div>
-      <AnimCard style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+      {/* Row 1: Steps + Sleep — symmetric 2-col */}
+      <AnimCard style={{gridColumn:isD?'1/3':isT?'1/2':'1',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
         <Lbl modalId="steps" onModal={setInfoModal}>{label} Steps</Lbl>
         <Arc val={d.steps} max={10000} label="" sz={isD?140:120} sw={10} color={d.steps>=8000?C.mint:C.orange} visible={v}/>
-        <div style={{marginTop:8}}><Tag color={d.steps>=8000?C.mint:C.orange}>{d.steps>=8000?"On target":"Below target"}</Tag></div>
+        <div style={{display:'flex',gap:10,marginTop:10,alignItems:'center'}}>
+          <Tag color={d.steps>=8000?C.mint:C.orange}>{d.steps>=8000?"On target":"Below target"}</Tag>
+          {d.gym!==undefined&&<Tag color={d.gym?C.mint:C.text3}>{I.dumbbell} {d._isRange?`${d.gym} days`:d.gym?"Gym ✓":"Rest day"}</Tag>}
+        </div>
       </AnimCard>
       <AnimCard delay={0.05} style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
         <Lbl>{label} Sleep</Lbl>
         <Ring val={d.sleep} max={9} sz={isD?120:100} sw={8} color={d.sleep>=7?C.cyan:C.orange} visible={v}>
           <CountUp to={d.sleep} decimals={1} style={{fontSize:26}} color={d.sleep>=7?C.cyan:C.orange}/><span style={{fontSize:9,color:C.text3}}>hrs</span></Ring>
-        <div style={{marginTop:8}}><Tag color={d.sleep>=7?C.cyan:C.orange}>{d.sleep>=7?"Good rest":"Needs more"}</Tag></div>
-      </AnimCard>
-      <AnimCard delay={0.1}>
-        <Lbl>{label} Daily Stats</Lbl>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,textAlign:'center'}}>
-          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.blue}}>{(d.steps||0).toLocaleString()}</div><div style={{fontSize:9,color:C.text3}}>steps</div></div>
-          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>{d.sleep||0}</div><div style={{fontSize:9,color:C.text3}}>hrs sleep</div></div>
-          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>{d._isRange?d.gym:d.gym?'Yes':'No'}</div><div style={{fontSize:9,color:C.text3}}>gym</div></div>
+        <div style={{display:'flex',gap:10,marginTop:10,alignItems:'center'}}>
+          <Tag color={d.sleep>=7?C.cyan:C.orange}>{d.sleep>=7?"Good rest":"Needs more"}</Tag>
+          <span style={{fontSize:10,color:C.text3}}>avg: {avgSleep}h</span>
         </div>
       </AnimCard>
-      <AnimCard delay={0.1}>
-        <Lbl>Program Averages</Lbl>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,textAlign:'center'}}>
-          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.blue}}>{avgSteps.toLocaleString()}</div><div style={{fontSize:9,color:C.text3}}>steps/day</div></div>
-          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>{avgSleep}</div><div style={{fontSize:9,color:C.text3}}>hrs sleep</div></div>
-          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>{gymDays}</div><div style={{fontSize:9,color:C.text3}}>gym days</div></div>
-        </div>
-      </AnimCard>
-      <AnimCard delay={0.15} style={{gridColumn:isD?'1/3':isT?'1/3':'1'}}>
+      {/* Row 2: Weekly Avg Steps — full width bar chart */}
+      <AnimCard delay={0.1} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Weekly Avg Steps</Lbl>
-        {D.W_STEPS.length > 1 ? (<>
-          <Bars data={D.W_STEPS.map(s=>({v:s.v,label:`W${s.w}`}))} max={12000} color={C.blue} activeIdx={D.W_STEPS.length-1} visible={v}/>
-          <div style={{textAlign:'center',marginTop:14}}><CountUp to={(D.W_STEPS[D.W_STEPS.length-1]||{v:0}).v} style={{fontSize:24}} color={C.blue}/><span style={{fontSize:11,color:C.text3,marginLeft:6}}>avg W{D.currentWeek}</span></div>
-        </>) : (
-          <div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>
-            <div style={{fontSize:11,marginBottom:8}}>Average daily steps per week</div>
-            <div style={{fontSize:28,fontWeight:800,fontFamily:'var(--mono)',color:C.blue}}>{avgSteps.toLocaleString()}</div>
-            <div style={{fontSize:10,color:C.text3,marginTop:4}}>across {totalDays} days tracked</div>
-          </div>
-        )}
+        <Bars data={weeklySteps.map(s=>({v:s.v,label:`W${s.w}`}))} max={Math.max(12000,...weeklySteps.map(s=>s.v))} color={C.blue} activeIdx={weeklySteps.length-1} visible={v}/>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginTop:14}}>
+          <div><span style={{fontSize:10,color:C.text3}}>All-time avg: </span><span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.blue}}>{avgSteps.toLocaleString()}</span><span style={{fontSize:10,color:C.text3}}> steps/day</span></div>
+          <div><span style={{fontSize:10,color:C.text3}}>W{D.currentWeek}: </span><span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>{(weeklySteps[weeklySteps.length-1]||{v:0}).v.toLocaleString()}</span></div>
+        </div>
       </AnimCard>
 
       {/* Daily Activity — tap to edit */}
@@ -2120,44 +2137,89 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
               color:C.text2,fontSize:11,fontWeight:600,cursor:'pointer'}}>Cancel</button>}
         </div>
       </AnimCard>
-      {/* Program Length & Phase Weeks Editor */}
+      {/* Program Structure — visual timeline */}
       <AnimCard delay={0.03} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
           <Lbl style={{marginBottom:0}}>Program Structure</Lbl>
-          <button onClick={()=>{if(editProgram){settings.save({totalWeeks:parseInt(tw)||14,phaseWeeks:pw});}setEditProgram(!editProgram);}}
-            style={{padding:'6px 14px',borderRadius:8,border:editProgram?'none':`1px solid ${C.mintMed}`,
-              background:editProgram?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:'transparent',
-              color:editProgram?(C.mode==='light'?'#fff':'#0A0C18'):C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>{editProgram?'Save':'Edit'}</button>
-        </div>
-        <div style={{display:'flex',gap:16,alignItems:'center',flexWrap:'wrap',marginBottom:editProgram?16:0}}>
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <span style={{fontSize:11,color:C.text3}}>Total Weeks:</span>
-            {editProgram?<input type="number" value={tw} min={4} max={52}
-              onChange={e=>setTw(e.target.value)}
-              style={{width:50,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:14,fontFamily:'var(--mono)',textAlign:'center',outline:'none'}}/>
-              :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>{settings.totalWeeks||14}</span>}
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:6}}>
-            <span style={{fontSize:11,color:C.text3}}>Current:</span>
-            <span style={{fontSize:14,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>Week {D.currentWeek}</span>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <span style={{fontSize:10,color:C.text3}}>Now: <span style={{color:C.cyan,fontWeight:700}}>Week {D.currentWeek}</span></span>
+            <button onClick={()=>{if(editProgram){settings.save({totalWeeks:parseInt(tw)||14,phaseWeeks:pw});}setEditProgram(!editProgram);}}
+              style={{padding:'6px 14px',borderRadius:8,border:editProgram?'none':`1px solid ${C.mintMed}`,
+                background:editProgram?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:'transparent',
+                color:editProgram?(C.mode==='light'?'#fff':'#0A0C18'):C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>{editProgram?'Save':'Edit'}</button>
           </div>
         </div>
-        {editProgram && <div style={{display:'grid',gridTemplateColumns:isD?'repeat(3,1fr)':'1fr',gap:10}}>
-          {phases.map(p => (
-            <div key={p.n} style={{padding:'12px 14px',borderRadius:12,background:C.subtle,border:`1px solid ${C.border}`}}>
-              <div style={{fontSize:11,fontWeight:700,color:settings.phase===p.n?C.mint:C.text,marginBottom:8}}>{p.n}. {p.l}</div>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontSize:10,color:C.text3}}>From W</span>
-                <input type="number" value={pw[p.n]?.from||''} min={1} max={tw}
-                  onChange={e=>{const v=parseInt(e.target.value)||1;setPw(prev=>({...prev,[p.n]:{...prev[p.n],from:v}}));}}
-                  style={{width:40,padding:'4px 6px',borderRadius:6,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:12,fontFamily:'var(--mono)',textAlign:'center',outline:'none'}}/>
-                <span style={{fontSize:10,color:C.text3}}>to W</span>
-                <input type="number" value={pw[p.n]?.to||''} min={1} max={tw}
-                  onChange={e=>{const v=parseInt(e.target.value)||1;setPw(prev=>({...prev,[p.n]:{...prev[p.n],to:v}}));}}
-                  style={{width:40,padding:'4px 6px',borderRadius:6,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:12,fontFamily:'var(--mono)',textAlign:'center',outline:'none'}}/>
-              </div>
+        {/* Visual phase timeline bar */}
+        {!editProgram && <div>
+          <div style={{display:'flex',height:32,borderRadius:10,overflow:'hidden',marginBottom:12,border:`1px solid ${C.border}`}}>
+            {phases.map((p,i) => {
+              const from = pw[p.n]?.from||1, to = pw[p.n]?.to||1;
+              const span = to - from + 1;
+              const total = parseInt(tw)||14;
+              const pct = (span/total)*100;
+              const isCurrent = D.currentWeek >= from && D.currentWeek <= to;
+              const colors = [C.mint, C.cyan, C.purple];
+              return (<div key={p.n} style={{width:`${pct}%`,minWidth:40,background:isCurrent?`${colors[i]}22`:C.subtle,
+                borderRight:i<phases.length-1?`1px solid ${C.border}`:'none',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:4,padding:'0 8px',position:'relative'}}>
+                <span style={{fontSize:10,fontWeight:700,color:isCurrent?colors[i]:C.text3,whiteSpace:'nowrap'}}>{p.l}</span>
+                <span style={{fontSize:8,color:C.text3,whiteSpace:'nowrap'}}>W{from}–{to}</span>
+                {isCurrent && <div style={{position:'absolute',bottom:-2,left:`${((D.currentWeek-from)/(span))*100}%`,width:3,height:3,borderRadius:'50%',background:colors[i]}}/>}
+              </div>);
+            })}
+          </div>
+          <div style={{fontSize:10,color:C.text3,textAlign:'center'}}>{tw || settings.totalWeeks || 14} weeks total</div>
+        </div>}
+        {/* Edit mode — cleaner inputs */}
+        {editProgram && <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 18px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
+            <span style={{fontSize:12,color:C.text2,fontWeight:600,whiteSpace:'nowrap'}}>Program Length</span>
+            <div style={{display:'flex',alignItems:'center',gap:8,marginLeft:'auto'}}>
+              <button onClick={()=>setTw(Math.max(4,parseInt(tw)-1))}
+                style={{width:32,height:32,borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:16,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
+              <span style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.mint,minWidth:40,textAlign:'center'}}>{tw}</span>
+              <button onClick={()=>setTw(Math.min(52,parseInt(tw)+1))}
+                style={{width:32,height:32,borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:16,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
+              <span style={{fontSize:11,color:C.text3}}>weeks</span>
             </div>
-          ))}
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:isD?'repeat(3,1fr)':'1fr',gap:10}}>
+            {phases.map((p,i) => {
+              const colors = [C.mint, C.cyan, C.purple];
+              const isActive = settings.phase===p.n;
+              return (
+                <div key={p.n} style={{padding:'16px 18px',borderRadius:14,background:C.subtle,
+                  border:`1px solid ${isActive?colors[i]:C.border}`,
+                  boxShadow:isActive?`0 0 0 1px ${colors[i]}22`:'none'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+                    <div style={{width:24,height:24,borderRadius:8,background:colors[i]+'22',color:colors[i],
+                      display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800}}>{p.n}</div>
+                    <span style={{fontSize:13,fontWeight:700,color:isActive?colors[i]:C.text}}>{p.l}</span>
+                    {isActive && <Tag color={colors[i]}>Active</Tag>}
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <span style={{fontSize:11,color:C.text3,fontWeight:600}}>Week</span>
+                    <div style={{display:'flex',alignItems:'center',gap:4}}>
+                      <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],from:Math.max(1,(prev[p.n]?.from||1)-1)}}))}
+                        style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+                      <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:colors[i],minWidth:24,textAlign:'center'}}>{pw[p.n]?.from||1}</span>
+                      <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],from:Math.min(parseInt(tw),(prev[p.n]?.from||1)+1)}}))}
+                        style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
+                    </div>
+                    <span style={{fontSize:11,color:C.text3,fontWeight:600}}>to</span>
+                    <div style={{display:'flex',alignItems:'center',gap:4}}>
+                      <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],to:Math.max(1,(prev[p.n]?.to||1)-1)}}))}
+                        style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
+                      <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:colors[i],minWidth:24,textAlign:'center'}}>{pw[p.n]?.to||1}</span>
+                      <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],to:Math.min(parseInt(tw),(prev[p.n]?.to||1)+1)}}))}
+                        style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
+                    </div>
+                    <span style={{fontSize:10,color:C.text3,marginLeft:'auto'}}>{(pw[p.n]?.to||1)-(pw[p.n]?.from||1)+1}w</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>}
       </AnimCard>
       {phases.map((p,pi)=>{const isActive=settings.phase===p.n;return(<AnimCard key={p.n} glow={isActive} delay={pi*0.08} style={{gridColumn:isD&&isActive?'1/4':isT&&isActive?'1/3':'1'}}>
