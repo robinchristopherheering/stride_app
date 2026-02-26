@@ -1835,9 +1835,9 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
       if (gs) {
         return {
           ...d_raw,
-          steps: d_raw.steps || gs.steps || 0,
-          sleep: d_raw.sleep || gs.sleep || 0,
-          gym: d_raw.gym || gs.gym || false,
+          steps: gs.steps > 0 ? gs.steps : (d_raw.steps || 0),
+          sleep: gs.sleep > 0 ? gs.sleep : (d_raw.sleep || 0),
+          gym: gs.gym === true ? true : (d_raw.gym || false),
         };
       }
     }
@@ -1885,11 +1885,12 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
     const dtFmt = `${MN[dt.getMonth()]} ${dt.getDate()}`;
     const dailyMatch = D.DAILY_ALL.find(dd => dd.dt === dtFmt);
     const dow = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][dt.getDay()];
+    // Use whichever source has data; prefer gymSleep if user entered it, else DAILY_ALL
     return {
       date: dateStr, dow,
-      steps: gs.steps || dailyMatch?.steps || 0,
-      sleep: gs.sleep || dailyMatch?.sleep || 0,
-      gym: gs.gym || dailyMatch?.gym || false,
+      steps: gs.steps > 0 ? gs.steps : (dailyMatch?.steps || 0),
+      sleep: gs.sleep > 0 ? gs.sleep : (dailyMatch?.sleep || 0),
+      gym: gs.gym === true ? true : (dailyMatch?.gym || false),
     };
   };
   const weekData = weekDates.map(getMergedDay);
@@ -2830,6 +2831,64 @@ export default function Stride() {
     setSyncing(false);
   }, []);
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Auto-fetch current week's diary data from MFP proxy to backfill gymSleep
+  // This ensures mobile and desktop always show the same MFP data
+  useEffect(() => {
+    if (!PROXY_URL) return;
+    const backfillWeek = async () => {
+      try {
+        const today = new Date();
+        const dow = today.getDay() || 7; // Mon=1..Sun=7
+        const dates = [];
+        for (let i = 1; i <= dow; i++) {
+          const dd = new Date(today);
+          dd.setDate(today.getDate() - dow + i);
+          dates.push(localDateStr(dd));
+        }
+        console.log('[Stride] Backfilling week steps:', dates.length, 'days');
+        const results = await Promise.all(dates.map(async (ds) => {
+          try {
+            const resp = await fetch(`${PROXY_URL}/api/diary?date=${ds}`);
+            if (resp.ok) {
+              const data = await resp.json();
+              return { date: ds, steps: data.calories > 0 ? (data.steps || 0) : 0, cal: data.calories || 0 };
+            }
+          } catch(e) {}
+          return { date: ds, steps: 0, cal: 0 };
+        }));
+        // Also try fetching steps from /api/steps for each day
+        const stepResults = await Promise.all(dates.map(async (ds) => {
+          try {
+            const resp = await fetch(`${PROXY_URL}/api/steps?date=${ds}`);
+            if (resp.ok) {
+              const data = await resp.json();
+              return { date: ds, steps: data.steps || 0 };
+            }
+          } catch(e) {}
+          return { date: ds, steps: 0 };
+        }));
+        // Merge: use step endpoint data if available, fall back to diary endpoint
+        let updated = false;
+        results.forEach((r, i) => {
+          const steps = stepResults[i]?.steps || r.steps;
+          if (steps > 0) {
+            const existing = gymSleep.getDay(r.date);
+            // Only backfill if gymSleep doesn't already have steps for this day
+            if (!existing.steps || existing.steps === 0) {
+              gymSleep.setSteps(r.date, steps);
+              updated = true;
+              console.log(`[Stride] Backfilled ${r.date}: ${steps} steps`);
+            }
+          }
+        });
+        if (updated) console.log('[Stride] Week backfill complete');
+      } catch(e) { console.log('[Stride] Week backfill error:', e.message); }
+    };
+    // Run after a short delay so initial data loads first
+    const timer = setTimeout(backfillWeek, 3000);
+    return () => clearTimeout(timer);
+  }, []);
   const handleRefresh = async () => {
     setSyncing(true);
     // Try to trigger GitHub Actions sync workflow
