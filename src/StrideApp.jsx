@@ -1377,11 +1377,22 @@ function getDateData(dateNav, D) {
   const allDays = D.DAILY_ALL || [];
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const fmtDate = (ds) => {const d=new Date(ds+'T12:00:00');return `${months[d.getMonth()]} ${d.getDate()}`;};
+  // Dynamically compute compliance & flat stomach from macros
+  const withScores = (d) => {
+    const cal = d.cal||0, pro = d.pro||0, fib = d.fib||0;
+    const calScore = cal > 0 ? Math.min(100, (cal / 1350) * 100) : 0;
+    const proScore = pro > 0 ? Math.min(100, (pro / 140) * 100) : 0;
+    const fibScore = fib > 0 ? Math.min(100, (fib / 20) * 100) : 0;
+    const fibScoreStrict = fib > 0 ? Math.min(100, (fib / 35) * 100) : 0;
+    const comp = cal > 0 ? Math.round((calScore + proScore + fibScore) / 3) : 0;
+    const flat = cal > 0 ? Math.round((calScore + proScore + fibScoreStrict) / 3) : 0;
+    return {...d, comp, flat};
+  };
   if (dateNav.mode === 'day') {
     const dt = fmtDate(dateNav.date);
     const found = allDays.find(d => d.dt === dt);
-    if (found) return {...found, _isDay:true, _date:dateNav.date, _dt:dt};
-    if (dateNav.date === localDateStr()) return {...(D.today||{}), _isDay:true, _date:dateNav.date, _dt:dt};
+    if (found) return withScores({...found, _isDay:true, _date:dateNav.date, _dt:dt});
+    if (dateNav.date === localDateStr()) return withScores({...(D.today||{}), _isDay:true, _date:dateNav.date, _dt:dt});
     return {cal:0,pro:0,carb:0,fat:0,fib:0,sug:0,steps:0,comp:0,flat:0,sleep:0,gym:false,_isDay:true,_date:dateNav.date,_dt:dt,_empty:true};
   }
   const fromDate = new Date(dateNav.from+'T12:00:00');
@@ -1393,12 +1404,12 @@ function getDateData(dateNav, D) {
     if (mIdx<0||!day) return false;
     const dd = new Date(2026, mIdx, day);
     return dd >= fromDate && dd <= toDate;
-  });
+  }).map(withScores);
   if (!inRange.length) return {cal:0,pro:0,carb:0,fat:0,fib:0,sug:0,steps:0,comp:0,flat:0,sleep:0,gym:0,_isRange:true,_count:0,_days:[]};
   const avg=(key)=>Math.round(inRange.reduce((a,d)=>a+(d[key]||0),0)/inRange.length);
   const avgF=(key)=>+(inRange.reduce((a,d)=>a+(d[key]||0),0)/inRange.length).toFixed(1);
   return {cal:avg('cal'),pro:avg('pro'),carb:avg('carb'),fat:avg('fat'),fib:avg('fib'),sug:avg('sug'),steps:avg('steps'),
-    comp:avg('comp'),flat:avg('flat')||Math.max(0,avg('comp')-2),sleep:avgF('sleep'),
+    comp:avg('comp'),flat:avg('flat'),sleep:avgF('sleep'),
     gym:inRange.filter(x=>x.gym).length,_isRange:true,_count:inRange.length,_days:inRange};
 }
 const I={
@@ -1532,24 +1543,47 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
   // Only proxy-fetched data (D.FOOD_LOG has today from initial load)
   const allFoodLogs = useMemo(() => ({...D.FOOD_LOG, ...foodLogCache}), [D.FOOD_LOG, foodLogCache]);
 
+  // Parse proxy diary response — handles multiple response shapes
+  const parseDiary = (data) => {
+    const mk = ['breakfast','lunch','dinner','snack'];
+    // Shape 1: {meals: {breakfast:[], ...}}
+    if (data.meals && mk.some(k => (data.meals[k]||[]).length > 0)) return data.meals;
+    // Shape 2: {breakfast:[], lunch:[], ...} at top level
+    if (mk.some(k => (data[k]||[]).length > 0)) {
+      const m = {}; mk.forEach(k => { if (data[k]?.length > 0) m[k] = data[k]; }); return m;
+    }
+    // Shape 3: {food_entries: [...]} flat list
+    if (data.food_entries?.length > 0) {
+      const m = {breakfast:[],lunch:[],snack:[],dinner:[]};
+      data.food_entries.forEach(e => {
+        const sl = (e.meal_name||e.meal||'snack').toLowerCase();
+        const k = sl.includes('break')?'breakfast':sl.includes('lunch')?'lunch':sl.includes('din')?'dinner':'snack';
+        m[k].push({name:e.food_entry_name||e.name||'Unknown',amount:e.serving||e.amount||'',
+          cal:Math.round(parseFloat(e.calories||e.cal||0)),pro:Math.round(parseFloat(e.protein||e.pro||0)),
+          carb:Math.round(parseFloat(e.carbs||e.carb||0)),fat:Math.round(parseFloat(e.fat||0))});
+      });
+      if (mk.some(k => m[k].length > 0)) return m;
+    }
+    return null;
+  };
+
   // Fetch food log for a specific date from proxy
   const fetchFoodLog = useCallback(async (dateStr) => {
-    if (foodLogCache[dateStr] !== undefined) return; // already fetched (null = tried & empty)
+    if (foodLogCache[dateStr] !== undefined) return;
     setLoadingFood(true);
     try {
       const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
+      console.log(`[Stride] Food ${dateStr}: ${resp.status}`);
       if (resp.ok) {
         const data = await resp.json();
-        if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => (data.meals[k] || []).length > 0)) {
-          setFoodLogCache(prev => ({...prev, [dateStr]: data.meals}));
-        } else {
-          setFoodLogCache(prev => ({...prev, [dateStr]: null}));
-        }
+        console.log(`[Stride] Food keys ${dateStr}:`, Object.keys(data).join(','));
+        setFoodLogCache(prev => ({...prev, [dateStr]: parseDiary(data)}));
       } else {
+        console.log(`[Stride] Food ${dateStr}: HTTP ${resp.status}`);
         setFoodLogCache(prev => ({...prev, [dateStr]: null}));
       }
     } catch (e) {
-      console.log('[Stride] Food fetch error:', e.message);
+      console.log('[Stride] Food fetch error:', dateStr, e.message);
       setFoodLogCache(prev => ({...prev, [dateStr]: null}));
     }
     setLoadingFood(false);
@@ -1567,18 +1601,13 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
     if (dates.length === 0) return;
     setLoadingFood(true);
     const results = {};
-    // Batch in groups of 7 to avoid overwhelming proxy
     for (let i = 0; i < dates.length; i += 7) {
       const batch = dates.slice(i, i + 7);
       await Promise.all(batch.map(async (dateStr) => {
         try {
           const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => (data.meals[k] || []).length > 0)) {
-              results[dateStr] = data.meals;
-            } else { results[dateStr] = null; }
-          } else { results[dateStr] = null; }
+          if (resp.ok) { results[dateStr] = parseDiary(await resp.json()); }
+          else { results[dateStr] = null; }
         } catch(e) { results[dateStr] = null; }
       }));
     }
@@ -1615,12 +1644,8 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
         await Promise.all(batch.map(async (dateStr) => {
           try {
             const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
-            if (resp.ok) {
-              const data = await resp.json();
-              if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => (data.meals[k] || []).length > 0)) {
-                results[dateStr] = data.meals;
-              } else { results[dateStr] = null; }
-            } else { results[dateStr] = null; }
+            if (resp.ok) { results[dateStr] = parseDiary(await resp.json()); }
+            else { results[dateStr] = null; }
           } catch { results[dateStr] = null; }
         }));
         // Update cache progressively so UI refreshes as data comes in
@@ -1855,29 +1880,46 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
   const weekData = weekDates.map(getMergedDay);
   const todayStr = localDateStr();
 
-  // Compute weekly avg steps from ALL sources (DAILY_ALL + gymSleep history)
+  // Compute weekly avg steps from ALL sources
   const weeklySteps = useMemo(() => {
     const programStart = new Date('2026-01-05T00:00:00');
-    const byWeek = {};
-    // Pull from DAILY_ALL (synced data)
-    (D.DAILY_ALL||[]).forEach(dd => {
-      const w = dd.w || 1;
-      if (!byWeek[w]) byWeek[w] = {total:0,count:0};
-      if (dd.steps > 0) { byWeek[w].total += dd.steps; byWeek[w].count++; }
+    const daySteps = {}; // dateStr → steps (single source of truth per day)
+
+    // Layer 1: HIST_GYM_SLEEP (hardcoded seed data — always available)
+    Object.entries(HIST_GYM_SLEEP).forEach(([dateStr, dd]) => {
+      if (dd.steps > 0) daySteps[dateStr] = dd.steps;
     });
-    // Pull from gymSleep localStorage (which has steps for every day)
-    const gsData = gymSleep.data || {};
-    Object.entries(gsData).forEach(([dateStr, dd]) => {
-      if (!dd.steps || dd.steps <= 0) return;
+
+    // Layer 2: gymSleep localStorage (user-entered, overrides seed)
+    Object.entries(gymSleep.data || {}).forEach(([dateStr, dd]) => {
+      if (dd.steps > 0) daySteps[dateStr] = dd.steps;
+    });
+
+    // Layer 3: DAILY_ALL synced data (proxy data, highest priority)
+    const mm = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    (D.DAILY_ALL||[]).forEach(dd => {
+      if (dd.steps > 0) {
+        // Reverse the "Feb 26" format back to "2026-02-26"
+        const parts = dd.dt.split(' ');
+        const mIdx = mm.indexOf(parts[0]);
+        const day = parseInt(parts[1]);
+        if (mIdx >= 0 && day) {
+          const ds = `2026-${String(mIdx+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+          daySteps[ds] = dd.steps;
+        }
+      }
+    });
+
+    // Group by week
+    const byWeek = {};
+    Object.entries(daySteps).forEach(([dateStr, steps]) => {
       const dt = new Date(dateStr + 'T00:00:00');
       const w = Math.max(1, Math.floor((dt - programStart) / (7*86400000)) + 1);
       if (!byWeek[w]) byWeek[w] = {total:0,count:0};
-      // Only add if DAILY_ALL didn't already cover this day
-      const mm = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-      const fmtCheck = `${mm[dt.getMonth()]} ${dt.getDate()}`;
-      const alreadyCovered = (D.DAILY_ALL||[]).some(d => d.dt === fmtCheck && d.steps > 0);
-      if (!alreadyCovered) { byWeek[w].total += dd.steps; byWeek[w].count++; }
+      byWeek[w].total += steps;
+      byWeek[w].count++;
     });
+
     const result = Object.entries(byWeek)
       .filter(([,v]) => v.count > 0)
       .map(([w,v]) => ({w:parseInt(w), v:Math.round(v.total/v.count)}))
@@ -2054,11 +2096,35 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
 }
 
 
-function ProgressTab({vis,isD,isT,D,setInfoModal,settings}) {
+function ProgressTab({vis,isD,isT,D,setInfoModal,settings,gymSleep}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const velocity=D.insights.velocity, remaining=parseFloat(D.startKg||80.5)-parseFloat(settings?.goalWeight||68)-parseFloat(D.lost||0);
   const weeksLeft=Math.ceil(Math.max(0,remaining)/parseFloat(velocity||0.8));
   const totalWeeks=settings?.totalWeeks||14;
+
+  // Compute weekly steps from all sources (same logic as ActivityTab)
+  const weeklySteps = useMemo(() => {
+    const programStart = new Date('2026-01-05T00:00:00');
+    const daySteps = {};
+    Object.entries(HIST_GYM_SLEEP).forEach(([ds, dd]) => { if (dd.steps > 0) daySteps[ds] = dd.steps; });
+    Object.entries(gymSleep?.data || {}).forEach(([ds, dd]) => { if (dd.steps > 0) daySteps[ds] = dd.steps; });
+    const mm = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    (D.DAILY_ALL||[]).forEach(dd => {
+      if (dd.steps > 0) {
+        const parts = dd.dt.split(' ');
+        const mIdx = mm.indexOf(parts[0]);
+        const day = parseInt(parts[1]);
+        if (mIdx >= 0 && day) daySteps[`2026-${String(mIdx+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`] = dd.steps;
+      }
+    });
+    const byWeek = {};
+    Object.entries(daySteps).forEach(([ds, steps]) => {
+      const w = Math.max(1, Math.floor((new Date(ds+'T00:00:00') - programStart) / (7*86400000)) + 1);
+      if (!byWeek[w]) byWeek[w] = {total:0,count:0};
+      byWeek[w].total += steps; byWeek[w].count++;
+    });
+    return Object.entries(byWeek).filter(([,v])=>v.count>0).map(([w,v])=>({w:parseInt(w),v:Math.round(v.total/v.count)})).sort((a,b)=>a.w-b.w);
+  }, [D.DAILY_ALL, gymSleep?.data]);
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       <AnimCard glow style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
@@ -2089,13 +2155,19 @@ function ProgressTab({vis,isD,isT,D,setInfoModal,settings}) {
           <div style={{textAlign:'right'}}><div style={{fontSize:9,color:C.text3}}>Latest</div><CountUp to={(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).flat} style={{fontSize:17}} color={C.cyan}/></div></div>
       </AnimCard>
       <AnimCard delay={0.15}><Lbl>Steps Over Weeks</Lbl>
-        <Spark data={D.W_STEPS.map(s=>s.v)} color={C.blue} w={200} h={60} visible={vis} labels={D.W_STEPS.map(s=>`W${s.w}: ${s.v>=1000?s.v.toLocaleString():s.v}`)}/></AnimCard>
+        <Spark data={weeklySteps.map(s=>s.v)} color={C.blue} w={200} h={60} visible={vis} labels={weeklySteps.map(s=>`W${s.w}: ${s.v>=1000?s.v.toLocaleString():s.v}`)}/></AnimCard>
       <AnimCard delay={0.2}><Lbl>Calorie Avg Over Weeks</Lbl>
         <Spark data={D.W_NUTR.map(w=>w.cal)} color={C.orange} w={200} h={60} visible={vis} labels={D.W_NUTR.map(w=>`W${w.w}: ${Math.round(w.cal)}`)}/></AnimCard>
-      <AnimCard delay={0.25}><Lbl>Projected Finish</Lbl>
+      <AnimCard delay={0.25}><Lbl>Goal Weight ETA</Lbl>
         <div style={{textAlign:'center'}}>
-          <CountUp to={weeksLeft} style={{fontSize:32}} color={C.cyan}/><span style={{fontSize:14,color:C.text3,marginLeft:4}}>weeks to go</span>
-          <div style={{fontSize:10,color:C.text3,marginTop:8}}>At -{velocity} kg/week · {totalWeeks}-week program</div></div>
+          <CountUp to={weeksLeft} style={{fontSize:32}} color={C.cyan}/><span style={{fontSize:14,color:C.text3,marginLeft:4}}>weeks to {settings?.goalWeight||68} kg</span>
+          <div style={{marginTop:10,padding:'8px 14px',borderRadius:10,background:C.subtle,display:'inline-block'}}>
+            <span style={{fontSize:11,color:C.text2}}>Losing <span style={{color:C.mint,fontWeight:700}}>-{velocity} kg/week</span></span>
+            <span style={{fontSize:11,color:C.text3,margin:'0 6px'}}>·</span>
+            <span style={{fontSize:11,color:C.text2}}>Need <span style={{color:C.cyan,fontWeight:700}}>{Math.max(0,remaining).toFixed(1)} kg</span> more</span>
+          </div>
+          <div style={{fontSize:9,color:C.text3,marginTop:6}}>{totalWeeks}-week program · Week {D.currentWeek} of {totalWeeks}</div>
+        </div>
       </AnimCard></div>);
 }
 
@@ -2143,6 +2215,9 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
           <Lbl style={{marginBottom:0}}>Program Structure</Lbl>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             <span style={{fontSize:10,color:C.text3}}>Now: <span style={{color:C.cyan,fontWeight:700}}>Week {D.currentWeek}</span></span>
+            {editProgram && <button onClick={()=>{setTw(settings.totalWeeks||14);setPw(settings.phaseWeeks||{1:{from:1,to:6},2:{from:7,to:9},3:{from:10,to:12},4:{from:13,to:14}});setEditProgram(false);}}
+              style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,
+                color:C.text2,fontSize:11,fontWeight:600,cursor:'pointer'}}>Cancel</button>}
             <button onClick={()=>{if(editProgram){settings.save({totalWeeks:parseInt(tw)||14,phaseWeeks:pw});}setEditProgram(!editProgram);}}
               style={{padding:'6px 14px',borderRadius:8,border:editProgram?'none':`1px solid ${C.mintMed}`,
                 background:editProgram?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:'transparent',
@@ -2175,10 +2250,10 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
           <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 18px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
             <span style={{fontSize:12,color:C.text2,fontWeight:600,whiteSpace:'nowrap'}}>Program Length</span>
             <div style={{display:'flex',alignItems:'center',gap:8,marginLeft:'auto'}}>
-              <button onClick={()=>setTw(Math.max(4,parseInt(tw)-1))}
+              <button onClick={()=>{const nv=Math.max(4,parseInt(tw)-1);setTw(nv);setPw(prev=>({...prev,3:{...prev[3],to:nv}}));}}
                 style={{width:32,height:32,borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:16,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
               <span style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.mint,minWidth:40,textAlign:'center'}}>{tw}</span>
-              <button onClick={()=>setTw(Math.min(52,parseInt(tw)+1))}
+              <button onClick={()=>{const nv=Math.min(52,parseInt(tw)+1);setTw(nv);setPw(prev=>({...prev,3:{...prev[3],to:nv}}));}}
                 style={{width:32,height:32,borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:16,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
               <span style={{fontSize:11,color:C.text3}}>weeks</span>
             </div>
@@ -2293,17 +2368,56 @@ function LifestyleTab({vis,isD,isT,isM}) {
     const load = async () => {
       setLoading(true);
       try {
-        const res = await fetch('/data/lifestyle.json');
-        if (!res.ok) throw new Error('No data');
+        // Try fetching live GQ fitness RSS via rss2json API (free, no CORS issues)
+        const rssUrl = encodeURIComponent('https://www.gq.com/feed/rss');
+        const apiUrl = `https://api.rss2json.com/v1/api.json?rss_url=${rssUrl}&api_key=&count=20`;
+        const res = await fetch(apiUrl);
+        if (!res.ok) throw new Error('RSS fetch failed');
         const data = await res.json();
-        if (!cancelled) setArticles(data.articles || []);
-      } catch {
-        if (!cancelled) setArticles(LIFESTYLE_FALLBACK.articles);
+        if (data.status === 'ok' && data.items?.length > 0) {
+          // Filter for fitness/wellness/health articles
+          const fitnessKeywords = ['fitness','workout','exercise','gym','muscle','weight','cardio','strength','training','health','wellness','sleep','nutrition','protein','diet','running','walking','yoga','recovery','body'];
+          const fitnessArticles = data.items.filter(item => {
+            const text = `${item.title} ${item.description || ''} ${(item.categories||[]).join(' ')}`.toLowerCase();
+            return fitnessKeywords.some(kw => text.includes(kw));
+          });
+          // Use fitness articles if enough, otherwise use all
+          const useItems = fitnessArticles.length >= 3 ? fitnessArticles : data.items;
+          const mapped = useItems.slice(0, 8).map((item, i) => ({
+            id: `gq-${i}-${Date.now()}`,
+            title: item.title,
+            link: item.link || item.guid,
+            summary: (item.description || '').replace(/<[^>]*>/g, '').slice(0, 200),
+            date: item.pubDate || new Date().toISOString(),
+            image: item.thumbnail || item.enclosure?.link || null,
+            source: 'GQ',
+            type: 'article',
+          }));
+          if (!cancelled && mapped.length > 0) {
+            setArticles(mapped);
+            setLoading(false);
+            return;
+          }
+        }
+        throw new Error('No articles from RSS');
+      } catch(e) {
+        console.log('[Stride] RSS fetch failed:', e.message, '— trying lifestyle.json');
+        try {
+          const res2 = await fetch('/data/lifestyle.json');
+          if (res2.ok) {
+            const data2 = await res2.json();
+            if (!cancelled) setArticles(data2.articles || []);
+          } else throw new Error('No JSON');
+        } catch {
+          if (!cancelled) setArticles(LIFESTYLE_FALLBACK.articles);
+        }
       }
       if (!cancelled) setLoading(false);
     };
     load();
-    return () => { cancelled = true; };
+    // Auto-refresh every 30 minutes for new articles
+    const interval = setInterval(load, 30 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
   const filtered = filter === "all" ? articles : articles.filter(a => a.type === filter);
