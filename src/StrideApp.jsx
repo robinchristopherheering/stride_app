@@ -1827,7 +1827,22 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
   const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const d=getDateData(dateNav, D);
+  const d_raw=getDateData(dateNav, D);
+  // Merge gymSleep localStorage data into the date data (for steps/sleep/gym that aren't in DAILY_ALL)
+  const d = useMemo(() => {
+    if (d_raw._isDay && d_raw._date) {
+      const gs = gymSleep.getDay(d_raw._date);
+      if (gs) {
+        return {
+          ...d_raw,
+          steps: d_raw.steps || gs.steps || 0,
+          sleep: d_raw.sleep || gs.sleep || 0,
+          gym: d_raw.gym || gs.gym || false,
+        };
+      }
+    }
+    return d_raw;
+  }, [d_raw, gymSleep.data]);
   const label=d._isRange?`${d._count}d Avg`:(d._dt||"Today");
   const gymDays=D.DAILY_ALL.filter(x=>x.gym).length, totalDays=Math.max(1,D.DAILY_ALL.length);
   const avgSleep=(D.DAILY_ALL.reduce((a,x)=>a+x.sleep,0)/totalDays).toFixed(1);
@@ -2171,7 +2186,7 @@ function ProgressTab({vis,isD,isT,D,setInfoModal,settings,gymSleep}) {
       </AnimCard></div>);
 }
 
-function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
+function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const [editGoal, setEditGoal] = useState(false);
   const [editProgram, setEditProgram] = useState(false);
@@ -2226,23 +2241,49 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
         </div>
         {/* Visual phase timeline bar */}
         {!editProgram && <div>
-          <div style={{display:'flex',height:32,borderRadius:10,overflow:'hidden',marginBottom:12,border:`1px solid ${C.border}`}}>
-            {phases.map((p,i) => {
-              const from = pw[p.n]?.from||1, to = pw[p.n]?.to||1;
-              const span = to - from + 1;
-              const total = parseInt(tw)||14;
-              const pct = (span/total)*100;
-              const isCurrent = D.currentWeek >= from && D.currentWeek <= to;
-              const colors = [C.mint, C.cyan, C.purple];
-              return (<div key={p.n} style={{width:`${pct}%`,minWidth:40,background:isCurrent?`${colors[i]}22`:C.subtle,
-                borderRight:i<phases.length-1?`1px solid ${C.border}`:'none',
-                display:'flex',alignItems:'center',justifyContent:'center',gap:4,padding:'0 8px',position:'relative'}}>
-                <span style={{fontSize:10,fontWeight:700,color:isCurrent?colors[i]:C.text3,whiteSpace:'nowrap'}}>{p.l}</span>
-                <span style={{fontSize:8,color:C.text3,whiteSpace:'nowrap'}}>W{from}–{to}</span>
-                {isCurrent && <div style={{position:'absolute',bottom:-2,left:`${((D.currentWeek-from)/(span))*100}%`,width:3,height:3,borderRadius:'50%',background:colors[i]}}/>}
-              </div>);
-            })}
-          </div>
+          {isM ? (
+            /* Mobile: vertical stacked phases */
+            <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
+              {phases.map((p,i) => {
+                const from = pw[p.n]?.from||1, to = pw[p.n]?.to||1;
+                const span = to - from + 1;
+                const total = parseInt(tw)||14;
+                const pct = (span/total)*100;
+                const isCurrent = D.currentWeek >= from && D.currentWeek <= to;
+                const colors = [C.mint, C.cyan, C.purple];
+                return (<div key={p.n} style={{display:'flex',alignItems:'center',gap:10}}>
+                  <div style={{flex:1,display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:10,
+                    background:isCurrent?`${colors[i]}15`:C.subtle,
+                    border:`1px solid ${isCurrent?colors[i]+'44':C.border}`}}>
+                    <div style={{width:6,height:6,borderRadius:'50%',background:colors[i],flexShrink:0}}/>
+                    <span style={{fontSize:12,fontWeight:700,color:isCurrent?colors[i]:C.text2}}>{p.l}</span>
+                    <span style={{fontSize:10,color:C.text3,marginLeft:'auto'}}>W{from}–{to}</span>
+                    <span style={{fontSize:9,color:C.text3}}>({span}w)</span>
+                  </div>
+                  {isCurrent && <Tag color={colors[i]}>Now</Tag>}
+                </div>);
+              })}
+            </div>
+          ) : (
+            /* Desktop/Tablet: horizontal bar */
+            <div style={{display:'flex',height:32,borderRadius:10,overflow:'hidden',marginBottom:12,border:`1px solid ${C.border}`}}>
+              {phases.map((p,i) => {
+                const from = pw[p.n]?.from||1, to = pw[p.n]?.to||1;
+                const span = to - from + 1;
+                const total = parseInt(tw)||14;
+                const pct = (span/total)*100;
+                const isCurrent = D.currentWeek >= from && D.currentWeek <= to;
+                const colors = [C.mint, C.cyan, C.purple];
+                return (<div key={p.n} style={{width:`${pct}%`,minWidth:40,background:isCurrent?`${colors[i]}22`:C.subtle,
+                  borderRight:i<phases.length-1?`1px solid ${C.border}`:'none',
+                  display:'flex',alignItems:'center',justifyContent:'center',gap:4,padding:'0 8px',position:'relative'}}>
+                  <span style={{fontSize:10,fontWeight:700,color:isCurrent?colors[i]:C.text3,whiteSpace:'nowrap'}}>{p.l}</span>
+                  <span style={{fontSize:8,color:C.text3,whiteSpace:'nowrap'}}>W{from}–{to}</span>
+                  {isCurrent && <div style={{position:'absolute',bottom:-2,left:`${((D.currentWeek-from)/(span))*100}%`,width:3,height:3,borderRadius:'50%',background:colors[i]}}/>}
+                </div>);
+              })}
+            </div>
+          )}
           <div style={{fontSize:10,color:C.text3,textAlign:'center'}}>{tw || settings.totalWeeks || 14} weeks total</div>
         </div>}
         {/* Edit mode — cleaner inputs */}
@@ -2401,16 +2442,8 @@ function LifestyleTab({vis,isD,isT,isM}) {
         }
         throw new Error('No articles from RSS');
       } catch(e) {
-        console.log('[Stride] RSS fetch failed:', e.message, '— trying lifestyle.json');
-        try {
-          const res2 = await fetch('/data/lifestyle.json');
-          if (res2.ok) {
-            const data2 = await res2.json();
-            if (!cancelled) setArticles(data2.articles || []);
-          } else throw new Error('No JSON');
-        } catch {
-          if (!cancelled) setArticles(LIFESTYLE_FALLBACK.articles);
-        }
+        console.log('[Stride] RSS fetch failed:', e.message);
+        setArticles(LIFESTYLE_FALLBACK.articles);
       }
       if (!cancelled) setLoading(false);
     };
@@ -2867,16 +2900,7 @@ export default function Stride() {
   }, [liveData, gymSleep.data]);
 
   // Lifestyle article tracking for notifications
-  const [lifestyleArticles, setLifestyleArticles] = useState([]);
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch('/data/lifestyle.json');
-        if (res.ok) { const data = await res.json(); setLifestyleArticles(data.articles || []); }
-        else setLifestyleArticles(LIFESTYLE_FALLBACK.articles);
-      } catch { setLifestyleArticles(LIFESTYLE_FALLBACK.articles); }
-    })();
-  }, []);
+  const [lifestyleArticles, setLifestyleArticles] = useState(LIFESTYLE_FALLBACK.articles);
   const readArticleIds = (() => { try { return JSON.parse(localStorage.getItem('stride_read_articles') || '[]'); } catch { return []; } })();
 
   const notifications = useMemo(() => {
