@@ -148,8 +148,124 @@ const FALLBACK_DAILY_W7 = [
   {day:"Thu",dt:"Feb 19",cal:1208,pro:163,carb:70,fat:30,fib:8,sug:29,comp:76,flat:74,steps:5903,sleep:6.5,gym:false,wt:null},
 ];
 
-// FOOD LOG — no fallback; populated from real MFP data via proxy
-const FALLBACK_FOOD_LOG = {};
+// FOOD LOG — populated from real MFP data via proxy, with fallback sample data
+const FALLBACK_FOOD_LOG = {
+  "2026-02-23": {
+    breakfast: [
+      {name:"Greek Yogurt (0% Fat)",amount:"200g",cal:118,pro:20,carb:7,fat:0},
+      {name:"Chia Seeds",amount:"15g",cal:73,pro:2,carb:1,fat:5},
+      {name:"Blueberries",amount:"80g",cal:46,pro:1,carb:10,fat:0},
+    ],
+    lunch: [
+      {name:"Chicken Breast (Grilled)",amount:"200g",cal:330,pro:62,carb:0,fat:7},
+      {name:"Steamed Broccoli",amount:"200g",cal:68,pro:6,carb:12,fat:1},
+      {name:"Brown Rice",amount:"80g cooked",cal:90,pro:2,carb:19,fat:1},
+    ],
+    snack: [
+      {name:"Protein Shake (Whey Isolate)",amount:"1 scoop + water",cal:120,pro:25,carb:2,fat:1},
+      {name:"Apple",amount:"1 medium",cal:95,pro:0,carb:25,fat:0},
+    ],
+    dinner: [
+      {name:"Salmon Fillet",amount:"150g",cal:280,pro:30,carb:0,fat:17},
+      {name:"Mixed Green Salad",amount:"150g",cal:22,pro:2,carb:4,fat:0},
+      {name:"Olive Oil Dressing",amount:"1 tbsp",cal:40,pro:0,carb:0,fat:4},
+    ],
+  },
+  "2026-02-22": {
+    breakfast: [
+      {name:"Eggs (Scrambled)",amount:"3 large",cal:234,pro:18,carb:2,fat:16},
+      {name:"Spinach",amount:"100g",cal:23,pro:3,carb:4,fat:0},
+    ],
+    lunch: [
+      {name:"Turkey Mince",amount:"200g",cal:280,pro:44,carb:0,fat:10},
+      {name:"Lentils (Cooked)",amount:"120g",cal:139,pro:11,carb:24,fat:0},
+      {name:"Steamed Broccoli",amount:"150g",cal:51,pro:4,carb:9,fat:1},
+    ],
+    snack: [
+      {name:"Protein Shake (Whey Isolate)",amount:"1 scoop + water",cal:120,pro:25,carb:2,fat:1},
+    ],
+    dinner: [
+      {name:"Chicken Breast (Grilled)",amount:"180g",cal:297,pro:56,carb:0,fat:6},
+      {name:"Sweet Potato",amount:"150g",cal:135,pro:2,carb:31,fat:0},
+      {name:"Mixed Vegetables",amount:"120g",cal:40,pro:2,carb:8,fat:0},
+    ],
+  },
+  "2026-02-21": {
+    breakfast: [
+      {name:"Greek Yogurt (0% Fat)",amount:"200g",cal:118,pro:20,carb:7,fat:0},
+      {name:"Walnuts",amount:"15g",cal:98,pro:2,carb:1,fat:10},
+    ],
+    lunch: [
+      {name:"Tuna (Canned in Water)",amount:"150g",cal:165,pro:36,carb:0,fat:1},
+      {name:"Mixed Green Salad",amount:"150g",cal:22,pro:2,carb:4,fat:0},
+      {name:"Olive Oil Dressing",amount:"1 tbsp",cal:40,pro:0,carb:0,fat:4},
+      {name:"Whole Grain Bread",amount:"1 slice",cal:80,pro:3,carb:14,fat:1},
+    ],
+    snack: [
+      {name:"Apple",amount:"1 medium",cal:95,pro:0,carb:25,fat:0},
+      {name:"Protein Shake (Whey Isolate)",amount:"1 scoop + water",cal:120,pro:25,carb:2,fat:1},
+    ],
+    dinner: [
+      {name:"Cod Fillet (Baked)",amount:"200g",cal:186,pro:40,carb:0,fat:2},
+      {name:"Steamed Broccoli",amount:"200g",cal:68,pro:6,carb:12,fat:1},
+      {name:"Quinoa",amount:"80g cooked",cal:96,pro:4,carb:17,fat:2},
+    ],
+  },
+  "2026-02-20": {
+    breakfast: [
+      {name:"Eggs (Scrambled)",amount:"3 large",cal:234,pro:18,carb:2,fat:16},
+      {name:"Spinach",amount:"80g",cal:18,pro:2,carb:3,fat:0},
+    ],
+    lunch: [
+      {name:"Chicken Breast (Grilled)",amount:"200g",cal:330,pro:62,carb:0,fat:7},
+      {name:"Brown Rice",amount:"80g cooked",cal:90,pro:2,carb:19,fat:1},
+      {name:"Steamed Broccoli",amount:"150g",cal:51,pro:4,carb:9,fat:1},
+    ],
+    snack: [
+      {name:"Protein Shake (Whey Isolate)",amount:"1 scoop + water",cal:120,pro:25,carb:2,fat:1},
+      {name:"Chia Seeds",amount:"15g",cal:73,pro:2,carb:1,fat:5},
+    ],
+    dinner: [
+      {name:"Salmon Fillet",amount:"130g",cal:242,pro:26,carb:0,fat:15},
+      {name:"Mixed Green Salad",amount:"120g",cal:18,pro:1,carb:3,fat:0},
+      {name:"Lentils (Cooked)",amount:"100g",cal:116,pro:9,carb:20,fat:0},
+    ],
+  },
+  "2026-02-19": {
+    breakfast: [
+      {name:"Greek Yogurt (0% Fat)",amount:"200g",cal:118,pro:20,carb:7,fat:0},
+      {name:"Blueberries",amount:"100g",cal:57,pro:1,carb:12,fat:0},
+    ],
+    lunch: [
+      {name:"Turkey Mince",amount:"180g",cal:252,pro:40,carb:0,fat:9},
+      {name:"Sweet Potato",amount:"150g",cal:135,pro:2,carb:31,fat:0},
+      {name:"Steamed Broccoli",amount:"150g",cal:51,pro:4,carb:9,fat:1},
+    ],
+    snack: [
+      {name:"Protein Shake (Whey Isolate)",amount:"1 scoop + water",cal:120,pro:25,carb:2,fat:1},
+    ],
+    dinner: [
+      {name:"Chicken Breast (Grilled)",amount:"160g",cal:264,pro:50,carb:0,fat:6},
+      {name:"Mixed Vegetables",amount:"150g",cal:50,pro:3,carb:10,fat:0},
+      {name:"Olive Oil Dressing",amount:"1 tbsp",cal:40,pro:0,carb:0,fat:4},
+    ],
+  },
+};
+// Ensure today's date has food data (copy most recent fallback entry if needed)
+{
+  const todayKey = new Date().toISOString().split('T')[0];
+  if (!FALLBACK_FOOD_LOG[todayKey]) {
+    const dates = Object.keys(FALLBACK_FOOD_LOG).sort().reverse();
+    if (dates.length > 0) FALLBACK_FOOD_LOG[todayKey] = FALLBACK_FOOD_LOG[dates[0]];
+  }
+  // Also fill yesterday if missing
+  const y = new Date(); y.setDate(y.getDate()-1);
+  const yKey = y.toISOString().split('T')[0];
+  if (!FALLBACK_FOOD_LOG[yKey]) {
+    const dates = Object.keys(FALLBACK_FOOD_LOG).sort().reverse();
+    if (dates.length > 1) FALLBACK_FOOD_LOG[yKey] = FALLBACK_FOOD_LOG[dates[1]];
+  }
+}
 
 // Tooltip definitions
 const TIPS = {
@@ -225,7 +341,7 @@ function transformProxyData(days, weightEntries, todayStr) {
   return {
     WEIGHTS: useWeights, W_STEPS: wSteps, W_NUTR: wNutr,
     DAILY_ALL: dailyAll, DAILY_W7: dailyW7,
-    AVGS: averages, FOOD_LOG: FALLBACK_FOOD_LOG,
+    AVGS: averages, FOOD_LOG: {},
     today: todayData, lastW: lastWeight,
     lost: totalLost, lostPct: lostPct,
     startKg: 80.5, currentWeek: todayWeek,
@@ -285,14 +401,32 @@ function transformSyncData(json, todayLive) {
   }));
 
   // Weekly steps
-  const wSteps = (json.weekly || []).filter(w => w.steps).map(w => ({ w: w.week, v: w.steps }));
+  let wSteps = (json.weekly || []).filter(w => w.steps).map(w => ({ w: w.week, v: w.steps }));
+  // If no weekly steps from proxy, compute from daily data
+  if (wSteps.length === 0 && dailyAll.length > 0) {
+    const byWeek = {};
+    dailyAll.forEach(d => {
+      const w = d.w || 1;
+      if (!byWeek[w]) byWeek[w] = {total:0,count:0};
+      byWeek[w].total += (d.steps||0);
+      byWeek[w].count++;
+    });
+    wSteps = Object.entries(byWeek).map(([w,v]) => ({w:parseInt(w), v:Math.round(v.total/v.count)})).sort((a,b)=>a.w-b.w);
+  }
 
-  // Averages
-  const avgs = json.runningAverages || {};
-  const averages = {
-    cal: avgs.calories||0, pro: avgs.protein||0, carb: avgs.carbs||0,
-    fat: avgs.fat||0, fib: avgs.fiber||0, sug: avgs.sugar||0,
-  };
+  // Averages — compute from actual daily data for consistency across app
+  const computedAvgs = (() => {
+    const days = dailyAll.filter(d => d.cal > 0);
+    const n = Math.max(1, days.length);
+    return {
+      cal: Math.round(days.reduce((a,d) => a+d.cal, 0)/n),
+      pro: Math.round(days.reduce((a,d) => a+d.pro, 0)/n),
+      carb: Math.round(days.reduce((a,d) => a+d.carb, 0)/n),
+      fat: Math.round(days.reduce((a,d) => a+d.fat, 0)/n),
+      fib: Math.round(days.reduce((a,d) => a+d.fib, 0)/n),
+      sug: Math.round(days.reduce((a,d) => a+d.sug, 0)/n),
+    };
+  })();
 
   // Merge live proxy data for today (always add today's entry)
   {
@@ -336,7 +470,7 @@ function transformSyncData(json, todayLive) {
     const todayStr = localDateStr();
     const meals = todayLive.meals;
     const hasFoods = ['breakfast','lunch','dinner','snack'].some(k => meals[k]?.length > 0);
-    if (hasFoods) foodLog[todayStr] = meals;
+    if (hasFoods) foodLog[todayStr] = meals; // Live proxy data for today
   }
 
   // Derived
@@ -349,7 +483,7 @@ function transformSyncData(json, todayLive) {
   return {
     WEIGHTS: finalWeights, W_STEPS: wSteps.length > 0 ? wSteps : [{w:currentWeek,v:0}], W_NUTR: wNutr,
     DAILY_ALL: dailyAll, DAILY_W7: dailyW7,
-    AVGS: averages, FOOD_LOG: foodLog,
+    AVGS: computedAvgs, FOOD_LOG: foodLog,
     today: todayData, lastW: lastWeight,
     lost: totalLost, lostPct: lostPct,
     startKg, currentWeek,
@@ -398,21 +532,45 @@ function computePopularFoods(foodLog, fromDate, toDate) {
 }
 
 // Compute insights from data
-function computeInsights(data) {
+function computeInsights(data, dateNav) {
   if (!data || !data.DAILY_ALL || !data.DAILY_W7 || !data.WEIGHTS) {
     return { streak: 0, velocity: "0.8", proteinRate: 0, mostActive: {day:"Sun",avg:0} };
   }
-  const allDays = [...data.DAILY_ALL, ...data.DAILY_W7.map(d=>({...d,w:data.currentWeek||7}))];
+  // Build combined days list with dates for filtering
+  let allDays = [...data.DAILY_ALL, ...data.DAILY_W7.map(d=>({...d,w:data.currentWeek||7}))];
+  // Deduplicate by dt (formatted date)
+  const seen = new Set(); allDays = allDays.filter(d => { if(seen.has(d.dt)) return false; seen.add(d.dt); return true; });
   if (allDays.length === 0) return { streak: 0, velocity: "0.8", proteinRate: 0, mostActive: {day:"Sun",avg:0} };
+  // If dateNav is a range, filter allDays to that range
+  let filteredDays = allDays;
+  if (dateNav && dateNav.mode === 'range' && dateNav.from && dateNav.to) {
+    const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const from = new Date(dateNav.from+'T00:00:00');
+    const to = new Date(dateNav.to+'T23:59:59');
+    filteredDays = allDays.filter(d => {
+      // Parse dt like "Feb 23" back to a rough date for filtering
+      const parts = d.dt.split(' ');
+      if (parts.length < 2) return true;
+      const mi = m.indexOf(parts[0]);
+      const day = parseInt(parts[1]);
+      if (mi < 0 || isNaN(day)) return true;
+      const approx = new Date(2026, mi, day);
+      return approx >= from && approx <= to;
+    });
+  }
+  if (filteredDays.length === 0) filteredDays = allDays;
   const reversed = [...allDays].reverse(); let streak=0;
   for (const d of reversed) { if ((d.comp||0)>=70) streak++; else break; }
   const recentW = data.WEIGHTS.slice(-3);
   const velocity = recentW.length>1 ? Math.abs((recentW[0].kg-recentW[recentW.length-1].kg)/(recentW.length-1)).toFixed(1) : "0.8";
-  const proteinRate = Math.round(allDays.filter(d=>(d.pro||0)>=130).length/allDays.length*100);
+  const proteinRate = Math.round(filteredDays.filter(d=>(d.pro||0)>=130).length/filteredDays.length*100);
   const dayTotals = {};
-  allDays.forEach(d => { const day=d.day||d.d; if(!dayTotals[day]) dayTotals[day]={s:0,c:0}; dayTotals[day].s+=(d.steps||0); dayTotals[day].c++; });
+  filteredDays.forEach(d => { const day=d.day||d.d; if(!dayTotals[day]) dayTotals[day]={s:0,c:0}; dayTotals[day].s+=(d.steps||0); dayTotals[day].c++; });
   const mostActive = Object.entries(dayTotals).map(([day,v])=>({day,avg:Math.round(v.s/v.c)})).sort((a,b)=>b.avg-a.avg)[0] || {day:"Sun",avg:0};
-  return { streak, velocity, proteinRate, mostActive };
+  // Find single highest steps day
+  const bestDay = [...filteredDays].sort((a,b)=>(b.steps||0)-(a.steps||0))[0];
+  const bestStepsDay = bestDay ? {day:bestDay.d||bestDay.day||"?", steps:bestDay.steps||0} : {day:"?",steps:0};
+  return { streak, velocity, proteinRate, mostActive, bestStepsDay };
 }
 
 // GYM & SLEEP TRACKING (localStorage)
@@ -455,7 +613,7 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
     d.setDate(today.getDate() - dayOfWeek + i);
     if (d <= today) weekDates.push(localDateStr(d));
   }
-  const editData = editDate ? gymSleep.getDay(editDate) : null;
+  const editData = editDate ? (()=>{const g=gymSleep.getDay(editDate);return {...g,gym:!!g.gym};})() : null;
   const editDow = editDate ? ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][new Date(editDate+"T00:00:00").getDay()] : null;
 
   return (<>
@@ -507,9 +665,13 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
               <div style={{display:'flex',gap:10}}>
                 {[{l:'Yes ✓',v:true},{l:'No ✕',v:false}].map(o=>(
                   <button key={String(o.v)} onClick={()=>gymSleep.setGym(editDate,o.v)}
-                    style={{flex:1,padding:'14px',borderRadius:12,border:`1px solid ${editData?.gym===o.v?C.mintMed:C.border}`,
-                      background:editData?.gym===o.v?C.mintSoft:'rgba(255,255,255,0.03)',color:editData?.gym===o.v?C.mint:C.text2,
-                      fontSize:15,fontWeight:700,cursor:'pointer',transition:'all .15s'}}>{o.l}</button>))}
+                    style={{flex:1,padding:'16px',borderRadius:14,
+                      border:`2px solid ${editData?.gym===o.v?C.mint:C.border}`,
+                      background:editData?.gym===o.v?(o.v?C.mintSoft:`rgba(200,100,100,0.08)`):'transparent',
+                      color:editData?.gym===o.v?(o.v?C.mint:C.red):C.text3,
+                      fontSize:16,fontWeight:800,cursor:'pointer',transition:'all .15s',
+                      boxShadow:editData?.gym===o.v?`0 0 0 1px ${o.v?C.mint:C.red}33, inset 0 0 12px ${o.v?C.mint:C.red}08`:'none',
+                      WebkitAppearance:'none',fontFamily:'var(--sans)'}}>{o.l}</button>))}
               </div>
             </div>
             {/* Sleep */}
@@ -545,7 +707,10 @@ const PHASE_TARGETS = {
 
 function useSettings() {
   const KEY = 'stride_settings';
-  const defaults = {phase:1,goalWeight:68,goalBF:15,startWeight:80.5,startDate:"2026-01-05"};
+  const defaults = {phase:1,goalWeight:68,goalBF:15,startWeight:80.5,startDate:"2026-01-05",
+    totalWeeks:14,
+    phaseWeeks:{1:{from:1,to:6},2:{from:7,to:9},3:{from:10,to:12},4:{from:13,to:14}},
+    phaseHistory:[{phase:1,activatedOn:"2026-01-05"}]};
   const load = () => { try { return {...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}; } catch(e) { return defaults; } };
   const [settings, setSettings] = useState(load);
   const save = (s) => { const merged={...settings,...s}; setSettings(merged); localStorage.setItem(KEY,JSON.stringify(merged)); };
@@ -807,20 +972,47 @@ function WeightChart({ data, w=300, h=100, visible=true }) {
   );
 }
 
-function Spark({data,color=C.mint,w=200,h=50,fill=true,sw=2,visible=true}) {
+function Spark({data,color=C.mint,w=200,h=50,fill=true,sw=2,visible=true,labels}) {
+  const [hov, setHov] = useState(null);
+  const svgRef = useRef(null);
   const mn=Math.min(...data),mx=Math.max(...data),rng=mx-mn||1;
   const pts=data.map((v,i)=>[data.length>1?(i/(data.length-1))*w:w/2, h-((v-mn)/rng)*h*.82-h*.09]);
   const d=pts.map((p,i)=>`${i?'L':'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ');
   const fd=`${d} L${w},${h} L0,${h} Z`;
   const gid=useMemo(()=>`s${Math.random().toString(36).slice(2,7)}`,[]);
   const totalLen=useMemo(()=>{let l=0;for(let i=1;i<pts.length;i++){const dx=pts[i][0]-pts[i-1][0],dy=pts[i][1]-pts[i-1][1];l+=Math.sqrt(dx*dx+dy*dy);}return l;},[pts]);
-  return (<svg width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{display:'block',overflow:'visible'}}>
+  const getClosest = useCallback((clientX) => {
+    const svg=svgRef.current; if(!svg)return null;
+    const rect=svg.getBoundingClientRect();
+    const svgX=((clientX-rect.left)/rect.width)*w;
+    let closest=0,minDist=Infinity;
+    pts.forEach((p,i)=>{const dist=Math.abs(p[0]-svgX);if(dist<minDist){minDist=dist;closest=i;}});
+    return closest;
+  }, [pts, w]);
+  const handleMove = useCallback((clientX) => { const idx=getClosest(clientX); if(idx!==null) setHov(idx); }, [getClosest]);
+  return (<svg ref={svgRef} width="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none"
+    style={{display:'block',overflow:'visible',cursor:'crosshair',touchAction:'none'}}
+    onMouseMove={e=>handleMove(e.clientX)} onMouseLeave={()=>setHov(null)}
+    onTouchStart={e=>handleMove(e.touches[0].clientX)}
+    onTouchMove={e=>{e.preventDefault();handleMove(e.touches[0].clientX);}}
+    onTouchEnd={()=>setTimeout(()=>setHov(null),1500)}>
     <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity=".15"/><stop offset="100%" stopColor={color} stopOpacity="0"/></linearGradient></defs>
     {fill&&<path d={fd} fill={`url(#${gid})`} style={{opacity:visible?1:0,transition:'opacity .8s ease .6s'}}/>}
     <path d={d} fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" strokeOpacity={0.7}
       style={{strokeDasharray:totalLen,strokeDashoffset:visible?0:totalLen,transition:`stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)`}}/>
-    <circle cx={pts[pts.length-1][0]} cy={pts[pts.length-1][1]} r={2.5} fill={color} fillOpacity={0.6} style={{opacity:visible?1:0,transition:'opacity .3s ease 1s'}}>
-      <animate attributeName="r" values="2;3;2" dur="2.5s" repeatCount="indefinite"/></circle>
+    {pts.map((p,i)=><circle key={i} cx={p[0]} cy={p[1]} r={hov===i?3:i===pts.length-1?2.5:0} fill={color}
+      fillOpacity={hov===i?1:0.6} stroke={hov===i?'rgba(255,255,255,0.4)':'none'} strokeWidth={0.5}
+      style={{transition:'r .12s'}}>
+      {i===pts.length-1&&hov===null&&<animate attributeName="r" values="2;3;2" dur="2.5s" repeatCount="indefinite"/>}
+    </circle>)}
+    {hov!==null&&<g>
+      <rect x={Math.max(2,Math.min(pts[hov][0]-24,w-50))} y={Math.max(0,pts[hov][1]-22)}
+        width={48} height={18} rx={5} fill={C.surfaceSolid||'#1a1a2e'} stroke={`${color}44`} strokeWidth={0.5}/>
+      <text x={Math.max(2,Math.min(pts[hov][0]-24,w-50))+24} y={Math.max(0,pts[hov][1]-22)+12.5}
+        textAnchor="middle" fill={color} fontSize={9} fontWeight={700} fontFamily="var(--mono)">
+        {labels?labels[hov]:data[hov]>=1000?data[hov].toLocaleString():data[hov]}
+      </text>
+    </g>}
   </svg>);
 }
 
@@ -1240,6 +1432,8 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings,dateNav,setDateNav
   const d=getDateData(dateNav, D);
   const isAvg=d._isRange;
   const label=isAvg?`${d._count}d Average`:(d._dt||"Today");
+  // Recompute insights based on current dateNav filter
+  const ins = useMemo(() => computeInsights(D, dateNav), [D, dateNav]);
   const checks=[
     {task:"Protein 130–160g",ok:d.pro>=130,val:`${d.pro}g`},
     {task:`Calories 1,300–1,500${isAvg?' avg':''}`,ok:d.cal>=1300&&d.cal<=1500,val:`${d.cal}`},
@@ -1294,10 +1488,10 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings,dateNav,setDateNav
       <AnimCard delay={0.2} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Quick Insights</Lbl>
         <div style={{display:'grid',gridTemplateColumns:isM?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
-          {[{l:"Streak",v:D.insights.streak,suf:"d",sub:"≥70 compliance",c:C.mint,icon:I.fire},
-            {l:"Weight Pace",v:parseFloat(D.insights.velocity),suf:"kg/wk",pre:"-",sub:"Last 3 weeks",c:C.cyan,icon:I.down,dec:1},
-            {l:"Protein Hits",v:D.insights.proteinRate,suf:"%",sub:"Days ≥130g",c:D.insights.proteinRate>=70?C.mint:C.orange,icon:I.target},
-            {l:"Most Active",v:0,text:D.insights.mostActive.day,sub:`${D.insights.mostActive.avg.toLocaleString()} steps`,c:C.blue,icon:I.shoe},
+          {[{l:"Streak",v:ins.streak,suf:"d",sub:"≥70 compliance",c:C.mint,icon:I.fire},
+            {l:"Weight Pace",v:parseFloat(ins.velocity),suf:"kg/wk",pre:"-",sub:"Last 3 weeks",c:C.cyan,icon:I.down,dec:1},
+            {l:"Protein Hits",v:ins.proteinRate,suf:"%",sub:"Days ≥130g",c:ins.proteinRate>=70?C.mint:C.orange,icon:I.target},
+            {l:"Most Active",v:0,text:`${ins.bestStepsDay?.day}`,sub:`${(ins.bestStepsDay?.steps||0).toLocaleString()} steps`,c:C.blue,icon:I.shoe},
           ].map((s,i)=>(<div key={i} style={{padding:'14px 12px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
             <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}><div style={{color:s.c}}>{s.icon}</div>
               <span style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8}}>{s.l}</span></div>
@@ -1330,16 +1524,17 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
   const mealOrder=[{key:"breakfast",label:"Breakfast",icon:"☀"},{key:"lunch",label:"Lunch",icon:"☕"},{key:"snack",label:"Snack",icon:"🍎"},{key:"dinner",label:"Dinner",icon:"🌙"}];
   const PROXY_URL = 'https://stride-mfp-proxy.robinheering.workers.dev';
 
-  // On-demand food log fetching & caching
+  // On-demand food log fetching & caching (proxy is source of truth)
   const [foodLogCache, setFoodLogCache] = useState({});
   const [loadingFood, setLoadingFood] = useState(false);
+  const [allTimeFetched, setAllTimeFetched] = useState(false);
 
-  // Merge D.FOOD_LOG (from initial load) with locally fetched cache
+  // Only proxy-fetched data (D.FOOD_LOG has today from initial load)
   const allFoodLogs = useMemo(() => ({...D.FOOD_LOG, ...foodLogCache}), [D.FOOD_LOG, foodLogCache]);
 
   // Fetch food log for a specific date from proxy
   const fetchFoodLog = useCallback(async (dateStr) => {
-    if (allFoodLogs[dateStr] !== undefined) return; // already have it (including null = tried & empty)
+    if (foodLogCache[dateStr] !== undefined) return; // already fetched (null = tried & empty)
     setLoadingFood(true);
     try {
       const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
@@ -1348,7 +1543,7 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
         if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => (data.meals[k] || []).length > 0)) {
           setFoodLogCache(prev => ({...prev, [dateStr]: data.meals}));
         } else {
-          setFoodLogCache(prev => ({...prev, [dateStr]: null})); // Mark as fetched but empty
+          setFoodLogCache(prev => ({...prev, [dateStr]: null}));
         }
       } else {
         setFoodLogCache(prev => ({...prev, [dateStr]: null}));
@@ -1358,38 +1553,38 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
       setFoodLogCache(prev => ({...prev, [dateStr]: null}));
     }
     setLoadingFood(false);
-  }, [allFoodLogs]);
+  }, [foodLogCache]);
 
-  // Fetch food logs for a date range (batch up to 14 days)
+  // Fetch food logs for a date range (batch)
   const fetchFoodLogsForRange = useCallback(async (from, to) => {
     const start = new Date(from+'T12:00:00');
     const end = new Date(to+'T12:00:00');
     const dates = [];
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate()+1)) {
-      const ds = localDateStr(d);
-      if (allFoodLogs[ds] === undefined) dates.push(ds);
+    for (let dd = new Date(start); dd <= end; dd.setDate(dd.getDate()+1)) {
+      const ds = localDateStr(dd);
+      if (foodLogCache[ds] === undefined) dates.push(ds);
     }
     if (dates.length === 0) return;
-    // Limit batch to 14 to avoid hammering
-    const batch = dates.slice(0, 14);
     setLoadingFood(true);
     const results = {};
-    await Promise.all(batch.map(async (dateStr) => {
-      try {
-        const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
-        if (resp.ok) {
-          const data = await resp.json();
-          if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => (data.meals[k] || []).length > 0)) {
-            results[dateStr] = data.meals;
-          } else {
-            results[dateStr] = null;
-          }
-        } else { results[dateStr] = null; }
-      } catch(e) { results[dateStr] = null; }
-    }));
+    // Batch in groups of 7 to avoid overwhelming proxy
+    for (let i = 0; i < dates.length; i += 7) {
+      const batch = dates.slice(i, i + 7);
+      await Promise.all(batch.map(async (dateStr) => {
+        try {
+          const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => (data.meals[k] || []).length > 0)) {
+              results[dateStr] = data.meals;
+            } else { results[dateStr] = null; }
+          } else { results[dateStr] = null; }
+        } catch(e) { results[dateStr] = null; }
+      }));
+    }
     setFoodLogCache(prev => ({...prev, ...results}));
     setLoadingFood(false);
-  }, [allFoodLogs]);
+  }, [foodLogCache]);
 
   // Auto-fetch when date changes
   useEffect(() => {
@@ -1400,18 +1595,55 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
     }
   }, [dateNav]);
 
-  // Get food log for current day
+  // Pre-fetch ALL food data since program start for Top Foods (runs once)
+  useEffect(() => {
+    if (allTimeFetched) return;
+    setAllTimeFetched(true);
+    const programStart = new Date('2026-01-05T12:00:00');
+    const today = new Date();
+    const dates = [];
+    for (let dd = new Date(programStart); dd <= today; dd.setDate(dd.getDate()+1)) {
+      const ds = localDateStr(dd);
+      if (foodLogCache[ds] === undefined && !D.FOOD_LOG[ds]) dates.push(ds);
+    }
+    if (dates.length === 0) return;
+    // Background fetch — don't show loading spinner, batch quietly
+    (async () => {
+      const results = {};
+      for (let i = 0; i < dates.length; i += 5) {
+        const batch = dates.slice(i, i + 5);
+        await Promise.all(batch.map(async (dateStr) => {
+          try {
+            const resp = await fetch(`${PROXY_URL}/api/diary?date=${dateStr}`);
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.meals && ['breakfast','lunch','dinner','snack'].some(k => (data.meals[k] || []).length > 0)) {
+                results[dateStr] = data.meals;
+              } else { results[dateStr] = null; }
+            } else { results[dateStr] = null; }
+          } catch { results[dateStr] = null; }
+        }));
+        // Update cache progressively so UI refreshes as data comes in
+        if (Object.keys(results).length > 0) {
+          setFoodLogCache(prev => ({...prev, ...results}));
+        }
+      }
+    })();
+  }, []);
+
+  // Get food log for current day (proxy data takes priority over fallback)
   const dayMeals = d._isDay ? allFoodLogs[d._date] : null;
 
-  // Compute popular foods based on context
+  // Compute popular foods from ALL fetched food logs (entire program)
   const popularFoods = useMemo(() => {
     if (dateNav.mode === 'range') {
       return computePopularFoods(allFoodLogs, dateNav.from, dateNav.to);
     }
-    // For single day view (Top Foods tab) — show all-time top foods
+    // All-time top foods (from all fetched data since Jan 5)
     return computePopularFoods(allFoodLogs);
   }, [allFoodLogs, dateNav]);
 
+  const totalFoodDays = Object.values(allFoodLogs).filter(v => v != null).length;
   const foodLabel = d._isDay ? (d._dt || "Today") + "'s Log" : "Top Foods";
 
   // Food list renderer (shared between Top Foods views)
@@ -1420,7 +1652,13 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
       {label && <div style={{fontSize:10,color:C.text3,textAlign:'center',padding:'4px 0'}}>{label}</div>}
       {foods.length === 0 ? (
         <div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>
-          {loadingFood ? 'Loading food data...' : 'No food data available. Food logs are fetched from MFP when you view specific dates.'}
+          {loadingFood ? (
+            <div>
+              <div style={{marginBottom:8}}>Fetching food data from MFP...</div>
+              <div style={{width:20,height:20,border:`2px solid ${C.border}`,borderTopColor:C.mint,borderRadius:'50%',margin:'0 auto',animation:'spin 1s linear infinite'}}/>
+              <div style={{fontSize:10,marginTop:8}}>{totalFoodDays} days loaded so far</div>
+            </div>
+          ) : 'No food data found. Make sure the MFP proxy is running and you have logged meals.'}
         </div>
       ) : (
         <div style={{display:'grid',gridTemplateColumns:isD?'repeat(2,1fr)':'1fr',gap:8}}>
@@ -1512,8 +1750,40 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
             <span style={{fontSize:10,color:C.text3,fontWeight:600}}>Total:</span>
             <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{['breakfast','lunch','snack','dinner'].flatMap(k=>dayMeals[k]||[]).reduce((a,f)=>a+(f.cal||0),0)} cal</span>
             <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{Math.round(['breakfast','lunch','snack','dinner'].flatMap(k=>dayMeals[k]||[]).reduce((a,f)=>a+(f.pro||0),0))}g pro</span></div>
-        </div>) : (<div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>No food log for this day.</div>))
-        :(<TopFoodsList foods={popularFoods} label={loadingFood ? 'Loading...' : null} />)}
+        </div>) : (<div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>
+          {loadingFood ? (
+            <div>
+              <div style={{marginBottom:8}}>Fetching {d._dt || 'this day'}'s food log from MFP...</div>
+              <div style={{width:20,height:20,border:`2px solid ${C.border}`,borderTopColor:C.mint,borderRadius:'50%',margin:'0 auto',animation:'spin 1s linear infinite'}}/>
+            </div>
+          ) : 'No food logged in MFP for this day.'}
+        </div>))
+        :(<div>
+          <TopFoodsList foods={popularFoods} label={loadingFood ? `Loading food data... (${totalFoodDays} days loaded)` : (totalFoodDays > 0 ? `Based on ${totalFoodDays} days of MFP data since Jan 5` : null)} />
+        </div>)}
+      </AnimCard>
+      {/* Daily Breakdown — date-aware */}
+      <AnimCard delay={0.12} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
+        <Lbl>{d._isRange ? `${d._count}d Daily Breakdown` : `Week ${D.currentWeek} — Daily Breakdown`}</Lbl>
+        <div style={{display:'flex',flexDirection:'column',gap:6}}>
+          {(d._isRange ? (d._days||[]) : D.DAILY_W7).map((dd,i,arr)=>{const isT2=!d._isRange&&i===arr.length-1;
+            return (<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:isT2?C.mintSoft:C.subtle,border:`1px solid ${isT2?C.mintMed:'transparent'}`,
+              opacity:v?1:0,transform:v?'translateX(0)':'translateX(-10px)',transition:`all .35s ease ${i*.06}s`}}>
+              <div style={{width:40,height:40,borderRadius:12,background:isT2?C.mint:C.surfaceSolid,color:isT2?C.bg:C.text2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,flexShrink:0}}>{dd.day||dd.d||dd.dt}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                  <span style={{fontSize:14,fontWeight:700,fontFamily:'var(--mono)'}}>{dd.cal} kcal</span>
+                  {dd.gym&&<span style={{color:C.mint,display:'flex',alignItems:'center'}}>{I.dumbbell}</span>}
+                  {isT2&&<Tag color={C.mint}>Today</Tag>}</div>
+                <div style={{fontSize:11,color:C.text3,marginTop:3}}>P:{dd.pro}g · C:{dd.carb}g · F:{dd.fat}g · Fib:{dd.fib}g · {(dd.steps||0).toLocaleString()} steps</div></div>
+              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
+                <Ring val={dd.comp||0} sz={40} sw={4} color={(dd.comp||0)>=80?C.mint:(dd.comp||0)>=60?C.orange:C.red} visible={v}>
+                  <span style={{fontSize:11,fontWeight:800,fontFamily:'var(--mono)'}}>{dd.comp||0}</span></Ring>
+                <span style={{fontSize:7,color:C.text3,fontWeight:600}}>score</span>
+              </div>
+            </div>);})}
+          {(d._isRange ? (d._days||[]) : D.DAILY_W7).length===0 && <div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>No daily data for this period</div>}
+        </div>
       </AnimCard>
       <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1',overflowX:'auto'}}>
         <Lbl>Weekly Nutrition Averages</Lbl>
@@ -1601,6 +1871,14 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
         <div style={{marginTop:8}}><Tag color={d.sleep>=7?C.cyan:C.orange}>{d.sleep>=7?"Good rest":"Needs more"}</Tag></div>
       </AnimCard>
       <AnimCard delay={0.1}>
+        <Lbl>{label} Daily Stats</Lbl>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,textAlign:'center'}}>
+          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.blue}}>{(d.steps||0).toLocaleString()}</div><div style={{fontSize:9,color:C.text3}}>steps</div></div>
+          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>{d.sleep||0}</div><div style={{fontSize:9,color:C.text3}}>hrs sleep</div></div>
+          <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>{d._isRange?d.gym:d.gym?'Yes':'No'}</div><div style={{fontSize:9,color:C.text3}}>gym</div></div>
+        </div>
+      </AnimCard>
+      <AnimCard delay={0.1}>
         <Lbl>Program Averages</Lbl>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,textAlign:'center'}}>
           <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.blue}}>{avgSteps.toLocaleString()}</div><div style={{fontSize:9,color:C.text3}}>steps/day</div></div>
@@ -1608,10 +1886,18 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
           <div><div style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>{gymDays}</div><div style={{fontSize:9,color:C.text3}}>gym days</div></div>
         </div>
       </AnimCard>
-      <AnimCard delay={0.1}>
-        <Lbl>Steps Over Weeks</Lbl>
-        <Bars data={D.W_STEPS.map(s=>({v:s.v,label:`W${s.w}`}))} max={12000} color={C.blue} activeIdx={D.W_STEPS.length-1} visible={v}/>
-        <div style={{textAlign:'center',marginTop:14}}><CountUp to={(D.W_STEPS[D.W_STEPS.length-1]||{v:0}).v} style={{fontSize:24}} color={C.blue}/><span style={{fontSize:11,color:C.text3,marginLeft:6}}>avg W{D.currentWeek}</span></div>
+      <AnimCard delay={0.15} style={{gridColumn:isD?'1/3':isT?'1/3':'1'}}>
+        <Lbl>Weekly Avg Steps</Lbl>
+        {D.W_STEPS.length > 1 ? (<>
+          <Bars data={D.W_STEPS.map(s=>({v:s.v,label:`W${s.w}`}))} max={12000} color={C.blue} activeIdx={D.W_STEPS.length-1} visible={v}/>
+          <div style={{textAlign:'center',marginTop:14}}><CountUp to={(D.W_STEPS[D.W_STEPS.length-1]||{v:0}).v} style={{fontSize:24}} color={C.blue}/><span style={{fontSize:11,color:C.text3,marginLeft:6}}>avg W{D.currentWeek}</span></div>
+        </>) : (
+          <div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>
+            <div style={{fontSize:11,marginBottom:8}}>Average daily steps per week</div>
+            <div style={{fontSize:28,fontWeight:800,fontFamily:'var(--mono)',color:C.blue}}>{avgSteps.toLocaleString()}</div>
+            <div style={{fontSize:10,color:C.text3,marginTop:4}}>across {totalDays} days tracked</div>
+          </div>
+        )}
       </AnimCard>
 
       {/* Daily Activity — tap to edit */}
@@ -1699,10 +1985,11 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
                   {[{l:'Yes \u2713',v:true},{l:'No \u2715',v:false}].map(o=>(
                     <button key={String(o.v)} onClick={()=>gymSleep.setGym(editDate,o.v)}
                       style={{flex:1,padding:'16px',borderRadius:14,
-                        border:`2px solid ${editData?.gym===o.v?C.mintMed:C.border}`,
-                        background:editData?.gym===o.v?C.mintSoft:C.subtle,
-                        color:editData?.gym===o.v?C.mint:C.text2,
-                        fontSize:16,fontWeight:700,cursor:'pointer',transition:'all .15s',
+                        border:`2px solid ${editData?.gym===o.v?C.mint:C.border}`,
+                        background:editData?.gym===o.v?(o.v?C.mintSoft:`rgba(200,100,100,0.08)`):'transparent',
+                        color:editData?.gym===o.v?(o.v?C.mint:C.red):C.text3,
+                        fontSize:16,fontWeight:800,cursor:'pointer',transition:'all .15s',
+                        boxShadow:editData?.gym===o.v?`0 0 0 1px ${o.v?C.mint:C.red}33, inset 0 0 12px ${o.v?C.mint:C.red}08`:'none',
                         WebkitAppearance:'none',fontFamily:'var(--sans)'}}>{o.l}</button>))}
                 </div>
               </div>
@@ -1750,9 +2037,11 @@ function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav
 }
 
 
-function ProgressTab({vis,isD,isT,D,setInfoModal}) {
+function ProgressTab({vis,isD,isT,D,setInfoModal,settings}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const velocity=D.insights.velocity, remaining=12.5-parseFloat(D.lost), weeksLeft=Math.ceil(remaining/parseFloat(velocity||0.8));
+  const velocity=D.insights.velocity, remaining=parseFloat(D.startKg||80.5)-parseFloat(settings?.goalWeight||68)-parseFloat(D.lost||0);
+  const weeksLeft=Math.ceil(Math.max(0,remaining)/parseFloat(velocity||0.8));
+  const totalWeeks=settings?.totalWeeks||14;
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       <AnimCard glow style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
@@ -1783,25 +2072,28 @@ function ProgressTab({vis,isD,isT,D,setInfoModal}) {
           <div style={{textAlign:'right'}}><div style={{fontSize:9,color:C.text3}}>Latest</div><CountUp to={(D.W_NUTR[Math.min(5,Math.max(0,D.W_NUTR.length-1))]||{comp:0,flat:0,cal:0,pro:0}).flat} style={{fontSize:17}} color={C.cyan}/></div></div>
       </AnimCard>
       <AnimCard delay={0.15}><Lbl>Steps Over Weeks</Lbl>
-        <Spark data={D.W_STEPS.map(s=>s.v)} color={C.blue} w={200} h={60} visible={vis}/></AnimCard>
+        <Spark data={D.W_STEPS.map(s=>s.v)} color={C.blue} w={200} h={60} visible={vis} labels={D.W_STEPS.map(s=>`W${s.w}: ${s.v>=1000?s.v.toLocaleString():s.v}`)}/></AnimCard>
       <AnimCard delay={0.2}><Lbl>Calorie Avg Over Weeks</Lbl>
-        <Spark data={D.W_NUTR.map(w=>w.cal)} color={C.orange} w={200} h={60} visible={vis}/></AnimCard>
+        <Spark data={D.W_NUTR.map(w=>w.cal)} color={C.orange} w={200} h={60} visible={vis} labels={D.W_NUTR.map(w=>`W${w.w}: ${Math.round(w.cal)}`)}/></AnimCard>
       <AnimCard delay={0.25}><Lbl>Projected Finish</Lbl>
         <div style={{textAlign:'center'}}>
           <CountUp to={weeksLeft} style={{fontSize:32}} color={C.cyan}/><span style={{fontSize:14,color:C.text3,marginLeft:4}}>weeks to go</span>
-          <div style={{fontSize:10,color:C.text3,marginTop:8}}>At -{velocity} kg/week pace</div></div>
+          <div style={{fontSize:10,color:C.text3,marginTop:8}}>At -{velocity} kg/week · {totalWeeks}-week program</div></div>
       </AnimCard></div>);
 }
 
 function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const [editGoal, setEditGoal] = useState(false);
+  const [editProgram, setEditProgram] = useState(false);
   const [gw, setGw] = useState(settings.goalWeight);
   const [gbf, setGbf] = useState(settings.goalBF);
+  const [tw, setTw] = useState(settings.totalWeeks||14);
+  const [pw, setPw] = useState(settings.phaseWeeks||{1:{from:1,to:6},2:{from:7,to:9},3:{from:10,to:12},4:{from:13,to:14}});
   const phases=[
-    {n:1,l:"Fat Loss",wk:"Weeks 1–7",goal:"Aggressive fat loss, protect muscle",cal:"1,300–1,500",pro:"130–160",carb:"40–70",fat:"40–55",sug:"< 20",fib:"20–30",steps:"8k–10k",train:"3x strength + rope"},
-    {n:2,l:"Lean Out",wk:"Weeks 8–11",goal:"Continue fat loss, rebuild energy",cal:"1,600–1,800",pro:"130–150",carb:"80–130",fat:"45–65",sug:"< 30",fib:"25–35",steps:"8k–12k",train:"3–4x strength"},
-    {n:3,l:"Abs Reveal",wk:"Weeks 12–14",goal:"Final tightening, visible abs",cal:"1,500–1,650",pro:"140–160",carb:"60–100",fat:"40–55",sug:"< 25",fib:"25–35",steps:"10k+",train:"4x strength + core"},
+    {n:1,l:"Fat Loss",wk:`Weeks ${pw[1]?.from||1}–${pw[1]?.to||6}`,goal:"Aggressive fat loss, protect muscle",cal:"1,300–1,500",pro:"130–160",carb:"40–70",fat:"40–55",sug:"< 20",fib:"20–30",steps:"8k–10k",train:"3x strength + rope"},
+    {n:2,l:"Lean Out",wk:`Weeks ${pw[2]?.from||7}–${pw[2]?.to||9}`,goal:"Continue fat loss, rebuild energy",cal:"1,600–1,800",pro:"130–150",carb:"80–130",fat:"45–65",sug:"< 30",fib:"25–35",steps:"8k–12k",train:"3–4x strength"},
+    {n:3,l:"Abs Reveal",wk:`Weeks ${pw[3]?.from||10}–${pw[3]?.to||12}`,goal:"Final tightening, visible abs",cal:"1,500–1,650",pro:"140–160",carb:"60–100",fat:"40–55",sug:"< 25",fib:"25–35",steps:"10k+",train:"4x strength + core"},
   ];
   const inputStyle={width:60,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:14,fontFamily:'var(--mono)',textAlign:'center',outline:'none'};
   return (
@@ -1828,6 +2120,46 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
               color:C.text2,fontSize:11,fontWeight:600,cursor:'pointer'}}>Cancel</button>}
         </div>
       </AnimCard>
+      {/* Program Length & Phase Weeks Editor */}
+      <AnimCard delay={0.03} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:12}}>
+          <Lbl style={{marginBottom:0}}>Program Structure</Lbl>
+          <button onClick={()=>{if(editProgram){settings.save({totalWeeks:parseInt(tw)||14,phaseWeeks:pw});}setEditProgram(!editProgram);}}
+            style={{padding:'6px 14px',borderRadius:8,border:editProgram?'none':`1px solid ${C.mintMed}`,
+              background:editProgram?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:'transparent',
+              color:editProgram?(C.mode==='light'?'#fff':'#0A0C18'):C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>{editProgram?'Save':'Edit'}</button>
+        </div>
+        <div style={{display:'flex',gap:16,alignItems:'center',flexWrap:'wrap',marginBottom:editProgram?16:0}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:11,color:C.text3}}>Total Weeks:</span>
+            {editProgram?<input type="number" value={tw} min={4} max={52}
+              onChange={e=>setTw(e.target.value)}
+              style={{width:50,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:14,fontFamily:'var(--mono)',textAlign:'center',outline:'none'}}/>
+              :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>{settings.totalWeeks||14}</span>}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:6}}>
+            <span style={{fontSize:11,color:C.text3}}>Current:</span>
+            <span style={{fontSize:14,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>Week {D.currentWeek}</span>
+          </div>
+        </div>
+        {editProgram && <div style={{display:'grid',gridTemplateColumns:isD?'repeat(3,1fr)':'1fr',gap:10}}>
+          {phases.map(p => (
+            <div key={p.n} style={{padding:'12px 14px',borderRadius:12,background:C.subtle,border:`1px solid ${C.border}`}}>
+              <div style={{fontSize:11,fontWeight:700,color:settings.phase===p.n?C.mint:C.text,marginBottom:8}}>{p.n}. {p.l}</div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:10,color:C.text3}}>From W</span>
+                <input type="number" value={pw[p.n]?.from||''} min={1} max={tw}
+                  onChange={e=>{const v=parseInt(e.target.value)||1;setPw(prev=>({...prev,[p.n]:{...prev[p.n],from:v}}));}}
+                  style={{width:40,padding:'4px 6px',borderRadius:6,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:12,fontFamily:'var(--mono)',textAlign:'center',outline:'none'}}/>
+                <span style={{fontSize:10,color:C.text3}}>to W</span>
+                <input type="number" value={pw[p.n]?.to||''} min={1} max={tw}
+                  onChange={e=>{const v=parseInt(e.target.value)||1;setPw(prev=>({...prev,[p.n]:{...prev[p.n],to:v}}));}}
+                  style={{width:40,padding:'4px 6px',borderRadius:6,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:12,fontFamily:'var(--mono)',textAlign:'center',outline:'none'}}/>
+              </div>
+            </div>
+          ))}
+        </div>}
+      </AnimCard>
       {phases.map((p,pi)=>{const isActive=settings.phase===p.n;return(<AnimCard key={p.n} glow={isActive} delay={pi*0.08} style={{gridColumn:isD&&isActive?'1/4':isT&&isActive?'1/3':'1'}}>
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
           <div style={{width:36,height:36,borderRadius:12,background:isActive?C.mint:'rgba(255,255,255,0.04)',color:isActive?C.bg:C.text2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,flexShrink:0}}>{p.n}</div>
@@ -1841,29 +2173,7 @@ function TargetsTab({vis,isD,isT,D,settings,setInfoModal}) {
               <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,marginBottom:3}}>{t.l}</div>
               <div style={{fontSize:13,fontWeight:700,fontFamily:t.l==="Training"?'var(--sans)':'var(--mono)'}}>{t.v}{t.u&&<span style={{fontSize:9,color:C.text3,marginLeft:3}}>{t.u}</span>}</div></div>))}</div>
       </AnimCard>)})}
-      <AnimCard delay={0.25} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
-        <Lbl>Week 7 — Daily Breakdown</Lbl>
-        <div style={{display:'flex',flexDirection:'column',gap:6}}>
-          {D.DAILY_W7.map((d,i)=>{const isT2=i===D.DAILY_W7.length-1;
-            return (<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:14,background:isT2?C.mintSoft:'rgba(255,255,255,0.02)',border:`1px solid ${isT2?C.mintMed:'transparent'}`,
-              cursor:'pointer',opacity:vis?1:0,transform:vis?'translateX(0)':'translateX(-10px)',transition:`all .35s ease ${i*.06}s`}}
-              onMouseEnter={e=>{if(!isT2){e.currentTarget.style.background='rgba(255,255,255,0.04)';}}}
-              onMouseLeave={e=>{if(!isT2){e.currentTarget.style.background='rgba(255,255,255,0.02)';}}}>
-              <div style={{width:40,height:40,borderRadius:12,background:isT2?C.mint:C.surfaceSolid,color:isT2?C.bg:C.text2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:800,flexShrink:0}}>{d.day}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-                  <span style={{fontSize:14,fontWeight:700,fontFamily:'var(--mono)'}}>{d.cal} kcal</span>
-                  {d.gym&&<span style={{color:C.mint,display:'flex',alignItems:'center'}}>{I.dumbbell}</span>}
-                  {isT2&&<Tag color={C.mint}>Today</Tag>}</div>
-                <div style={{fontSize:11,color:C.text3,marginTop:3}}>P:{d.pro}g · C:{d.carb}g · F:{d.fat}g · {d.steps.toLocaleString()} steps</div></div>
-              <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2}}>
-                <Ring val={d.comp} sz={40} sw={4} color={d.comp>=80?C.mint:d.comp>=60?C.orange:C.red} visible={vis}>
-                  <span style={{fontSize:11,fontWeight:800,fontFamily:'var(--mono)'}}>{d.comp}</span></Ring>
-                <span style={{fontSize:7,color:C.text3,fontWeight:600}}>compliance</span>
-              </div>
-            </div>);})}
-        </div>
-      </AnimCard></div>);
+</div>);
 }
 
 // LIFESTYLE TAB — Articles & media feed
@@ -1886,12 +2196,12 @@ const LIFESTYLE_FALLBACK = (()=>{
     mkSvg(`<rect x="150" y="100" width="100" height="100" rx="16" fill="#9B8CE0" opacity="0.12"/><rect x="280" y="100" width="100" height="100" rx="16" fill="#7CC4D8" opacity="0.12"/><rect x="410" y="100" width="100" height="100" rx="16" fill="#C47898" opacity="0.10"/><rect x="150" y="230" width="100" height="100" rx="16" fill="#7CC4D8" opacity="0.10"/><rect x="280" y="230" width="100" height="100" rx="16" fill="#9B8CE0" opacity="0.10"/><rect x="410" y="230" width="100" height="100" rx="16" fill="url(#a1)" opacity="0.12"/><circle cx="650" cy="150" r="40" fill="#9B8CE0" opacity="0.06"/>`),
   ];
   return {articles:[
-    {id:"1",title:"Why Lifting Weights Is for Everyone",link:"https://www.gq.com/story/why-lifting-weights-is-for-everyone",summary:"A sports scientist breaks down why strength training delivers results for every body type — and how to get started with compound movements.",date:"2026-02-20T10:00:00",image:imgs[0],source:"GQ Fitness",type:"article"},
-    {id:"2",title:"Why Easy Zone 2 Workouts Became the Biggest Thing in Fitness",link:"https://www.gq.com/story/why-easy-zone-2-workouts-became-the-biggest-thing-in-fitness-1",summary:"Low-intensity training is great for you, no matter what your fitness-tracking gadget says. Experts explain the science.",date:"2026-02-18T14:00:00",image:imgs[1],source:"GQ Fitness",type:"article"},
-    {id:"3",title:"How Fit Can You Get From Just Walking?",link:"https://www.gq.com/story/how-fit-can-you-get-from-just-walking",summary:"A sports medicine physician shares a step-by-step guide to burning fat and building fitness without breaking into a jog.",date:"2026-02-15T09:00:00",image:imgs[2],source:"GQ Fitness",type:"article"},
-    {id:"4",title:"Better Sleep Starts With More Sunshine",link:"https://www.gq.com/story/better-sleep-starts-with-more-sunshine",summary:"The counterintuitive connection between daylight exposure and quality rest — and how to optimise your circadian rhythm.",date:"2026-02-12T11:00:00",image:imgs[3],source:"GQ Fitness",type:"article"},
-    {id:"5",title:"Is Cardio or Muscular Strength More Important for Longevity?",link:"https://www.gq.com/story/is-cardio-fitness-or-muscular-strength-more-important-for-longevity",summary:"Researchers weigh in on the fitness debate that could determine how long — and how well — you live.",date:"2026-02-10T08:00:00",image:imgs[4],source:"GQ Fitness",type:"article"},
-    {id:"6",title:"The Best Home Gym Equipment Worth Buying in 2025",link:"https://www.gq.com/gallery/best-home-gym-equipment",summary:"From adjustable dumbbells to compact rowers, these are the pieces that personal trainers recommend for a small-space setup.",date:"2026-02-08T12:00:00",image:imgs[5],source:"GQ Fitness",type:"article"},
+    {id:"1",title:"Why Lifting Weights Is for Everyone",link:"https://www.gq.com/fitness",summary:"A sports scientist breaks down why strength training delivers results for every body type — and how to get started with compound movements.",date:"2026-02-20T10:00:00",image:imgs[0],source:"GQ Fitness",type:"article"},
+    {id:"2",title:"Why Easy Zone 2 Workouts Became the Biggest Thing in Fitness",link:"https://www.gq.com/fitness",summary:"Low-intensity training is great for you, no matter what your fitness-tracking gadget says. Experts explain the science.",date:"2026-02-18T14:00:00",image:imgs[1],source:"GQ Fitness",type:"article"},
+    {id:"3",title:"How Fit Can You Get From Just Walking?",link:"https://www.gq.com/fitness",summary:"A sports medicine physician shares a step-by-step guide to burning fat and building fitness without breaking into a jog.",date:"2026-02-15T09:00:00",image:imgs[2],source:"GQ Fitness",type:"article"},
+    {id:"4",title:"Better Sleep Starts With More Sunshine",link:"https://www.gq.com/fitness",summary:"The counterintuitive connection between daylight exposure and quality rest — and how to optimise your circadian rhythm.",date:"2026-02-12T11:00:00",image:imgs[3],source:"GQ Fitness",type:"article"},
+    {id:"5",title:"Is Cardio or Muscular Strength More Important for Longevity?",link:"https://www.gq.com/fitness",summary:"Researchers weigh in on the fitness debate that could determine how long — and how well — you live.",date:"2026-02-10T08:00:00",image:imgs[4],source:"GQ Fitness",type:"article"},
+    {id:"6",title:"The Best Home Gym Equipment Worth Buying in 2025",link:"https://www.gq.com/fitness",summary:"From adjustable dumbbells to compact rowers, these are the pieces that personal trainers recommend for a small-space setup.",date:"2026-02-08T12:00:00",image:imgs[5],source:"GQ Fitness",type:"article"},
   ]};
 })();
 
@@ -2489,7 +2799,7 @@ export default function Stride() {
       case "overview": return <OverviewTab {...p}/>;
       case "nutrition": return <NutritionTab {...p}/>;
       case "activity": return <ActivityTab {...p}/>;
-      case "progress": return <ProgressTab {...p}/>;
+      case "progress": return <ProgressTab {...p} settings={settings}/>;
       case "lifestyle": return <LifestyleTab {...p}/>;
       case "targets": return <TargetsTab {...p}/>;
       case "coach": return <CoachTab {...p} setChatOpen={setChatOpen}/>;
