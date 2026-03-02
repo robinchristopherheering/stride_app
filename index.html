@@ -5,8 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="theme-color" content="#070B14" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Stride" />
   <title>Stride — 14-Week Transformation</title>
+  <link rel="manifest" href="/stride_app/manifest.json" />
+  <link rel="apple-touch-icon" href="/stride_app/apple-touch-icon.png" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>⚡</text></svg>" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
@@ -24,5 +28,14 @@
     <div id="loading"><div class="spinner"></div>Loading Stride...</div>
   </div>
   <script type="module" src="/src/main.jsx"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/stride_app/sw.js')
+          .then(reg => console.log('[Stride] SW registered:', reg.scope))
+          .catch(err => console.log('[Stride] SW error:', err));
+      });
+    }
+  </script>
 </body>
 </html>
