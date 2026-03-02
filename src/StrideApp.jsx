@@ -2822,9 +2822,19 @@ export default function Stride() {
     const next = themeMode === 'light' ? 'dark' : 'light';
     setThemeMode(next);
     try { localStorage.setItem('stride_theme', next); } catch(e) {}
+    // Update status bar / theme-color for PWA
+    if (window.updateThemeColor) {
+      window.updateThemeColor(next === 'light' ? '#F0EDF6' : '#070B14');
+    }
   };
   const theme = THEMES[themeMode] || THEMES.light;
   C = theme; // Update the mutable C ref for all components
+  // Set initial theme-color for PWA status bar
+  useEffect(() => {
+    if (window.updateThemeColor) {
+      window.updateThemeColor(themeMode === 'light' ? '#F0EDF6' : '#070B14');
+    }
+  }, [themeMode]);
 
   const [tab, setTab] = useState("overview");
   const [dateNav, setDateNav] = useState({mode:'day',date:localDateStr()});
