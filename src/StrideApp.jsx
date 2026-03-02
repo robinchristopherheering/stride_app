@@ -578,10 +578,11 @@ const HIST_GYM_SLEEP={"2026-01-05":{"gym":true,"sleep":5,"steps":1281},"2026-01-
 
 function useGymSleep() {
   const KEY = 'stride_gym_sleep';
-  const load = () => {
+  const API = 'https://stride-mfp-proxy.robinheering.workers.dev/api/activity';
+
+  const loadLocal = () => {
     try {
       const stored = JSON.parse(localStorage.getItem(KEY) || '{}');
-      // Seed historical data if not already present
       const seeded = localStorage.getItem('stride_gs_seeded');
       if (!seeded) {
         const merged = {...HIST_GYM_SLEEP, ...stored};
@@ -592,12 +593,105 @@ function useGymSleep() {
       return stored;
     } catch(e) { return {}; }
   };
-  const [data, setData] = useState(load);
-  const save = (d) => { setData(d); localStorage.setItem(KEY, JSON.stringify(d)); };
+
+  const [data, setData] = useState(loadLocal);
+  const [synced, setSynced] = useState(false);
+
+  const saveLocal = (d) => { setData(d); try { localStorage.setItem(KEY, JSON.stringify(d)); } catch(e){} };
+
+  const pushToRemote = (dateStr, vals) => {
+    fetch(API, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({date: dateStr, ...vals}),
+    }).catch(e => console.log('[Stride] Cloud push error:', e.message));
+  };
+
+  // On mount: pull all data from cloud KV, merge with local, push any local-only entries
+  useEffect(() => {
+    if (synced) return;
+    (async () => {
+      try {
+        const resp = await fetch(API);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const remote = await resp.json();
+        const remoteKeys = Object.keys(remote);
+
+        if (remoteKeys.length > 0) {
+          console.log(`[Stride] Cloud: ${remoteKeys.length} days`);
+          const local = loadLocal();
+          const merged = {...local};
+
+          // Remote wins if it has a newer updated timestamp, or local has no timestamp
+          for (const [ds, rv] of Object.entries(remote)) {
+            const lv = merged[ds];
+            const remoteTime = rv.updated || '';
+            const localTime = lv?.updated || '';
+            if (!lv || remoteTime >= localTime) {
+              merged[ds] = {gym: rv.gym||false, sleep: rv.sleep||0, steps: rv.steps||0, updated: rv.updated||''};
+            }
+          }
+
+          // Push local-only entries to remote (dates that exist locally but not in cloud)
+          let pushCount = 0;
+          for (const [ds, lv] of Object.entries(merged)) {
+            if (!remote[ds] && (lv.gym || lv.sleep > 0 || lv.steps > 0)) {
+              pushToRemote(ds, {gym: lv.gym, sleep: lv.sleep, steps: lv.steps});
+              pushCount++;
+            }
+          }
+          if (pushCount > 0) console.log(`[Stride] Pushed ${pushCount} local-only days to cloud`);
+          saveLocal(merged);
+        } else {
+          // Cloud is empty — seed it with all local + HIST data
+          console.log('[Stride] Cloud empty, seeding...');
+          const local = loadLocal();
+          const allData = {...HIST_GYM_SLEEP, ...local};
+          let count = 0;
+          for (const [ds, lv] of Object.entries(allData)) {
+            if (lv.gym || lv.sleep > 0 || lv.steps > 0) {
+              pushToRemote(ds, {gym: lv.gym||false, sleep: lv.sleep||0, steps: lv.steps||0});
+              count++;
+            }
+          }
+          console.log(`[Stride] Seeded ${count} days to cloud`);
+          saveLocal(allData);
+        }
+      } catch(e) {
+        console.log('[Stride] Cloud sync error:', e.message, '— local only');
+      }
+      setSynced(true);
+    })();
+  }, []);
+
   const getDay = (dateStr) => data[dateStr] || { gym: false, sleep: 0, steps: 0 };
-  const setGym = (dateStr, val) => { const d = {...data}; d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0,steps:0}), gym: val}; save(d); };
-  const setSleep = (dateStr, val) => { const d = {...data}; d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0,steps:0}), sleep: parseFloat(val)||0}; save(d); };
-  const setSteps = (dateStr, val) => { const d = {...data}; d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0,steps:0}), steps: parseInt(val)||0}; save(d); };
+
+  const setGym = (dateStr, val) => {
+    const d = {...data};
+    const now = new Date().toISOString();
+    d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0,steps:0}), gym: val, updated: now};
+    saveLocal(d);
+    pushToRemote(dateStr, {gym: val});
+  };
+
+  const setSleep = (dateStr, val) => {
+    const d = {...data};
+    const v = parseFloat(val)||0;
+    const now = new Date().toISOString();
+    d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0,steps:0}), sleep: v, updated: now};
+    saveLocal(d);
+    pushToRemote(dateStr, {sleep: v});
+  };
+
+  const setSteps = (dateStr, val) => {
+    const d = {...data};
+    const v = parseInt(val)||0;
+    const now = new Date().toISOString();
+    d[dateStr] = {...(d[dateStr]||{gym:false,sleep:0,steps:0}), steps: v, updated: now};
+    saveLocal(d);
+    pushToRemote(dateStr, {steps: v});
+  };
+
   return { getDay, setGym, setSleep, setSteps, data };
 }
 
@@ -2832,61 +2926,48 @@ export default function Stride() {
   }, []);
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Auto-fetch current week's diary data from MFP proxy to backfill gymSleep
+  // Auto-fetch steps from MFP proxy to backfill gymSleep for all days since HIST_GYM_SLEEP ends
   // This ensures mobile and desktop always show the same MFP data
   useEffect(() => {
     if (!PROXY_URL) return;
-    const backfillWeek = async () => {
+    const backfillFromProxy = async () => {
       try {
+        const histDates = Object.keys(HIST_GYM_SLEEP).sort();
+        const lastHistDate = histDates[histDates.length - 1] || '2026-02-21';
+        const startDate = new Date(lastHistDate + 'T12:00:00');
+        startDate.setDate(startDate.getDate() + 1);
         const today = new Date();
-        const dow = today.getDay() || 7; // Mon=1..Sun=7
         const dates = [];
-        for (let i = 1; i <= dow; i++) {
-          const dd = new Date(today);
-          dd.setDate(today.getDate() - dow + i);
+        for (let dd = new Date(startDate); dd <= today; dd.setDate(dd.getDate() + 1)) {
           dates.push(localDateStr(dd));
         }
-        console.log('[Stride] Backfilling week steps:', dates.length, 'days');
-        const results = await Promise.all(dates.map(async (ds) => {
-          try {
-            const resp = await fetch(`${PROXY_URL}/api/diary?date=${ds}`);
-            if (resp.ok) {
-              const data = await resp.json();
-              return { date: ds, steps: data.calories > 0 ? (data.steps || 0) : 0, cal: data.calories || 0 };
+        if (dates.length === 0) return;
+        console.log(`[Stride] Backfilling ${dates.length} days (${dates[0]} → ${dates[dates.length-1]})`);
+        let updated = 0;
+        for (let i = 0; i < dates.length; i += 5) {
+          const batch = dates.slice(i, i + 5);
+          // Fetch steps endpoint for each day
+          const stepResults = await Promise.all(batch.map(async (ds) => {
+            try {
+              const resp = await fetch(`${PROXY_URL}/api/steps?date=${ds}`);
+              if (resp.ok) { const data = await resp.json(); return { date: ds, steps: data.steps || 0 }; }
+            } catch(e) {}
+            return { date: ds, steps: 0 };
+          }));
+          stepResults.forEach(r => {
+            if (r.steps > 0) {
+              const existing = gymSleep.getDay(r.date);
+              if (!existing.steps || existing.steps === 0) {
+                gymSleep.setSteps(r.date, r.steps);
+                updated++;
+              }
             }
-          } catch(e) {}
-          return { date: ds, steps: 0, cal: 0 };
-        }));
-        // Also try fetching steps from /api/steps for each day
-        const stepResults = await Promise.all(dates.map(async (ds) => {
-          try {
-            const resp = await fetch(`${PROXY_URL}/api/steps?date=${ds}`);
-            if (resp.ok) {
-              const data = await resp.json();
-              return { date: ds, steps: data.steps || 0 };
-            }
-          } catch(e) {}
-          return { date: ds, steps: 0 };
-        }));
-        // Merge: use step endpoint data if available, fall back to diary endpoint
-        let updated = false;
-        results.forEach((r, i) => {
-          const steps = stepResults[i]?.steps || r.steps;
-          if (steps > 0) {
-            const existing = gymSleep.getDay(r.date);
-            // Only backfill if gymSleep doesn't already have steps for this day
-            if (!existing.steps || existing.steps === 0) {
-              gymSleep.setSteps(r.date, steps);
-              updated = true;
-              console.log(`[Stride] Backfilled ${r.date}: ${steps} steps`);
-            }
-          }
-        });
-        if (updated) console.log('[Stride] Week backfill complete');
-      } catch(e) { console.log('[Stride] Week backfill error:', e.message); }
+          });
+        }
+        if (updated > 0) console.log(`[Stride] Backfilled steps for ${updated} days`);
+      } catch(e) { console.log('[Stride] Backfill error:', e.message); }
     };
-    // Run after a short delay so initial data loads first
-    const timer = setTimeout(backfillWeek, 3000);
+    const timer = setTimeout(backfillFromProxy, 3000);
     return () => clearTimeout(timer);
   }, []);
   const handleRefresh = async () => {
