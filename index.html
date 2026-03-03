@@ -7,11 +7,12 @@
   <meta name="theme-color" content="#F0EDF6" media="(prefers-color-scheme: light)" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Stride" />
   <title>Stride — 14-Week Transformation</title>
   <link rel="manifest" href="/stride_app/manifest.json" />
-  <link rel="apple-touch-icon" href="/stride_app/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/stride_app/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/stride_app/icon-192.png" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>⚡</text></svg>" />
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
@@ -21,11 +22,8 @@
       background: #070B14;
       font-family: 'Plus Jakarta Sans', sans-serif;
       overflow-x: hidden;
-      /* Extend content behind status bar on iOS */
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
     }
     ::-webkit-scrollbar { width: 0; height: 0; }
     #loading { display: flex; align-items: center; justify-content: center; height: 100vh; color: #B8FF57; font-size: 18px; font-weight: 700; }
@@ -46,9 +44,9 @@
           .catch(err => console.log('[Stride] SW error:', err));
       });
     }
-    // Dynamically update theme-color when app switches themes
     window.updateThemeColor = (color) => {
       document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.content = color);
+      document.body.style.background = color;
     };
   </script>
 </body>
