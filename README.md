@@ -1,4 +1,4 @@
-# 🏃 Stride — 14-Week Transformation Cockpit
+# 🏃 Stride — Fitness Transformation Cockpit
 
 A personal fitness dashboard that syncs with MyFitnessPal daily and displays your nutrition, weight, steps, and compliance scores in a beautiful dark-mode cockpit interface.
 
