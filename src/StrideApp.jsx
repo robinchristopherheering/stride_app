@@ -2474,43 +2474,35 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
     {phase:2,bf:"15.0%",focus:"Symmetry, Detail & Water Flush"},
     {phase:3,bf:`${settings.goalBF||13}.0%`,focus:'Peak "Camera-Ready" Shred'},
   ];
+  // Goal weight = lean mass / (1 - target BF%). Assume ~24% BF at start weight.
+  const startBF = 0.24;
+  const leanMass = (settings.startWeight||80.5) * (1 - startBF);
+  const calcGoalW = Math.round((leanMass / (1 - (settings.goalBF||13)/100))*10)/10;
 
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
       {/* Goals */}
       <AnimCard delay={0} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Goals</Lbl>
-        {(() => {
-          // Goal weight = current lean mass / (1 - target BF%)
-          // lean mass = currentWeight * (1 - currentBF%)
-          // For simplicity: use startWeight and approximate current BF from weight loss
-          const currentW = D.lastW?.kg || settings.startWeight || 80.5;
-          const targetBF = (settings.goalBF||13)/100;
-          // Estimate current BF: assume startBF was ~24% at 80.5kg
-          const startBF = 0.24;
-          const leanMass = (settings.startWeight||80.5) * (1 - startBF);
-          const calculatedGoalW = Math.round((leanMass / (1 - targetBF))*10)/10;
-          return (
-          <div style={{display:'flex',gap:16,alignItems:'center',flexWrap:'wrap'}}>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <span style={{fontSize:11,color:C.text3}}>Target BF%:</span>
-              {editGoal?<input type="number" value={gbf} onChange={e=>setGbf(e.target.value)} style={inputStyle}/>
-                :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>~{settings.goalBF}%</span>}
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <span style={{fontSize:11,color:C.text3}}>Goal Weight:</span>
-              <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>{calculatedGoalW} kg</span>
-              <span style={{fontSize:9,color:C.text3,fontStyle:'italic'}}>(calculated)</span>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:8}}>
-              <span style={{fontSize:11,color:C.text3}}>Loss rate:</span>
-              {editGoal?<input type="number" step="0.1" value={wlr} onChange={e=>setWlr(e.target.value)} style={inputStyle}/>
-                :<span style={{fontSize:14,fontWeight:700,fontFamily:'var(--mono)',color:C.text2}}>{settings.weightLossRate||0.5} kg/wk</span>}
-            </div>
-            {btnEdit(editGoal,()=>{if(editGoal){settings.save({goalBF:parseFloat(gbf)||13,weightLossRate:parseFloat(wlr)||0.5,goalWeight:calculatedGoalW});}setEditGoal(!editGoal);},editGoal?'Save':'Edit')}
-            {editGoal&&btnCancel(()=>{setGbf(settings.goalBF);setWlr(settings.weightLossRate||0.5);setEditGoal(false);})}
-          </div>);
-        })()}
+        <div style={{display:'flex',gap:16,alignItems:'center',flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:11,color:C.text3}}>Target BF%:</span>
+            {editGoal?<input type="number" value={gbf} onChange={e=>setGbf(e.target.value)} style={inputStyle}/>
+              :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>~{settings.goalBF}%</span>}
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:11,color:C.text3}}>Goal Weight:</span>
+            <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>{calcGoalW} kg</span>
+            <span style={{fontSize:9,color:C.text3,fontStyle:'italic'}}>(calculated)</span>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:11,color:C.text3}}>Loss rate:</span>
+            {editGoal?<input type="number" step="0.1" value={wlr} onChange={e=>setWlr(e.target.value)} style={inputStyle}/>
+              :<span style={{fontSize:14,fontWeight:700,fontFamily:'var(--mono)',color:C.text2}}>{settings.weightLossRate||0.5} kg/wk</span>}
+          </div>
+          {btnEdit(editGoal,()=>{if(editGoal){settings.save({goalBF:parseFloat(gbf)||13,weightLossRate:parseFloat(wlr)||0.5,goalWeight:calcGoalW});}setEditGoal(!editGoal);},editGoal?'Save':'Edit')}
+          {editGoal&&btnCancel(()=>{setGbf(settings.goalBF);setWlr(settings.weightLossRate||0.5);setEditGoal(false);})}
+        </div>
       </AnimCard>
 
       {/* 3-Phase Roadmap */}
