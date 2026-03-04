@@ -894,9 +894,9 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
 
 // PHASE TARGETS (defaults — can be overridden via settings)
 const PHASE_TARGETS_DEFAULTS = {
-  1: {name:"Fat Loss",cal:1400,calMin:1300,calMax:1500,pro:145,proMin:130,proMax:160,carb:55,carbMin:40,carbMax:70,fat:48,fatMin:40,fatMax:55,sugar:20,fiber:25,fiberMin:20,fiberMax:30,steps:8000,fasting:"16:8",training:"3× strength + rope"},
-  2: {name:"Symmetry & Detail",cal:1275,calMin:1200,calMax:1350,pro:170,proMin:170,proMax:190,carb:45,carbMin:35,carbMax:55,fat:38,fatMin:35,fatMax:40,sugar:25,fiber:35,fiberMin:30,fiberMax:35,steps:10000,fasting:"Optional",training:"3× strength + rope"},
-  3: {name:"Peak Shred",cal:1175,calMin:1100,calMax:1250,pro:175,proMin:175,proMax:195,carb:20,carbMin:15,carbMax:30,fat:28,fatMin:25,fatMax:30,sugar:20,fiber:35,fiberMin:35,fiberMax:40,steps:10000,fasting:"Optional",training:"3× strength + rope + finisher"},
+  1: {name:"Fat Loss",cal:1400,calMin:1300,calMax:1500,pro:145,proMin:130,proMax:160,carb:55,carbMin:40,carbMax:70,fat:48,fatMin:40,fatMax:55,sugar:20,fiber:25,fiberMin:20,fiberMax:30,stepsMin:8000,steps:10000,fasting:"16:8",training:"3× strength + rope"},
+  2: {name:"Symmetry & Detail",cal:1275,calMin:1200,calMax:1350,pro:170,proMin:170,proMax:190,carb:45,carbMin:35,carbMax:55,fat:38,fatMin:35,fatMax:40,sugar:25,fiber:35,fiberMin:30,fiberMax:35,stepsMin:10000,steps:12000,fasting:"Optional",training:"3× strength + rope"},
+  3: {name:"Peak Shred",cal:1175,calMin:1100,calMax:1250,pro:175,proMin:175,proMax:195,carb:20,carbMin:15,carbMax:30,fat:28,fatMin:25,fatMax:30,sugar:20,fiber:35,fiberMin:35,fiberMax:40,stepsMin:10000,steps:12000,fasting:"Optional",training:"3× strength + rope + finisher"},
 };
 
 function useSettings() {
@@ -1686,6 +1686,7 @@ const I={
   sparkle:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4M22 5h-4"/></svg>,
   lifestyle:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/><path d="M8 7h6M8 11h8"/></svg>,
   more:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>,
+  settings:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>,
   extLink:<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></svg>,
 };
 
@@ -1701,11 +1702,11 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings,dateNav,setDateNav
   // Recompute insights based on current dateNav filter
   const ins = useMemo(() => computeInsights(D, dateNav), [D, dateNav]);
   const checks=[
-    {task:"Protein 130–160g",ok:d.pro>=130,val:`${d.pro}g`},
-    {task:`Calories 1,300–1,500${isAvg?' avg':''}`,ok:d.cal>=1300&&d.cal<=1500,val:`${d.cal}`},
-    {task:"Steps 8,000+",ok:d.steps>=8000,val:d.steps?.toLocaleString?.()},
-    {task:"Fiber 20–30g",ok:d.fib>=20,val:`${d.fib}g`},
-    {task:"Sugar < 20g",ok:d.sug<=20,val:`${d.sug}g`},
+    {task:`Protein ${settings.targets?.proMin||130}–${settings.targets?.proMax||160}g`,ok:d.pro>=(settings.targets?.proMin||130),val:`${d.pro}g`},
+    {task:`Calories ${(settings.targets?.calMin||1300).toLocaleString()}–${(settings.targets?.calMax||1500).toLocaleString()}${isAvg?' avg':''}`,ok:d.cal>=(settings.targets?.calMin||1300)&&d.cal<=(settings.targets?.calMax||1500),val:`${d.cal}`},
+    {task:`Steps ${((settings.targets?.stepsMin||settings.targets?.steps||8000)/1000).toFixed(0)}k–${((settings.targets?.steps||10000)/1000).toFixed(0)}k`,ok:d.steps>=(settings.targets?.stepsMin||settings.targets?.steps||8000),val:d.steps?.toLocaleString?.()},
+    {task:`Fiber ${settings.targets?.fiberMin||20}–${settings.targets?.fiberMax||30}g`,ok:d.fib>=(settings.targets?.fiberMin||20),val:`${d.fib}g`},
+    {task:`Sugar < ${settings.targets?.sugar||20}g`,ok:d.sug<=(settings.targets?.sugar||20),val:`${d.sug}g`},
     {task:"Gym session",ok:isAvg?d.gym>=3:d.gym,val:isAvg?`${d.gym} days`:d.gym?"Done":"Rest"},
     {task:"Sleep 7+ hrs",ok:d.sleep>=7,val:`${d.sleep}h`},
   ];
@@ -1742,7 +1743,7 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings,dateNav,setDateNav
           <Lbl tip={TIPS.flatStomach} modalId="flatStomach" onModal={setInfoModal}>{label} Flat Stomach</Lbl>
           <Ring val={d.flat} sz={isD?86:74} sw={6} color={C.cyan} visible={v}><CountUp to={d.flat} style={{fontSize:22}} color={C.cyan}/></Ring>
           <div style={{width:'100%',height:1,background:C.border,margin:'4px 0'}}/>
-          <Arc val={d.steps} max={10000} label="Steps" color={d.steps>=8000?C.mint:C.orange} sz={isD?108:92} visible={v}/>
+          <Arc val={d.steps} max={settings.targets?.steps||12000} label="Steps" color={d.steps>=(settings.targets?.stepsMin||settings.targets?.steps||8000)?C.mint:C.orange} sz={isD?108:92} visible={v}/>
         </AnimCard>
         <AnimCard delay={0.15} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:isD?'22px 16px':'18px 14px'}}>
           <Lbl modalId="protein" onModal={setInfoModal}>{label} Protein</Lbl>
@@ -1967,12 +1968,12 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
               <CountUp to={d.cal} style={{fontSize:22}} color={C.text}/>
               <span style={{fontSize:8,color:C.text3,fontWeight:700}}>KCAL</span></div></div>
           <div style={{flex:1,minWidth:180}}>
-            <Progress label="Calories" val={d.cal} min={1300} max={1500} color={C.mint} unit=" kcal" visible={v}/>
-            <Progress label="Protein" val={d.pro} min={130} max={160} color={C.mint} visible={v}/>
-            <Progress label="Carbs" val={d.carb} min={40} max={70} color={C.blue} visible={v}/>
-            <Progress label="Fat" val={d.fat} min={40} max={55} color={C.orange} visible={v}/>
-            <Progress label="Fiber" val={d.fib} min={20} max={30} color={C.cyan} visible={v}/>
-            <Progress label="Sugar" val={d.sug} min={0} max={20} color={C.purple} visible={v}/>
+            <Progress label="Calories" val={d.cal} min={settings.targets?.calMin||1300} max={settings.targets?.calMax||1500} color={C.mint} unit=" kcal" visible={v}/>
+            <Progress label="Protein" val={d.pro} min={settings.targets?.proMin||130} max={settings.targets?.proMax||160} color={C.mint} visible={v}/>
+            <Progress label="Carbs" val={d.carb} min={settings.targets?.carbMin||40} max={settings.targets?.carbMax||70} color={C.blue} visible={v}/>
+            <Progress label="Fat" val={d.fat} min={settings.targets?.fatMin||40} max={settings.targets?.fatMax||55} color={C.orange} visible={v}/>
+            <Progress label="Fiber" val={d.fib} min={settings.targets?.fiberMin||20} max={settings.targets?.fiberMax||30} color={C.cyan} visible={v}/>
+            <Progress label="Sugar" val={d.sug} min={0} max={settings.targets?.sugar||20} color={C.purple} visible={v}/>
           </div></div>
       </AnimCard>
       <AnimCard delay={0.05}>
@@ -2444,26 +2445,10 @@ function ProgressTab({vis,isD,isT,D,setInfoModal,settings,gymSleep}) {
 
 function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const [editGoal, setEditGoal] = useState(false);
-  const [editProgram, setEditProgram] = useState(false);
-  const [editPhase, setEditPhase] = useState(null);
-  const [editTraining, setEditTraining] = useState(null);
-  const [newExercise, setNewExercise] = useState('');
-  const [gbf, setGbf] = useState(settings.goalBF);
-  const [tw, setTw] = useState(settings.totalWeeks||14);
-  const [wlr, setWlr] = useState(settings.weightLossRate||0.5);
-  const [pw, setPw] = useState(settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}});
   const pt = settings.phaseTargets || PHASE_TARGETS_DEFAULTS;
-  const [draftTargets, setDraftTargets] = useState(JSON.parse(JSON.stringify(pt)));
-  const inputStyle={width:56,padding:'5px 6px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:13,fontFamily:'var(--mono)',textAlign:'center',outline:'none'};
-  const btnEdit = (active,onClick,label) => (<button onClick={onClick}
-    style={{padding:'6px 14px',borderRadius:8,border:active?'none':`1px solid ${C.mintMed}`,
-      background:active?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:'transparent',
-      color:active?(C.mode==='light'?'#fff':'#0A0C18'):C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>{label}</button>);
-  const btnCancel = (onClick) => (<button onClick={onClick}
-    style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,
-      color:C.text2,fontSize:11,fontWeight:600,cursor:'pointer'}}>Cancel</button>);
-  const phaseColors = [C.mint, C.cyan, C.purple];
+  const phaseColors = [C.gradStart, C.cyan, C.purple];
+  const pw = settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}};
+  const tw = settings.totalWeeks||14;
   const phases=[
     {n:1,l:pt[1]?.name||"Fat Loss",goal:"Aggressive fat loss, protect muscle"},
     {n:2,l:pt[2]?.name||"Symmetry & Detail",goal:"Symmetry, detail & water flush"},
@@ -2474,10 +2459,7 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
     {phase:2,bf:"15.0%",focus:"Symmetry, Detail & Water Flush"},
     {phase:3,bf:`${settings.goalBF||13}.0%`,focus:'Peak "Camera-Ready" Shred'},
   ];
-  // Goal weight = lean mass / (1 - target BF%). Assume ~24% BF at start weight.
-  const startBF = 0.24;
-  const leanMass = (settings.startWeight||80.5) * (1 - startBF);
-  const calcGoalW = Math.round((leanMass / (1 - (settings.goalBF||13)/100))*10)/10;
+  const calcVelocity = D.insights?.velocity ? parseFloat(D.insights.velocity) : 0.5;
 
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
@@ -2487,21 +2469,16 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
         <div style={{display:'flex',gap:16,alignItems:'center',flexWrap:'wrap'}}>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:11,color:C.text3}}>Target BF%:</span>
-            {editGoal?<input type="number" value={gbf} onChange={e=>setGbf(e.target.value)} style={inputStyle}/>
-              :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>~{settings.goalBF}%</span>}
+            <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>~{settings.goalBF}%</span>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:11,color:C.text3}}>Goal Weight:</span>
-            <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>{calcGoalW} kg</span>
-            <span style={{fontSize:9,color:C.text3,fontStyle:'italic'}}>(calculated)</span>
+            <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>{settings.goalWeight||68} kg</span>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:8}}>
             <span style={{fontSize:11,color:C.text3}}>Loss rate:</span>
-            {editGoal?<input type="number" step="0.1" value={wlr} onChange={e=>setWlr(e.target.value)} style={inputStyle}/>
-              :<span style={{fontSize:14,fontWeight:700,fontFamily:'var(--mono)',color:C.text2}}>{settings.weightLossRate||0.5} kg/wk</span>}
+            <span style={{fontSize:14,fontWeight:700,fontFamily:'var(--mono)',color:C.text2}}>-{calcVelocity} kg/wk</span>
           </div>
-          {btnEdit(editGoal,()=>{if(editGoal){settings.save({goalBF:parseFloat(gbf)||13,weightLossRate:parseFloat(wlr)||0.5,goalWeight:calcGoalW});}setEditGoal(!editGoal);},editGoal?'Save':'Edit')}
-          {editGoal&&btnCancel(()=>{setGbf(settings.goalBF);setWlr(settings.weightLossRate||0.5);setEditGoal(false);})}
         </div>
       </AnimCard>
 
@@ -2516,8 +2493,8 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
               <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
                 <div style={{width:24,height:24,borderRadius:8,background:phaseColors[i]+'22',color:phaseColors[i],
                   display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800}}>{r.phase}</div>
-                <span style={{fontSize:13,fontWeight:700,color:isCurrent?phaseColors[i]:C.text}}>Phase {r.phase}</span>
-                {isCurrent && <Tag color={phaseColors[i]}>Active</Tag>}
+                <span style={{fontSize:13,fontWeight:700,color:isCurrent?(C.mode==='light'?'#5B4DA0':phaseColors[i]):C.text}}>Phase {r.phase}</span>
+                {isCurrent && <Tag color={C.mode==='light'?'#5B4DA0':phaseColors[i]} bg={C.mode==='light'?'#E8E4F4':C.mintSoft}>Active</Tag>}
               </div>
               <div style={{fontSize:11,color:C.text3,marginBottom:4}}>Target BF: <span style={{color:C.text,fontWeight:700}}>{r.bf}</span></div>
               <div style={{fontSize:11,color:C.text3}}>Focus: <span style={{color:C.text2,fontWeight:600}}>{r.focus}</span></div>
@@ -2530,214 +2507,103 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
       <AnimCard delay={0.03} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
           <Lbl style={{marginBottom:0}}>Program Structure</Lbl>
-          <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <span style={{fontSize:10,color:C.text3}}>Now: <span style={{color:C.cyan,fontWeight:700}}>Week {D.currentWeek}</span></span>
-            {editProgram && btnCancel(()=>{setTw(settings.totalWeeks||14);setPw(settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}});setEditProgram(false);})}
-            {btnEdit(editProgram,()=>{if(editProgram){settings.save({totalWeeks:parseInt(tw)||14,phaseWeeks:pw});}setEditProgram(!editProgram);},editProgram?'Save':'Edit')}
-          </div>
+          <span style={{fontSize:10,color:C.text3}}>Now: <span style={{color:C.cyan,fontWeight:700}}>Week {D.currentWeek}</span></span>
         </div>
-        {!editProgram && <div>
-          {isM ? (
-            <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
-              {phases.map((p,i) => {
-                const from=pw[p.n]?.from||1,to=pw[p.n]?.to||1,span=to-from+1;
-                const isCurrent=D.currentWeek>=from&&D.currentWeek<=to;
-                return (<div key={p.n} style={{display:'flex',alignItems:'center',gap:10}}>
-                  <div style={{flex:1,display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:10,
-                    background:isCurrent?`${phaseColors[i]}15`:C.subtle,border:`1px solid ${isCurrent?phaseColors[i]+'44':C.border}`}}>
-                    <div style={{width:6,height:6,borderRadius:'50%',background:phaseColors[i],flexShrink:0}}/>
-                    <span style={{fontSize:12,fontWeight:700,color:isCurrent?phaseColors[i]:C.text2}}>{p.l}</span>
-                    <span style={{fontSize:10,color:C.text3,marginLeft:'auto'}}>W{from}–{to}</span>
-                    <span style={{fontSize:9,color:C.text3}}>({span}w)</span>
-                  </div>
-                  {isCurrent && <Tag color={phaseColors[i]}>Now</Tag>}
-                </div>);
-              })}
-            </div>
-          ) : (
-            <div style={{display:'flex',height:32,borderRadius:8,overflow:'hidden',marginBottom:12,background:C.track||'rgba(255,255,255,0.03)'}}>
-              {phases.map((p,i)=>{const from=pw[p.n]?.from||1,to=pw[p.n]?.to||1,span=to-from+1;
-                const total=parseInt(tw)||14;const pct=(span/total)*100;
-                const isCurrent=D.currentWeek>=from&&D.currentWeek<=to;
-                return(<div key={p.n} style={{width:`${pct}%`,background:isCurrent?phaseColors[i]+'33':phaseColors[i]+'11',
-                  display:'flex',alignItems:'center',justifyContent:'center',gap:4,
-                  borderRight:i<2?`1px solid ${C.border}`:'none'}}>
-                  <span style={{fontSize:10,fontWeight:700,color:isCurrent?phaseColors[i]:C.text3}}>{p.l}</span>
-                  <span style={{fontSize:9,color:C.text3}}>W{from}–{to}</span>
-                </div>);})}
-            </div>
-          )}
-          <div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}>
-            <span style={{fontSize:11,color:C.text3}}>Total: <span style={{fontWeight:700,color:C.text}}>{tw} weeks</span></span>
-          </div>
-        </div>}
-        {editProgram && <div>
-          <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:16,flexWrap:'wrap'}}>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
-              <span style={{fontSize:11,color:C.text3}}>Total weeks:</span>
-              <input type="number" value={tw} onChange={e=>{const v=parseInt(e.target.value)||14;setTw(v);
-                setPw(prev=>({...prev,3:{...prev[3],to:v}}));}} style={{...inputStyle,width:50}}/>
-            </div>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:isD?'repeat(3,1fr)':'1fr',gap:10}}>
-            {phases.map((p,i) => (
-              <div key={p.n} style={{padding:'16px 18px',borderRadius:14,background:C.subtle,border:`1px solid ${settings.phase===p.n?phaseColors[i]:C.border}`}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
-                  <div style={{width:24,height:24,borderRadius:8,background:phaseColors[i]+'22',color:phaseColors[i],
-                    display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800}}>{p.n}</div>
-                  <span style={{fontSize:13,fontWeight:700,color:phaseColors[i]}}>{p.l}</span>
+        {isM ? (
+          <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
+            {phases.map((p,i) => {
+              const from=pw[p.n]?.from||1,to=pw[p.n]?.to||1,span=to-from+1;
+              const isCurrent=D.currentWeek>=from&&D.currentWeek<=to;
+              return (<div key={p.n} style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{flex:1,display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:10,
+                  background:isCurrent?`${phaseColors[i]}15`:C.subtle,border:`1px solid ${isCurrent?phaseColors[i]+'44':C.border}`}}>
+                  <div style={{width:6,height:6,borderRadius:'50%',background:phaseColors[i],flexShrink:0}}/>
+                  <span style={{fontSize:12,fontWeight:700,color:isCurrent?(C.mode==='light'?'#5B4DA0':phaseColors[i]):C.text2}}>{p.l}</span>
+                  <span style={{fontSize:10,color:C.text3,marginLeft:'auto'}}>W{from}–{to}</span>
+                  <span style={{fontSize:9,color:C.text3}}>({span}w)</span>
                 </div>
-                <div style={{display:'flex',alignItems:'center',gap:6}}>
-                  <span style={{fontSize:11,color:C.text3}}>Week</span>
-                  <div style={{display:'flex',alignItems:'center',gap:4}}>
-                    <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],from:Math.max(1,(prev[p.n]?.from||1)-1)}}))}
-                      style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8249;</button>
-                    <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:phaseColors[i],minWidth:24,textAlign:'center'}}>{pw[p.n]?.from||1}</span>
-                    <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],from:Math.min(parseInt(tw),(prev[p.n]?.from||1)+1)}}))}
-                      style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8250;</button>
-                  </div>
-                  <span style={{fontSize:11,color:C.text3}}>to</span>
-                  <div style={{display:'flex',alignItems:'center',gap:4}}>
-                    <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],to:Math.max(1,(prev[p.n]?.to||1)-1)}}))}
-                      style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8249;</button>
-                    <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:phaseColors[i],minWidth:24,textAlign:'center'}}>{pw[p.n]?.to||1}</span>
-                    <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],to:Math.min(parseInt(tw),(prev[p.n]?.to||1)+1)}}))}
-                      style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8250;</button>
-                  </div>
-                  <span style={{fontSize:10,color:C.text3,marginLeft:'auto'}}>{(pw[p.n]?.to||1)-(pw[p.n]?.from||1)+1}w</span>
-                </div>
-              </div>))}
+                {isCurrent && <Tag color={C.mode==='light'?'#5B4DA0':phaseColors[i]} bg={C.mode==='light'?'#E8E4F4':C.mintSoft}>Now</Tag>}
+              </div>);
+            })}
           </div>
-        </div>}
+        ) : (
+          <div style={{display:'flex',height:32,borderRadius:8,overflow:'hidden',marginBottom:12,background:C.track||'rgba(255,255,255,0.03)'}}>
+            {phases.map((p,i)=>{const from=pw[p.n]?.from||1,to=pw[p.n]?.to||1,span=to-from+1;
+              const total=parseInt(tw)||14;const pct=(span/total)*100;
+              const isCurrent=D.currentWeek>=from&&D.currentWeek<=to;
+              return(<div key={p.n} style={{width:`${pct}%`,background:isCurrent?phaseColors[i]+'33':phaseColors[i]+'11',
+                display:'flex',alignItems:'center',justifyContent:'center',gap:4,
+                borderRight:i<2?`1px solid ${C.border}`:'none'}}>
+                <span style={{fontSize:10,fontWeight:700,color:isCurrent?(C.mode==='light'?'#5B4DA0':phaseColors[i]):C.text3}}>{p.l}</span>
+                <span style={{fontSize:9,color:C.text3}}>W{from}–{to}</span>
+              </div>);})}
+          </div>
+        )}
+        <span style={{fontSize:11,color:C.text3}}>Total: <span style={{fontWeight:700,color:C.text}}>{tw} weeks</span></span>
       </AnimCard>
 
-      {/* Phase Nutrition Cards — editable */}
+      {/* Phase Nutrition Cards — read only */}
       {phases.map((p,pi)=>{
         const isActive=settings.phase===p.n;
-        const t=draftTargets[p.n]||pt[p.n]||PHASE_TARGETS_DEFAULTS[p.n];
-        const isEditing=editPhase===p.n;
+        const t=pt[p.n]||PHASE_TARGETS_DEFAULTS[p.n];
         const macros=[
-          {k:'cal',l:"Calories",v:`${t.calMin||t.cal}–${t.calMax||t.cal}`,u:"kcal"},
-          {k:'pro',l:"Protein",v:`${t.proMin||t.pro}–${t.proMax||t.pro}`,u:"g"},
-          {k:'carb',l:"Carbs",v:`${t.carbMin||t.carb}–${t.carbMax||t.carb}`,u:"g"},
-          {k:'fat',l:"Fat",v:`${t.fatMin||t.fat}–${t.fatMax||t.fat}`,u:"g"},
-          {k:'sugar',l:"Sugar",v:`< ${t.sugar}`,u:"g"},
-          {k:'fiber',l:"Fiber",v:`${t.fiberMin||t.fiber}–${t.fiberMax||t.fiber}`,u:"g"},
-          {k:'steps',l:"Steps",v:t.steps>=10000?`${t.steps/1000}k+`:`${(t.steps/1000).toFixed(0)}k`,u:"/day"},
+          {l:"Calories",v:`${t.calMin||t.cal}–${t.calMax||t.cal}`,u:"kcal"},
+          {l:"Protein",v:`${t.proMin||t.pro}–${t.proMax||t.pro}`,u:"g"},
+          {l:"Carbs",v:`${t.carbMin||t.carb}–${t.carbMax||t.carb}`,u:"g"},
+          {l:"Fat",v:`${t.fatMin||t.fat}–${t.fatMax||t.fat}`,u:"g"},
+          {l:"Sugar",v:`< ${t.sugar}`,u:"g"},
+          {l:"Fiber",v:`${t.fiberMin||t.fiber}–${t.fiberMax||t.fiber}`,u:"g"},
+          {l:"Steps",v:`${((t.stepsMin||t.steps)/1000).toFixed(0)}k–${(t.steps/1000).toFixed(0)}k`,u:"/day"},
         ];
-        const updateDraft = (field, val) => {
-          setDraftTargets(prev => {
-            const next = JSON.parse(JSON.stringify(prev));
-            if (!next[p.n]) next[p.n] = {...PHASE_TARGETS_DEFAULTS[p.n]};
-            next[p.n][field] = parseFloat(val)||0;
-            return next;
-          });
-        };
         return(<AnimCard key={p.n} glow={isActive} delay={pi*0.08} style={{gridColumn:isD&&isActive?'1/4':isT&&isActive?'1/3':'1'}}>
           <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16,flexWrap:'wrap'}}>
-            <div style={{width:36,height:36,borderRadius:12,background:isActive?phaseColors[pi]:'rgba(255,255,255,0.04)',color:isActive?(C.mode==='light'?'#fff':C.bg):C.text2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,flexShrink:0}}>{p.n}</div>
-            <div><div style={{fontSize:15,fontWeight:800,color:isActive?phaseColors[pi]:C.text}}>{p.l}</div>
+            <div style={{width:36,height:36,borderRadius:12,background:isActive?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:'rgba(255,255,255,0.04)',color:isActive?'#fff':C.text2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,flexShrink:0}}>{p.n}</div>
+            <div><div style={{fontSize:15,fontWeight:800,color:isActive?(C.mode==='light'?'#5B4DA0':phaseColors[pi]):C.text}}>{p.l}</div>
               <div style={{fontSize:11,color:C.text3}}>Weeks {pw[p.n]?.from||1}–{pw[p.n]?.to||1}</div></div>
-            <div style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center'}}>
-              {isActive?<Tag color={phaseColors[pi]} bg={C.mintSoft}>Active</Tag>
-                :<button onClick={()=>settings.save({phase:p.n})} style={{padding:'5px 12px',borderRadius:8,border:`1px solid ${C.border}`,background:'transparent',color:C.text2,fontSize:10,fontWeight:600,cursor:'pointer'}}>Activate</button>}
-              {isEditing&&btnCancel(()=>{setDraftTargets(JSON.parse(JSON.stringify(pt)));setEditPhase(null);})}
-              {btnEdit(isEditing,()=>{
-                if(isEditing){settings.save({phaseTargets:draftTargets});setEditPhase(null);}
-                else{setDraftTargets(JSON.parse(JSON.stringify(pt)));setEditPhase(p.n);}
-              },isEditing?'Save':'Edit')}
-            </div>
+            {isActive&&<Tag color={C.mode==='light'?'#5B4DA0':phaseColors[pi]} bg={C.mode==='light'?'#E8E4F4':C.mintSoft}>Active</Tag>}
           </div>
           <div style={{fontSize:12,color:C.text2,marginBottom:14}}>{p.goal}</div>
           <div style={{display:'grid',gridTemplateColumns:isActive&&isD?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
             {macros.map(m=>(
               <div key={m.l} style={{padding:'12px 12px',borderRadius:12,background:C.subtle,border:`1px solid ${C.border}`}}>
                 <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,marginBottom:3}}>{m.l}</div>
-                {isEditing ? (
-                  <div style={{display:'flex',alignItems:'center',gap:4}}>
-                    <input type="number" value={t[m.k]||''} onChange={e=>updateDraft(m.k,e.target.value)}
-                      style={{...inputStyle,width:48,fontSize:12}}/>
-                    <span style={{fontSize:9,color:C.text3}}>{m.u}</span>
-                  </div>
-                ) : (
-                  <div style={{fontSize:13,fontWeight:700,fontFamily:'var(--mono)'}}>{m.v}<span style={{fontSize:9,color:C.text3,marginLeft:3}}>{m.u}</span></div>
-                )}
+                <div style={{fontSize:13,fontWeight:700,fontFamily:'var(--mono)'}}>{m.v}<span style={{fontSize:9,color:C.text3,marginLeft:3}}>{m.u}</span></div>
               </div>
             ))}
           </div>
         </AnimCard>);
       })}
 
-      {/* Training — Daily Morning */}
+      {/* Training — Daily Morning — read only */}
       <AnimCard delay={0.3} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Daily Morning Training (25–30 min, Fasted)</Lbl>
         <div style={{display:'grid',gridTemplateColumns:isM?'1fr':'repeat(3,1fr)',gap:10}}>
           {[1,2,3].map(phase => {
             const td = training||{};
             const md = td.morning?.[phase] || TRAINING_DEFAULTS.morning[phase];
-            const isEdit = editTraining === `morning-${phase}`;
             return (<div key={phase} style={{padding:'14px 16px',borderRadius:14,background:C.subtle,
               border:`1px solid ${settings.phase===phase?phaseColors[phase-1]:C.border}`}}>
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10,flexWrap:'wrap'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
                 <div style={{width:20,height:20,borderRadius:6,background:phaseColors[phase-1]+'22',color:phaseColors[phase-1],
                   display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800}}>{phase}</div>
                 <span style={{fontSize:12,fontWeight:700,color:phaseColors[phase-1]}}>Phase {phase}</span>
-                {settings.phase===phase && <Tag color={phaseColors[phase-1]}>Active</Tag>}
-                <div style={{marginLeft:'auto',display:'flex',gap:4}}>
-                  {isEdit&&btnCancel(()=>setEditTraining(null))}
-                  {btnEdit(isEdit,()=>{if(isEdit){setEditTraining(null);}else{setEditTraining(`morning-${phase}`);}},isEdit?'Done':'Edit')}
-                </div>
+                {settings.phase===phase && <Tag color={C.mode==='light'?'#5B4DA0':phaseColors[phase-1]} bg={C.mode==='light'?'#E8E4F4':C.mintSoft}>Active</Tag>}
               </div>
               <div style={{fontSize:10,color:C.text2,marginBottom:10,fontStyle:'italic'}}>{md.goal}</div>
               {md.exercises?.map((ex,i)=>(
                 <div key={i} style={{display:'flex',gap:6,alignItems:'baseline',marginBottom:6,paddingBottom:6,
                   borderBottom:i<md.exercises.length-1?`1px solid ${C.border}`:'none'}}>
-                  <span style={{fontSize:11,fontWeight:700,color:C.mint,minWidth:14,fontFamily:'var(--mono)'}}>{i+1}.</span>
-                  <div style={{flex:1}}>
-                    <div style={{display:'flex',alignItems:'baseline',gap:6,flexWrap:'wrap'}}>
-                      <span style={{fontSize:12,fontWeight:700,color:C.text}}>{ex.name}</span>
-                      <span style={{fontSize:11,color:C.text3,fontFamily:'var(--mono)'}}>{ex.sets}x{ex.reps}</span>
-                    </div>
-                    {ex.rest && <span style={{fontSize:10,color:C.text3}}>Rest: {ex.rest}</span>}
-                    {ex.notes && <div style={{fontSize:10,color:C.text3,fontStyle:'italic',marginTop:2}}>{ex.notes}</div>}
-                  </div>
-                  {isEdit && <button onClick={()=>{
-                    const updated = {...md,exercises:md.exercises.filter((_,idx)=>idx!==i)};
-                    const trn = training||{};
-                    trn.save({morning:{...(trn.morning||TRAINING_DEFAULTS.morning),[phase]:updated}});
-                  }} style={{fontSize:14,color:C.red,background:'transparent',border:'none',cursor:'pointer',padding:'2px 6px'}}>✕</button>}
+                  <span style={{fontSize:12,fontWeight:700,color:C.text}}>{ex.name}</span>
+                  <span style={{fontSize:11,color:C.text3,fontFamily:'var(--mono)'}}>{ex.sets}x{ex.reps}</span>
+                  {ex.notes && <span style={{fontSize:10,color:C.text3,fontStyle:'italic',marginLeft:'auto',textAlign:'right',maxWidth:isM?120:200}}>{ex.notes}</span>}
                 </div>
               ))}
-              {isEdit && <div style={{marginTop:8,display:'flex',gap:6,flexWrap:'wrap'}}>
-                <select value="" onChange={e=>{if(e.target.value){
-                  const newEx = {name:e.target.value,sets:3,reps:"10",rest:"",notes:""};
-                  const updated = {...md,exercises:[...md.exercises,newEx]};
-                  const trn = training||{};
-                  trn.save({morning:{...(trn.morning||TRAINING_DEFAULTS.morning),[phase]:updated}});
-                }}}
-                  style={{flex:1,minWidth:120,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:11}}>
-                  <option value="">+ Add exercise...</option>
-                  {((training||{}).exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary).map(ex=>(<option key={ex} value={ex}>{ex}</option>))}
-                </select>
-                <div style={{display:'flex',gap:4}}>
-                  <input value={newExercise} onChange={e=>setNewExercise(e.target.value)} placeholder="New exercise"
-                    style={{...inputStyle,width:'auto',minWidth:100,textAlign:'left',fontSize:11}}/>
-                  <button onClick={()=>{if(newExercise.trim()){
-                    const trn = training||{};
-                    const lib = [...(trn.exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary),newExercise.trim()];
-                    const newEx = {name:newExercise.trim(),sets:3,reps:"10",rest:"",notes:""};
-                    const updated = {...md,exercises:[...md.exercises,newEx]};
-                    trn.save({exerciseLibrary:lib,morning:{...(trn.morning||TRAINING_DEFAULTS.morning),[phase]:updated}});
-                    setNewExercise('');
-                  }}} style={{padding:'6px 10px',borderRadius:8,border:`1px solid ${C.mintMed}`,background:'transparent',color:C.mint,fontSize:10,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>Add</button>
-                </div>
-              </div>}
             </div>);
           })}
         </div>
       </AnimCard>
 
-      {/* Training — Gym Workouts */}
+      {/* Training — Gym Workouts — read only */}
       <AnimCard delay={0.35} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Gym / Strength Workouts (3x / week)</Lbl>
         <div style={{fontSize:11,color:C.text3,marginBottom:12}}>45 sec rest between sets · 3-sec eccentric on every rep · Rotate A/B/A then B/A/B</div>
@@ -2745,20 +2611,13 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
           {['A','B'].map(wk => {
             const td = training||{};
             const wd = td.gym?.[wk] || TRAINING_DEFAULTS.gym[wk];
-            const isEdit = editTraining === `gym-${wk}`;
             return (<div key={wk} style={{padding:'16px 18px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
                 <div style={{width:28,height:28,borderRadius:8,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
                   display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:C.mode==='light'?'#fff':'#0A0C18'}}>
                   {wk}</div>
-                <div style={{flex:1}}>
-                  <span style={{fontSize:14,fontWeight:700,color:C.text}}>{wd.name}</span>
-                  <div style={{fontSize:10,color:C.text3}}>Rest: {wd.rest}</div>
-                </div>
-                <div style={{display:'flex',gap:4}}>
-                  {isEdit&&btnCancel(()=>setEditTraining(null))}
-                  {btnEdit(isEdit,()=>{if(isEdit){setEditTraining(null);}else{setEditTraining(`gym-${wk}`);}},isEdit?'Done':'Edit')}
-                </div>
+                <div><span style={{fontSize:14,fontWeight:700,color:C.text}}>{wd.name}</span>
+                  <div style={{fontSize:10,color:C.text3}}>Rest: {wd.rest}</div></div>
               </div>
               {wd.exercises?.map((ex,i)=>(
                 <div key={i} style={{display:'flex',gap:8,alignItems:'baseline',marginBottom:8,paddingBottom:8,
@@ -2771,37 +2630,8 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
                     </div>
                     {ex.notes && <div style={{fontSize:10,color:C.text3,fontStyle:'italic',marginTop:2}}>{ex.notes}</div>}
                   </div>
-                  {isEdit && <button onClick={()=>{
-                    const updated = {...wd,exercises:wd.exercises.filter((_,idx)=>idx!==i)};
-                    const trn = training||{};
-                    trn.save({gym:{...(trn.gym||TRAINING_DEFAULTS.gym),[wk]:updated}});
-                  }} style={{fontSize:14,color:C.red,background:'transparent',border:'none',cursor:'pointer',padding:'2px 6px'}}>✕</button>}
                 </div>
               ))}
-              {isEdit && <div style={{marginTop:8,display:'flex',gap:6,flexWrap:'wrap'}}>
-                <select value="" onChange={e=>{if(e.target.value){
-                  const newEx = {name:e.target.value,sets:3,reps:"10",notes:""};
-                  const updated = {...wd,exercises:[...wd.exercises,newEx]};
-                  const trn = training||{};
-                  trn.save({gym:{...(trn.gym||TRAINING_DEFAULTS.gym),[wk]:updated}});
-                }}}
-                  style={{flex:1,minWidth:120,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:11}}>
-                  <option value="">+ Add exercise...</option>
-                  {((training||{}).exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary).map(ex=>(<option key={ex} value={ex}>{ex}</option>))}
-                </select>
-                <div style={{display:'flex',gap:4}}>
-                  <input value={newExercise} onChange={e=>setNewExercise(e.target.value)} placeholder="New exercise"
-                    style={{...inputStyle,width:'auto',minWidth:100,textAlign:'left',fontSize:11}}/>
-                  <button onClick={()=>{if(newExercise.trim()){
-                    const trn = training||{};
-                    const lib = [...(trn.exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary),newExercise.trim()];
-                    const newEx = {name:newExercise.trim(),sets:3,reps:"10",notes:""};
-                    const updated = {...wd,exercises:[...wd.exercises,newEx]};
-                    trn.save({exerciseLibrary:lib,gym:{...(trn.gym||TRAINING_DEFAULTS.gym),[wk]:updated}});
-                    setNewExercise('');
-                  }}} style={{padding:'6px 10px',borderRadius:8,border:`1px solid ${C.mintMed}`,background:'transparent',color:C.mint,fontSize:10,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>Add</button>
-                </div>
-              </div>}
             </div>);
           })}
         </div>
@@ -2815,7 +2645,252 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
     </div>);
 }
 
-// LIFESTYLE TAB — Articles & media feed
+// SETTINGS TAB — Single place to edit all configurable data
+function SettingsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
+  const cols=isD?'repeat(2,1fr)':'1fr';
+  const inputStyle={width:72,padding:'8px 10px',borderRadius:10,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:14,fontFamily:'var(--mono)',textAlign:'center',outline:'none',boxSizing:'border-box'};
+  const sectionStyle={padding:'20px 22px',borderRadius:16,background:C.subtle,border:`1px solid ${C.border}`,marginBottom:isD?0:12};
+  const labelStyle={fontSize:10,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:10};
+  const rowStyle={display:'flex',alignItems:'center',gap:10,marginBottom:12,flexWrap:'wrap'};
+  const fieldLabel={fontSize:12,color:C.text2,minWidth:80};
+  const btnSave = (onClick) => <button onClick={onClick} style={{padding:'8px 18px',borderRadius:10,border:'none',background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,color:C.mode==='light'?'#fff':'#0A0C18',fontSize:12,fontWeight:700,cursor:'pointer'}}>Save</button>;
+  const btnCancel = (onClick) => <button onClick={onClick} style={{padding:'8px 18px',borderRadius:10,border:`1px solid ${C.border}`,background:C.subtle,color:C.text2,fontSize:12,fontWeight:600,cursor:'pointer'}}>Cancel</button>;
+
+  // Section 1: Goals
+  const [goalDraft, setGoalDraft] = useState({bf:settings.goalBF, gw:settings.goalWeight||68});
+  const [goalDirty, setGoalDirty] = useState(false);
+  const saveGoals = () => { settings.save({goalBF:parseFloat(goalDraft.bf)||13,goalWeight:parseFloat(goalDraft.gw)||68}); setGoalDirty(false); };
+  const cancelGoals = () => { setGoalDraft({bf:settings.goalBF,gw:settings.goalWeight||68}); setGoalDirty(false); };
+
+  // Section 2: Active Phase
+  const [phaseDraft, setPhaseDraft] = useState(settings.phase);
+  const [phaseDirty, setPhaseDirty] = useState(false);
+  const savePhase = () => { settings.save({phase:phaseDraft}); setPhaseDirty(false); };
+
+  // Section 3: Program Structure
+  const [progDraft, setProgDraft] = useState({tw:settings.totalWeeks||14,pw:settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}}});
+  const [progDirty, setProgDirty] = useState(false);
+  const saveProg = () => { settings.save({totalWeeks:parseInt(progDraft.tw)||14,phaseWeeks:progDraft.pw}); setProgDirty(false); };
+  const cancelProg = () => { setProgDraft({tw:settings.totalWeeks||14,pw:settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}}}); setProgDirty(false); };
+
+  // Section 4: Phase Targets
+  const pt = settings.phaseTargets || PHASE_TARGETS_DEFAULTS;
+  const [targetsDraft, setTargetsDraft] = useState(JSON.parse(JSON.stringify(pt)));
+  const [targetsDirty, setTargetsDirty] = useState(false);
+  const saveTargets = () => { settings.save({phaseTargets:targetsDraft}); setTargetsDirty(false); };
+  const cancelTargets = () => { setTargetsDraft(JSON.parse(JSON.stringify(pt))); setTargetsDirty(false); };
+  const updateTarget = (phase,field,val) => { setTargetsDraft(prev => {const n=JSON.parse(JSON.stringify(prev));if(!n[phase])n[phase]={...PHASE_TARGETS_DEFAULTS[phase]};n[phase][field]=parseFloat(val)||0;return n;}); setTargetsDirty(true); };
+
+  // Section 5: Training
+  const [newExercise, setNewExercise] = useState('');
+  const [morningDrafts, setMorningDrafts] = useState({1:null,2:null,3:null});
+  const [morningDirty, setMorningDirty] = useState({1:false,2:false,3:false});
+  const [gymDrafts, setGymDrafts] = useState({A:null,B:null});
+  const [gymDirty, setGymDirty] = useState({A:false,B:false});
+  const phaseColors = [C.gradStart, C.cyan, C.purple];
+  const phaseNames = ['Fat Loss','Symmetry & Detail','Peak Shred'];
+  const macroFields = [
+    {k:'cal',l:'Calories',u:'kcal',range:true,minK:'calMin',maxK:'calMax'},
+    {k:'pro',l:'Protein',u:'g',range:true,minK:'proMin',maxK:'proMax'},
+    {k:'carb',l:'Carbs',u:'g',range:true,minK:'carbMin',maxK:'carbMax'},
+    {k:'fat',l:'Fat',u:'g',range:true,minK:'fatMin',maxK:'fatMax'},
+    {k:'sugar',l:'Sugar',u:'g',range:false,prefix:'<'},
+    {k:'fiber',l:'Fiber',u:'g',range:true,minK:'fiberMin',maxK:'fiberMax'},
+    {k:'steps',l:'Steps',u:'/day',range:true,minK:'stepsMin',maxK:'steps'},
+  ];
+
+  return (
+    <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?16:12}}>
+
+      {/* Goals */}
+      <div style={sectionStyle}>
+        <div style={labelStyle}>Goals</div>
+        <div style={rowStyle}>
+          <span style={fieldLabel}>Target BF%</span>
+          <input type="number" value={goalDraft.bf} onChange={e=>{setGoalDraft(p=>({...p,bf:e.target.value}));setGoalDirty(true);}} style={inputStyle}/>
+          <span style={{fontSize:11,color:C.text3}}>%</span>
+        </div>
+        <div style={rowStyle}>
+          <span style={fieldLabel}>Goal Weight</span>
+          <input type="number" step="0.1" value={goalDraft.gw} onChange={e=>{setGoalDraft(p=>({...p,gw:e.target.value}));setGoalDirty(true);}} style={inputStyle}/>
+          <span style={{fontSize:11,color:C.text3}}>kg</span>
+        </div>
+        <div style={rowStyle}>
+          <span style={fieldLabel}>Loss Rate</span>
+          <span style={{fontSize:14,fontWeight:700,fontFamily:'var(--mono)',color:C.text}}>-{D.insights?.velocity||'0.5'} kg/wk</span>
+          <span style={{fontSize:9,color:C.text3,fontStyle:'italic'}}>(auto from weigh-ins)</span>
+        </div>
+        {goalDirty && <div style={{display:'flex',gap:8,marginTop:8}}>{btnSave(saveGoals)}{btnCancel(cancelGoals)}</div>}
+      </div>
+
+      {/* Active Phase */}
+      <div style={sectionStyle}>
+        <div style={labelStyle}>Active Phase</div>
+        <div style={{display:'flex',gap:8}}>
+          {[1,2,3].map(p=>(
+            <button key={p} onClick={()=>{setPhaseDraft(p);setPhaseDirty(p!==settings.phase);}}
+              style={{flex:1,padding:'12px 8px',borderRadius:12,border:`2px solid ${phaseDraft===p?phaseColors[p-1]:C.border}`,
+                background:phaseDraft===p?`${phaseColors[p-1]}15`:'transparent',color:phaseDraft===p?(C.mode==='light'?'#5B4DA0':phaseColors[p-1]):C.text3,
+                fontSize:12,fontWeight:700,cursor:'pointer',textAlign:'center',fontFamily:'var(--sans)'}}>
+              Phase {p}<div style={{fontSize:9,fontWeight:500,marginTop:2}}>{phaseNames[p-1]}</div>
+            </button>))}
+        </div>
+        {phaseDirty && <div style={{display:'flex',gap:8,marginTop:12}}>{btnSave(savePhase)}{btnCancel(()=>{setPhaseDraft(settings.phase);setPhaseDirty(false);})}</div>}
+      </div>
+
+      {/* Program Structure */}
+      <div style={sectionStyle}>
+        <div style={labelStyle}>Program Structure</div>
+        <div style={rowStyle}>
+          <span style={fieldLabel}>Total Weeks</span>
+          <input type="number" value={progDraft.tw} onChange={e=>{setProgDraft(p=>({...p,tw:e.target.value}));setProgDirty(true);}} style={{...inputStyle,width:72}}/>
+        </div>
+        {[1,2,3].map(p=>(
+          <div key={p} style={{...rowStyle,marginBottom:8}}>
+            <span style={{...fieldLabel,color:phaseColors[p-1],fontWeight:700}}>Phase {p}</span>
+            <span style={{fontSize:11,color:C.text3}}>Week</span>
+            <input type="number" value={progDraft.pw[p]?.from||1} onChange={e=>{const pw={...progDraft.pw,[p]:{...progDraft.pw[p],from:parseInt(e.target.value)||1}};setProgDraft(prev=>({...prev,pw}));setProgDirty(true);}} style={{...inputStyle,width:64}}/>
+            <span style={{fontSize:11,color:C.text3}}>to</span>
+            <input type="number" value={progDraft.pw[p]?.to||1} onChange={e=>{const pw={...progDraft.pw,[p]:{...progDraft.pw[p],to:parseInt(e.target.value)||1}};setProgDraft(prev=>({...prev,pw}));setProgDirty(true);}} style={{...inputStyle,width:64}}/>
+          </div>))}
+        {progDirty && <div style={{display:'flex',gap:8,marginTop:8}}>{btnSave(saveProg)}{btnCancel(cancelProg)}</div>}
+      </div>
+
+      {/* Phase Nutrition Targets */}
+      <div style={{...sectionStyle,gridColumn:isD?'1/3':'1'}}>
+        <div style={labelStyle}>Phase Nutrition Targets</div>
+        <div style={{display:'grid',gridTemplateColumns:isM?'1fr':'repeat(3,1fr)',gap:14}}>
+          {[1,2,3].map(phase=>{
+            const t=targetsDraft[phase]||PHASE_TARGETS_DEFAULTS[phase];
+            return(<div key={phase} style={{padding:'14px 16px',borderRadius:14,border:`1px solid ${phaseColors[phase-1]}33`,background:`${phaseColors[phase-1]}06`}}>
+              <div style={{fontSize:12,fontWeight:700,color:phaseColors[phase-1],marginBottom:12}}>Phase {phase} — {phaseNames[phase-1]}</div>
+              {macroFields.map(m=>(
+                <div key={m.k} style={{display:'flex',alignItems:'center',gap:6,marginBottom:8,flexWrap:'wrap'}}>
+                  <span style={{fontSize:11,color:C.text2,minWidth:60}}>{m.l}</span>
+                  {m.range ? (<>
+                    <input type="number" value={t[m.minK]||t[m.k]||''} onChange={e=>updateTarget(phase,m.minK,e.target.value)} style={{...inputStyle,width:68,fontSize:13,padding:'6px 8px'}} placeholder="Min"/>
+                    <span style={{fontSize:10,color:C.text3}}>–</span>
+                    <input type="number" value={t[m.maxK]||t[m.k]||''} onChange={e=>updateTarget(phase,m.maxK,e.target.value)} style={{...inputStyle,width:68,fontSize:13,padding:'6px 8px'}} placeholder="Max"/>
+                  </>) : (<>
+                    {m.prefix && <span style={{fontSize:11,color:C.text3}}>{m.prefix}</span>}
+                    <input type="number" value={t[m.k]||''} onChange={e=>updateTarget(phase,m.k,e.target.value)} style={{...inputStyle,width:72,fontSize:13,padding:'6px 8px'}}/>
+                  </>)}
+                  <span style={{fontSize:9,color:C.text3}}>{m.u}</span>
+                </div>))}
+            </div>);})}
+        </div>
+        {targetsDirty && <div style={{display:'flex',gap:8,marginTop:14}}>{btnSave(saveTargets)}{btnCancel(cancelTargets)}</div>}
+      </div>
+
+      {/* Morning Training */}
+      {[1,2,3].map(phase => {
+        const td = training||{};
+        const orig = td.morning?.[phase] || TRAINING_DEFAULTS.morning[phase];
+        const draftKey = `morning-${phase}`;
+        const draft = morningDrafts[phase];
+        const isDirty = morningDirty[phase];
+        const md = draft || orig;
+        const updateMorning = (newMd) => { setMorningDrafts(p=>({...p,[phase]:newMd})); setMorningDirty(p=>({...p,[phase]:true})); };
+        const saveMorning = () => { const trn=training||{}; trn.save({morning:{...(trn.morning||TRAINING_DEFAULTS.morning),[phase]:md}}); setMorningDirty(p=>({...p,[phase]:false})); };
+        const cancelMorning = () => { setMorningDrafts(p=>({...p,[phase]:null})); setMorningDirty(p=>({...p,[phase]:false})); };
+        return(<div key={`m${phase}`} style={sectionStyle}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+            <div style={{...labelStyle,color:phaseColors[phase-1],marginBottom:0}}>Phase {phase} Morning Training</div>
+            {isDirty && <div style={{display:'flex',gap:6}}>{btnSave(saveMorning)}{btnCancel(cancelMorning)}</div>}
+          </div>
+          <div style={{fontSize:10,color:C.text2,marginBottom:10,fontStyle:'italic'}}>{md.goal}</div>
+          {md.exercises?.map((ex,i)=>(
+            <div key={i} style={{marginBottom:8,paddingBottom:8,borderBottom:i<md.exercises.length-1?`1px solid ${C.border}`:'none'}}>
+              <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:4}}>
+                <span style={{fontSize:12,fontWeight:700,color:C.text,flex:1}}>{ex.name}</span>
+                <input type="number" value={ex.sets} onChange={e=>{const exs=[...md.exercises];exs[i]={...exs[i],sets:parseInt(e.target.value)||1};
+                  updateMorning({...md,exercises:exs});}}
+                  style={{...inputStyle,width:60,fontSize:13,padding:'6px 8px'}} title="Sets"/>
+                <span style={{fontSize:10,color:C.text3}}>×</span>
+                <input value={ex.reps} onChange={e=>{const exs=[...md.exercises];exs[i]={...exs[i],reps:e.target.value};
+                  updateMorning({...md,exercises:exs});}}
+                  style={{...inputStyle,width:72,fontSize:13,padding:'6px 8px'}} title="Reps"/>
+                <button onClick={()=>updateMorning({...md,exercises:md.exercises.filter((_,idx)=>idx!==i)})}
+                  style={{fontSize:14,color:C.red||'#e55',background:'transparent',border:'none',cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>
+              <textarea value={ex.notes||''} onChange={e=>{const exs=[...md.exercises];exs[i]={...exs[i],notes:e.target.value};
+                updateMorning({...md,exercises:exs});}}
+                rows={2} onInput={e=>{e.target.style.height='auto';e.target.style.height=e.target.scrollHeight+'px';}} style={{...inputStyle,width:'100%',textAlign:'left',fontSize:12,padding:'8px 12px',resize:'vertical',minHeight:44,lineHeight:1.5,overflow:'hidden'}} placeholder="Notes / instructions"/>
+            </div>))}
+          <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+            <select value="" onChange={e=>{if(e.target.value){const newEx={name:e.target.value,sets:3,reps:"10",notes:""};
+              updateMorning({...md,exercises:[...md.exercises,newEx]});}}}
+              style={{flex:1,minWidth:120,padding:'8px 10px',borderRadius:10,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:12}}>
+              <option value="">+ Add exercise...</option>
+              {((training||{}).exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary).map(ex=>(<option key={ex} value={ex}>{ex}</option>))}
+            </select>
+            <input value={newExercise} onChange={e=>setNewExercise(e.target.value)} placeholder="New exercise"
+              style={{...inputStyle,width:'auto',minWidth:140,flex:1,textAlign:'left',fontSize:12,padding:'8px 12px'}}/>
+            <button onClick={()=>{if(newExercise.trim()){
+              const lib=[...((training||{}).exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary),newExercise.trim()];
+              const newEx={name:newExercise.trim(),sets:3,reps:"10",notes:""};
+              updateMorning({...md,exercises:[...md.exercises,newEx]});
+              // Save library immediately (it's additive, no cancel needed)
+              const trn=training||{}; trn.save({exerciseLibrary:lib});
+              setNewExercise('');}}} style={{padding:'8px 14px',borderRadius:10,border:`1px solid ${C.mintMed}`,background:'transparent',color:C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>Add</button>
+          </div>
+        </div>);
+      })}
+
+      {/* Gym Workouts */}
+      {['A','B'].map(wk => {
+        const td = training||{};
+        const orig = td.gym?.[wk] || TRAINING_DEFAULTS.gym[wk];
+        const draft = gymDrafts[wk];
+        const isDirty = gymDirty[wk];
+        const wd = draft || orig;
+        const updateGym = (newWd) => { setGymDrafts(p=>({...p,[wk]:newWd})); setGymDirty(p=>({...p,[wk]:true})); };
+        const saveGym = () => { const trn=training||{}; trn.save({gym:{...(trn.gym||TRAINING_DEFAULTS.gym),[wk]:wd}}); setGymDirty(p=>({...p,[wk]:false})); };
+        const cancelGym = () => { setGymDrafts(p=>({...p,[wk]:null})); setGymDirty(p=>({...p,[wk]:false})); };
+        return(<div key={`g${wk}`} style={sectionStyle}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+            <div style={{...labelStyle,marginBottom:0}}>Workout {wk} — {wd.name}</div>
+            {isDirty && <div style={{display:'flex',gap:6}}>{btnSave(saveGym)}{btnCancel(cancelGym)}</div>}
+          </div>
+          <div style={{fontSize:10,color:C.text3,marginBottom:10}}>Rest: {wd.rest} · {wd.notes}</div>
+          {wd.exercises?.map((ex,i)=>(
+            <div key={i} style={{marginBottom:8,paddingBottom:8,borderBottom:i<wd.exercises.length-1?`1px solid ${C.border}`:'none'}}>
+              <div style={{display:'flex',gap:6,alignItems:'center',marginBottom:4}}>
+                <span style={{fontSize:13,fontWeight:700,color:C.text,flex:1}}>{ex.name}</span>
+                <input type="number" value={ex.sets} onChange={e=>{const exs=[...wd.exercises];exs[i]={...exs[i],sets:parseInt(e.target.value)||3};
+                  updateGym({...wd,exercises:exs});}}
+                  style={{...inputStyle,width:60,fontSize:13,padding:'6px 8px'}} title="Sets"/>
+                <span style={{fontSize:10,color:C.text3}}>×</span>
+                <input value={ex.reps} onChange={e=>{const exs=[...wd.exercises];exs[i]={...exs[i],reps:e.target.value};
+                  updateGym({...wd,exercises:exs});}}
+                  style={{...inputStyle,width:72,fontSize:13,padding:'6px 8px'}} title="Reps"/>
+                <button onClick={()=>updateGym({...wd,exercises:wd.exercises.filter((_,idx)=>idx!==i)})}
+                  style={{fontSize:14,color:C.red||'#e55',background:'transparent',border:'none',cursor:'pointer',padding:'2px 6px'}}>✕</button>
+              </div>
+              <textarea value={ex.notes||''} onChange={e=>{const exs=[...wd.exercises];exs[i]={...exs[i],notes:e.target.value};
+                updateGym({...wd,exercises:exs});}}
+                rows={2} onInput={e=>{e.target.style.height='auto';e.target.style.height=e.target.scrollHeight+'px';}} style={{...inputStyle,width:'100%',textAlign:'left',fontSize:12,padding:'8px 12px',resize:'vertical',minHeight:44,lineHeight:1.5,overflow:'hidden'}} placeholder="Notes / instructions"/>
+            </div>))}
+          <div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+            <select value="" onChange={e=>{if(e.target.value){const newEx={name:e.target.value,sets:3,reps:"10",notes:""};
+              updateGym({...wd,exercises:[...wd.exercises,newEx]});}}}
+              style={{flex:1,minWidth:120,padding:'8px 10px',borderRadius:10,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:12}}>
+              <option value="">+ Add exercise...</option>
+              {((training||{}).exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary).map(ex=>(<option key={ex} value={ex}>{ex}</option>))}
+            </select>
+            <input value={newExercise} onChange={e=>setNewExercise(e.target.value)} placeholder="New exercise"
+              style={{...inputStyle,width:'auto',minWidth:140,flex:1,textAlign:'left',fontSize:12,padding:'8px 12px'}}/>
+            <button onClick={()=>{if(newExercise.trim()){
+              const lib=[...((training||{}).exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary),newExercise.trim()];
+              const newEx={name:newExercise.trim(),sets:3,reps:"10",notes:""};
+              updateGym({...wd,exercises:[...wd.exercises,newEx]});
+              const trn=training||{}; trn.save({exerciseLibrary:lib});
+              setNewExercise('');}}} style={{padding:'8px 14px',borderRadius:10,border:`1px solid ${C.mintMed}`,background:'transparent',color:C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>Add</button>
+          </div>
+        </div>);
+      })}
+    </div>);
+}
 // Data shape: { articles: [{ id, title, link, summary, date, image, source, type }] }
 const LIFESTYLE_FALLBACK = (()=>{
   // Generate unique branded SVG illustrations as data URIs
@@ -3516,7 +3591,7 @@ export default function Stride() {
   );
 
   const isM=ww<768, isT=ww>=768&&ww<1024, isD=ww>=1024;
-  const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"lifestyle",icon:I.lifestyle,label:"Lifestyle"},{id:"targets",icon:I.target,label:"Targets"},{id:"coach",icon:I.sparkle,label:"AI Coach"}];
+  const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"lifestyle",icon:I.lifestyle,label:"Lifestyle"},{id:"targets",icon:I.target,label:"Targets"},{id:"settings",icon:I.settings,label:"Settings"},{id:"coach",icon:I.sparkle,label:"AI Coach"}];
   const renderTab = () => {
     const p = {vis,isD,isT,isM,D,gymSleep,settings,training,setInfoModal,dateNav,setDateNav};
     switch(tab) {
@@ -3526,6 +3601,7 @@ export default function Stride() {
       case "progress": return <ProgressTab {...p} settings={settings}/>;
       case "lifestyle": return <LifestyleTab {...p}/>;
       case "targets": return <TargetsTab {...p}/>;
+      case "settings": return <SettingsTab {...p}/>;
       case "coach": return <CoachTab {...p} setChatOpen={setChatOpen}/>;
       default: return null;
     }
@@ -3655,14 +3731,14 @@ export default function Stride() {
           <header style={{padding:'24px 36px 0',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div>
               <div style={{fontSize:22,fontWeight:800}}>
-                {tab==="overview"?"Dashboard":tab==="nutrition"?"Nutrition Tracking":tab==="activity"?"Activity & Training":tab==="progress"?"Progress Analytics":tab==="lifestyle"?"Lifestyle & Fitness":tab==="coach"?"AI Coach":"Phase Targets"}</div>
+                {tab==="overview"?"Dashboard":tab==="nutrition"?"Nutrition Tracking":tab==="activity"?"Activity & Training":tab==="progress"?"Progress Analytics":tab==="lifestyle"?"Lifestyle & Fitness":tab==="coach"?"AI Coach":tab==="settings"?"Settings":"Phase Targets"}</div>
               <div style={{fontSize:12,color:C.text3,marginTop:2}}>{new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}
                 {isLive?<span style={{marginLeft:8,fontSize:10,color:C.mint,opacity:0.8}}>· Live data{dataAge!==null?` (${dataAge}h ago)`:''}</span>
                 :<span style={{marginLeft:8,fontSize:10,color:C.orange,opacity:0.9}}>· Demo data — sync needed</span>}
               </div>
             </div>
             <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <div style={{padding:'8px 14px',borderRadius:12,background:C.glass,border:`1px solid ${C.glassBorder}`,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,fontSize:12,fontWeight:600,color:C.text2}}>Phase 1 — Fat Loss</div>
+              <div style={{padding:'8px 14px',borderRadius:12,background:C.glass,border:`1px solid ${C.glassBorder}`,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,fontSize:12,fontWeight:600,color:C.text2}}>Phase {settings.phase} — {(settings.phaseTargets||PHASE_TARGETS_DEFAULTS)[settings.phase]?.name||'Fat Loss'}</div>
               <ThemeToggle/>
               <button onClick={handleRefresh} title="Refresh stats" style={{width:36,height:36,borderRadius:12,background:C.glass,border:`1px solid ${C.glassBorder}`,backdropFilter:`blur(${C.glassBlur}px)`,WebkitBackdropFilter:`blur(${C.glassBlur}px)`,display:'flex',alignItems:'center',justifyContent:'center',color:syncing?C.mint:C.text2,cursor:'pointer',transition:'color .2s'}}
                 onMouseEnter={e=>{if(!syncing)e.currentTarget.style.color=C.mint;}} onMouseLeave={e=>{if(!syncing)e.currentTarget.style.color=C.text2;}}>
