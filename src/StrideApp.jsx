@@ -2577,32 +2577,32 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
       {/* Training — Daily Morning — read only */}
       <AnimCard delay={0.3} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Daily Morning Training (25–30 min, Fasted)</Lbl>
-        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{display:'grid',gridTemplateColumns:isM?'1fr':'repeat(3,1fr)',gap:12}}>
           {[1,2,3].map(phase => {
             const td = training||{};
             const md = td.morning?.[phase] || TRAINING_DEFAULTS.morning[phase];
             const isActive = settings.phase===phase;
-            return (<div key={phase} style={{padding:'16px 18px',borderRadius:14,background:isActive?`${phaseColors[phase-1]}06`:C.subtle,
+            return (<div key={phase} style={{padding:'14px 16px',borderRadius:14,background:isActive?`${phaseColors[phase-1]}06`:C.subtle,
               border:`1px solid ${isActive?phaseColors[phase-1]:C.border}`}}>
-              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
-                <div style={{width:22,height:22,borderRadius:7,background:isActive?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:phaseColors[phase-1]+'22',
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                <div style={{width:20,height:20,borderRadius:6,background:isActive?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:phaseColors[phase-1]+'22',
                   color:isActive?'#fff':phaseColors[phase-1],display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800}}>{phase}</div>
-                <span style={{fontSize:13,fontWeight:700,color:isActive?(C.mode==='light'?'#5B4DA0':phaseColors[phase-1]):C.text}}>Phase {phase}</span>
+                <span style={{fontSize:12,fontWeight:700,color:isActive?(C.mode==='light'?'#5B4DA0':phaseColors[phase-1]):C.text}}>Phase {phase}</span>
                 {isActive && <Tag color={C.mode==='light'?'#5B4DA0':phaseColors[phase-1]} bg={C.mode==='light'?'#E8E4F4':C.mintSoft}>Active</Tag>}
               </div>
-              <div style={{fontSize:10,color:C.text2,marginBottom:10,fontStyle:'italic'}}>{md.goal}</div>
+              <div style={{fontSize:10,color:C.text2,marginBottom:8,fontStyle:'italic'}}>{md.goal}</div>
               <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
-                <table style={{width:'100%',borderCollapse:'collapse',minWidth:isM?320:0}}>
-                  <thead><tr>
-                    <th style={{textAlign:'left',fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,padding:'0 8px 6px 0',borderBottom:`1px solid ${C.border}`}}>Exercise</th>
-                    <th style={{textAlign:'center',fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,padding:'0 8px 6px',borderBottom:`1px solid ${C.border}`,whiteSpace:'nowrap',width:70}}>Sets × Reps</th>
-                    <th style={{textAlign:'right',fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,padding:'0 0 6px 8px',borderBottom:`1px solid ${C.border}`}}>Notes</th>
-                  </tr></thead>
+                <table style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%'}}>
+                  <colgroup>
+                    <col style={{width:'auto'}}/>
+                    <col style={{width:isM?80:90}}/>
+                    <col style={{width:isM?100:130}}/>
+                  </colgroup>
                   <tbody>{md.exercises?.map((ex,i)=>(
-                    <tr key={i}>
-                      <td style={{padding:'8px 8px 8px 0',fontSize:12,fontWeight:700,color:C.text,borderBottom:i<md.exercises.length-1?`1px solid ${C.border}08`:'none',whiteSpace:'nowrap'}}>{ex.name}</td>
-                      <td style={{padding:'8px',fontSize:12,color:C.text2,fontFamily:'var(--mono)',textAlign:'center',borderBottom:i<md.exercises.length-1?`1px solid ${C.border}08`:'none',whiteSpace:'nowrap'}}>{ex.sets}×{ex.reps}</td>
-                      <td style={{padding:'8px 0 8px 8px',fontSize:10,color:C.text3,fontStyle:'italic',textAlign:'right',borderBottom:i<md.exercises.length-1?`1px solid ${C.border}08`:'none',maxWidth:200}}>{ex.notes||''}</td>
+                    <tr key={i} style={{borderBottom:i<md.exercises.length-1?`1px solid ${C.border}15`:'none'}}>
+                      <td style={{padding:'5px 8px 5px 0',fontSize:11,fontWeight:700,color:C.text,verticalAlign:'top',overflow:'hidden',textOverflow:'ellipsis'}}>{ex.name}</td>
+                      <td style={{padding:'5px 8px',fontSize:11,color:C.text2,fontFamily:'var(--mono)',verticalAlign:'top',textAlign:'right',whiteSpace:'nowrap'}}>{ex.sets}×{ex.reps}</td>
+                      <td style={{padding:'5px 0 5px 8px',fontSize:9,color:C.text3,fontStyle:'italic',verticalAlign:'top',textAlign:'right'}}>{ex.notes||''}</td>
                     </tr>))}</tbody>
                 </table>
               </div>
@@ -2615,32 +2615,32 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
       <AnimCard delay={0.35} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Gym / Strength Workouts (3x / week)</Lbl>
         <div style={{fontSize:11,color:C.text3,marginBottom:12}}>45 sec rest between sets · 3-sec eccentric on every rep · Rotate A/B/A then B/A/B</div>
-        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{display:'grid',gridTemplateColumns:isM?'1fr':'repeat(2,1fr)',gap:12}}>
           {['A','B'].map(wk => {
             const td = training||{};
             const wd = td.gym?.[wk] || TRAINING_DEFAULTS.gym[wk];
-            return (<div key={wk} style={{padding:'16px 18px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-                <div style={{width:30,height:30,borderRadius:9,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
-                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,color:C.mode==='light'?'#fff':'#0A0C18'}}>
+            return (<div key={wk} style={{padding:'14px 16px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                <div style={{width:28,height:28,borderRadius:8,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:C.mode==='light'?'#fff':'#0A0C18'}}>
                   {wk}</div>
                 <div><span style={{fontSize:14,fontWeight:700,color:C.text}}>{wd.name}</span>
                   <div style={{fontSize:10,color:C.text3}}>Rest: {wd.rest}</div></div>
               </div>
               <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
-                <table style={{width:'100%',borderCollapse:'collapse',minWidth:isM?340:0}}>
-                  <thead><tr>
-                    <th style={{textAlign:'left',fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,padding:'0 6px 6px 0',borderBottom:`1px solid ${C.border}`,width:24}}>#</th>
-                    <th style={{textAlign:'left',fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,padding:'0 8px 6px 0',borderBottom:`1px solid ${C.border}`}}>Exercise</th>
-                    <th style={{textAlign:'center',fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,padding:'0 8px 6px',borderBottom:`1px solid ${C.border}`,whiteSpace:'nowrap',width:70}}>Sets × Reps</th>
-                    <th style={{textAlign:'right',fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,padding:'0 0 6px 8px',borderBottom:`1px solid ${C.border}`}}>Notes</th>
-                  </tr></thead>
+                <table style={{borderCollapse:'collapse',tableLayout:'fixed',width:'100%'}}>
+                  <colgroup>
+                    <col style={{width:24}}/>
+                    <col style={{width:'auto'}}/>
+                    <col style={{width:isM?80:90}}/>
+                    <col style={{width:isM?100:130}}/>
+                  </colgroup>
                   <tbody>{wd.exercises?.map((ex,i)=>(
-                    <tr key={i}>
-                      <td style={{padding:'8px 6px 8px 0',fontSize:11,fontWeight:700,color:C.mint,fontFamily:'var(--mono)',borderBottom:i<wd.exercises.length-1?`1px solid ${C.border}08`:'none',verticalAlign:'top'}}>{i+1}.</td>
-                      <td style={{padding:'8px 8px 8px 0',fontSize:13,fontWeight:700,color:C.text,borderBottom:i<wd.exercises.length-1?`1px solid ${C.border}08`:'none',verticalAlign:'top'}}>{ex.name}</td>
-                      <td style={{padding:'8px',fontSize:12,color:C.text2,fontFamily:'var(--mono)',textAlign:'center',borderBottom:i<wd.exercises.length-1?`1px solid ${C.border}08`:'none',whiteSpace:'nowrap',verticalAlign:'top'}}>{ex.sets}×{ex.reps}</td>
-                      <td style={{padding:'8px 0 8px 8px',fontSize:10,color:C.text3,fontStyle:'italic',textAlign:'right',borderBottom:i<wd.exercises.length-1?`1px solid ${C.border}08`:'none',maxWidth:220,verticalAlign:'top'}}>{ex.notes||''}</td>
+                    <tr key={i} style={{borderBottom:i<wd.exercises.length-1?`1px solid ${C.border}15`:'none'}}>
+                      <td style={{padding:'5px 4px 5px 0',fontSize:11,fontWeight:700,color:C.mint,fontFamily:'var(--mono)',verticalAlign:'top'}}>{i+1}.</td>
+                      <td style={{padding:'5px 8px 5px 0',fontSize:12,fontWeight:700,color:C.text,verticalAlign:'top',overflow:'hidden',textOverflow:'ellipsis'}}>{ex.name}</td>
+                      <td style={{padding:'5px 8px',fontSize:11,color:C.text2,fontFamily:'var(--mono)',verticalAlign:'top',textAlign:'right',whiteSpace:'nowrap'}}>{ex.sets}×{ex.reps}</td>
+                      <td style={{padding:'5px 0 5px 8px',fontSize:9,color:C.text3,fontStyle:'italic',verticalAlign:'top',textAlign:'right'}}>{ex.notes||''}</td>
                     </tr>))}</tbody>
                 </table>
               </div>
