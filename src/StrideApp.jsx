@@ -1627,7 +1627,7 @@ function DateNav({D, value, onChange}) {
   </div>);
 }
 
-function getDateData(dateNav, D) {
+function getDateData(dateNav, D, settings) {
   if (!D) return D?.today || {};
   const allDays = D.DAILY_ALL || [];
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -1695,7 +1695,7 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings,dateNav,setDateNav
   const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const d=getDateData(dateNav, D);
+  const d=getDateData(dateNav, D, settings);
   const isAvg=d._isRange;
   const label=isAvg?`${d._count}d Average`:(d._dt||"Today");
   // Recompute insights based on current dateNav filter
@@ -1783,7 +1783,7 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
   const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const d=getDateData(dateNav, D);
+  const d=getDateData(dateNav, D, settings);
   const isAvg=d._isRange;
   const dateLabel=isAvg?`${d._count}d Average`:(d._dt||"Today");
   const macros=[{name:"Protein",v:d.pro*4,c:C.mint},{name:"Carbs",v:d.carb*4,c:C.blue},{name:"Fat",v:d.fat*9,c:C.orange}];
@@ -2078,11 +2078,11 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
       </AnimCard></div>);
 }
 
-function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav}) {
+function ActivityTab({vis,isD,isT,isM,D,gymSleep,setInfoModal,dateNav,setDateNav,settings}) {
   const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
-  const d_raw=getDateData(dateNav, D);
+  const d_raw=getDateData(dateNav, D, settings);
   // Merge gymSleep localStorage data into the date data (for steps/sleep/gym that aren't in DAILY_ALL)
   const d = useMemo(() => {
     if (d_raw._isDay && d_raw._date) {
@@ -3292,7 +3292,14 @@ export default function Stride() {
 
     // Step 3: Transform and merge
     if (jsonData?.daily?.length > 0 && jsonData.daily.some(d => (d.calories||0) > 0)) {
-      const transformed = transformSyncData(jsonData, todayLive, settings.targets);
+      // Read current phase targets from localStorage (avoids closure issues)
+      let activeTgt = PHASE_TARGETS_DEFAULTS[1];
+      try {
+        const s = JSON.parse(localStorage.getItem('stride_settings')||'{}');
+        const pt = s.phaseTargets || PHASE_TARGETS_DEFAULTS;
+        activeTgt = pt[s.phase||1] || pt[1] || PHASE_TARGETS_DEFAULTS[1];
+      } catch(e){}
+      const transformed = transformSyncData(jsonData, todayLive, activeTgt);
       if (transformed && (transformed.DAILY_W7?.length > 0 || transformed.DAILY_ALL?.length > 0)) {
         setLiveData(transformed);
         console.log('[Stride] Data ready:', transformed.DAILY_W7?.length, 'W7 days, weight:', transformed.lastW?.kg);
