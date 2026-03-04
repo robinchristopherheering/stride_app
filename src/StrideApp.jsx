@@ -348,15 +348,16 @@ function transformProxyData(days, weightEntries, todayStr) {
   };
 }
 
-function computeSimpleCompliance(d) {
-  const calScore = Math.min(100, ((d.calories||0) / 1350) * 100);
-  const proScore = Math.min(100, ((d.protein||0) / 140) * 100);
-  const fibScore = Math.min(100, ((d.fiber||0) / 20) * 100);
+function computeSimpleCompliance(d, tgt) {
+  const t = tgt || {cal:1350,pro:140,fiber:20};
+  const calScore = Math.min(100, ((d.calories||0) / (t.cal||1350)) * 100);
+  const proScore = Math.min(100, ((d.protein||0) / (t.pro||140)) * 100);
+  const fibScore = Math.min(100, ((d.fiber||0) / (t.fiber||20)) * 100);
   return Math.round((calScore + proScore + fibScore) / 3);
 }
 
 // Transform JSON from sync → app format
-function transformSyncData(json, todayLive) {
+function transformSyncData(json, todayLive, activeTgt) {
   if (!json || !json.daily || json.daily.length === 0) return null;
   const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const fmt = (iso) => { const d=new Date(iso+"T00:00:00"); return `${m[d.getMonth()]} ${d.getDate()}`; };
@@ -441,9 +442,9 @@ function transformSyncData(json, todayLive) {
       fib: hasCals ? (todayLive.fiber||0) : 0, sug: hasCals ? (todayLive.sugar||0) : 0,
       steps: todayLive?.steps||0, comp: 0, flat: 0, gym: false, sleep: 0, wt: null,
     };
-    const calS = Math.min(100, (liveDay.cal / 1350) * 100);
-    const proS = Math.min(100, (liveDay.pro / 140) * 100);
-    const fibS = Math.min(100, (liveDay.fib / 20) * 100);
+    const calS = Math.min(100, (liveDay.cal / (activeTgt?.cal||1350)) * 100);
+    const proS = Math.min(100, (liveDay.pro / (activeTgt?.pro||140)) * 100);
+    const fibS = Math.min(100, (liveDay.fib / (activeTgt?.fiber||20)) * 100);
     liveDay.comp = Math.round((calS + proS + fibS) / 3);
     liveDay.flat = Math.max(0, liveDay.comp - 2);
     const todayIdxW7 = dailyW7.findIndex(dd => dd.dt === todayFmt);
@@ -695,6 +696,106 @@ function useGymSleep() {
   return { getDay, setGym, setSleep, setSteps, data };
 }
 
+// Training data — exercises, workouts, stored in cloud KV
+const TRAINING_DEFAULTS = {
+  morning: {
+    1: {goal:"Jump Rope + Bodyweight Circuit for fat oxidation",exercises:[
+      {name:"Jump Rope",sets:5,reps:"1 min",rest:"",notes:"Intervals"},
+      {name:"Push-ups",sets:5,reps:"12–15",rest:"",notes:""},
+      {name:"Air Squats",sets:5,reps:"20",rest:"",notes:""},
+      {name:"Mountain Climbers",sets:5,reps:"30 sec",rest:"30 sec",notes:""},
+    ]},
+    2: {goal:"Lymphatic Drainage & Fasted Fat Oxidation",exercises:[
+      {name:"Jump Rope",sets:1,reps:"15 min",rest:"",notes:"Intervals: 45s fast / 15s slow"},
+      {name:"Standing Vacuums",sets:3,reps:"20 sec hold",rest:"",notes:"Force air out, pull navel to spine"},
+      {name:"Plank Shoulder Taps",sets:3,reps:"30 sec",rest:"",notes:"Keep hips dead still"},
+      {name:"Dead Bugs",sets:3,reps:"15/side",rest:"",notes:"Controlled movement"},
+    ]},
+    3: {goal:"Lymphatic Drainage & Fasted Fat Oxidation",exercises:[
+      {name:"Jump Rope",sets:1,reps:"15 min",rest:"",notes:"Intervals: 45s fast / 15s slow"},
+      {name:"Standing Vacuums",sets:3,reps:"20 sec hold",rest:"",notes:"Force air out, pull navel to spine"},
+      {name:"Plank Shoulder Taps",sets:3,reps:"30 sec",rest:"",notes:"Keep hips dead still"},
+      {name:"Dead Bugs",sets:3,reps:"15/side",rest:"",notes:"Controlled movement"},
+    ]},
+  },
+  gym: {
+    A: {name:"The Upper Frame",rest:"45 sec",notes:"3-sec eccentric (lowering) on every rep",exercises:[
+      {name:"Leg Press/Squat",sets:3,reps:"10",notes:"Explosive up, 3-sec down"},
+      {name:"Bench Press",sets:3,reps:"10",notes:"Focus on chest squeeze"},
+      {name:"Lat Pulldown",sets:3,reps:"10",notes:"Drive elbows to floor"},
+      {name:"Lateral Raises",sets:3,reps:"12",notes:"2-sec hold at top for Shoulder Caps"},
+      {name:"Plank",sets:3,reps:"60 sec",notes:"Maximum tension in glutes and abs"},
+    ]},
+    B: {name:"The Posterior Chain",rest:"45 sec",notes:"3-sec eccentric (lowering) on every rep",exercises:[
+      {name:"Romanian Deadlift",sets:3,reps:"10",notes:"Stretch hamstrings, snap glutes"},
+      {name:"Shoulder Press",sets:3,reps:"10",notes:"Lock out fully at top"},
+      {name:"Seated Row",sets:3,reps:"10",notes:"Squeeze shoulder blades 1 sec"},
+      {name:"Hanging Knee Raises",sets:3,reps:"15",notes:"Slow descent for lower abs"},
+      {name:"Face Pulls",sets:3,reps:"15",notes:"For posture and rear-delt detail"},
+    ]},
+  },
+  phase3Amendments: {
+    finisher:"5 min rowing machine or assault bike at end of every workout (Max Effort)",
+    rest:"30 sec (reduced from 45 sec)",
+    focus:"Pump and Posture — every rep felt in target muscle",
+  },
+  exerciseLibrary: [
+    "Jump Rope","Push-ups","Air Squats","Mountain Climbers","Standing Vacuums",
+    "Plank Shoulder Taps","Dead Bugs","Leg Press/Squat","Bench Press","Lat Pulldown",
+    "Lateral Raises","Plank","Romanian Deadlift","Shoulder Press","Seated Row",
+    "Hanging Knee Raises","Face Pulls","Bulgarian Split Squats","Burpees",
+    "Bicycle Crunch","Lying Leg Raises","Rowing Machine","Assault Bike",
+  ],
+};
+
+function useTraining() {
+  const KEY = 'stride_training';
+  const API = 'https://stride-mfp-proxy.robinheering.workers.dev/api/training';
+
+  const loadLocal = () => { try { return {...TRAINING_DEFAULTS,...JSON.parse(localStorage.getItem(KEY)||'{}')}; } catch(e) { return TRAINING_DEFAULTS; } };
+  const [data, setData] = useState(loadLocal);
+  const [synced, setSynced] = useState(false);
+
+  const saveLocal = (d) => { setData(d); try { localStorage.setItem(KEY, JSON.stringify(d)); } catch(e){} };
+
+  const pushToCloud = (d) => {
+    fetch(API, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(d) })
+      .catch(e => console.log('[Stride] Training cloud push error:', e.message));
+  };
+
+  useEffect(() => {
+    if (synced) return;
+    (async () => {
+      try {
+        const resp = await fetch(API);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const remote = await resp.json();
+        if (remote && remote.updated) {
+          const local = loadLocal();
+          if ((remote.updated||'') >= (local.updated||'')) {
+            const merged = {...TRAINING_DEFAULTS, ...remote};
+            saveLocal(merged);
+            console.log('[Stride] Training: cloud sync');
+          } else { pushToCloud(local); }
+        } else {
+          const local = loadLocal();
+          pushToCloud(local);
+          console.log('[Stride] Training: seeded cloud');
+        }
+      } catch(e) { console.log('[Stride] Training sync error:', e.message); }
+      setSynced(true);
+    })();
+  }, []);
+
+  const save = (d) => {
+    const merged = {...data, ...d, updated: new Date().toISOString()};
+    saveLocal(merged);
+    pushToCloud(merged);
+  };
+
+  return { ...data, save };
+}
+
 function GymSleepEditor({ days, gymSleep, currentWeek }) {
   const m = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
   const fmt = (d) => { const dt = new Date(d+"T00:00:00"); return `${m[dt.getMonth()]} ${dt.getDate()}`; };
@@ -791,25 +892,85 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
   </>);
 }
 
-// PHASE TARGETS
-const PHASE_TARGETS = {
-  1: {name:"Fat Loss",cal:1400,pro:145,carb:55,fat:48,sugar:20,fiber:25,steps:8000,fasting:"16:8",training:"3× strength"},
-  2: {name:"Leaning Out",cal:1700,pro:140,carb:105,fat:55,sugar:30,fiber:30,steps:10000,fasting:"Optional",training:"3-4× strength"},
-  3: {name:"Definition",cal:1575,pro:150,carb:80,fat:48,sugar:25,fiber:30,steps:10000,fasting:"Optional",training:"4× strength"},
-  4: {name:"Maintenance",cal:2050,pro:140,carb:185,fat:65,sugar:40,fiber:35,steps:9000,fasting:"Optional",training:"4-5× strength"},
+// PHASE TARGETS (defaults — can be overridden via settings)
+const PHASE_TARGETS_DEFAULTS = {
+  1: {name:"Fat Loss",cal:1400,calMin:1300,calMax:1500,pro:145,proMin:130,proMax:160,carb:55,carbMin:40,carbMax:70,fat:48,fatMin:40,fatMax:55,sugar:20,fiber:25,fiberMin:20,fiberMax:30,steps:8000,fasting:"16:8",training:"3× strength + rope"},
+  2: {name:"Symmetry & Detail",cal:1275,calMin:1200,calMax:1350,pro:170,proMin:170,proMax:190,carb:45,carbMin:35,carbMax:55,fat:38,fatMin:35,fatMax:40,sugar:25,fiber:35,fiberMin:30,fiberMax:35,steps:10000,fasting:"Optional",training:"3× strength + rope"},
+  3: {name:"Peak Shred",cal:1175,calMin:1100,calMax:1250,pro:175,proMin:175,proMax:195,carb:20,carbMin:15,carbMax:30,fat:28,fatMin:25,fatMax:30,sugar:20,fiber:35,fiberMin:35,fiberMax:40,steps:10000,fasting:"Optional",training:"3× strength + rope + finisher"},
 };
 
 function useSettings() {
   const KEY = 'stride_settings';
-  const defaults = {phase:1,goalWeight:68,goalBF:15,startWeight:80.5,startDate:"2026-01-05",
-    totalWeeks:14,
-    phaseWeeks:{1:{from:1,to:6},2:{from:7,to:9},3:{from:10,to:12},4:{from:13,to:14}},
-    phaseHistory:[{phase:1,activatedOn:"2026-01-05"}]};
-  const load = () => { try { return {...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}; } catch(e) { return defaults; } };
-  const [settings, setSettings] = useState(load);
-  const save = (s) => { const merged={...settings,...s}; setSettings(merged); localStorage.setItem(KEY,JSON.stringify(merged)); };
-  const targets = PHASE_TARGETS[settings.phase] || PHASE_TARGETS[1];
-  return { ...settings, targets, save };
+  const API = 'https://stride-mfp-proxy.robinheering.workers.dev/api/settings';
+
+  const defaults = {phase:1,goalWeight:68,goalBF:13,startWeight:80.5,startDate:"2026-01-05",
+    totalWeeks:14,weightLossRate:0.5,
+    phaseWeeks:{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}},
+    phaseHistory:[{phase:1,activatedOn:"2026-01-05"}],
+    phaseTargets: JSON.parse(JSON.stringify(PHASE_TARGETS_DEFAULTS)),
+  };
+
+  const loadLocal = () => { try { return {...defaults,...JSON.parse(localStorage.getItem(KEY)||'{}')}; } catch(e) { return defaults; } };
+  const [settings, setSettings] = useState(loadLocal);
+  const [synced, setSynced] = useState(false);
+
+  const saveLocal = (s) => { const merged={...settings,...s}; setSettings(merged); try { localStorage.setItem(KEY,JSON.stringify(merged)); } catch(e){} return merged; };
+
+  const pushToCloud = (s) => {
+    fetch(API, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(s) })
+      .catch(e => console.log('[Stride] Settings cloud push error:', e.message));
+  };
+
+  // Cloud sync on mount
+  useEffect(() => {
+    if (synced) return;
+    (async () => {
+      try {
+        const resp = await fetch(API);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const remote = await resp.json();
+        if (remote && remote.updated) {
+          const local = loadLocal();
+          const localTime = local.updated || '';
+          const remoteTime = remote.updated || '';
+          if (remoteTime >= localTime) {
+            // Remote wins — merge with defaults for any missing fields
+            const merged = {...defaults, ...remote};
+            // Ensure phaseTargets has all phases
+            if (!merged.phaseTargets) merged.phaseTargets = JSON.parse(JSON.stringify(PHASE_TARGETS_DEFAULTS));
+            for (const p of [1,2,3]) {
+              if (!merged.phaseTargets[p]) merged.phaseTargets[p] = {...PHASE_TARGETS_DEFAULTS[p]};
+            }
+            setSettings(merged);
+            try { localStorage.setItem(KEY, JSON.stringify(merged)); } catch(e){}
+            console.log('[Stride] Settings: cloud sync (remote wins)');
+          } else {
+            // Local is newer — push to cloud
+            pushToCloud(local);
+            console.log('[Stride] Settings: cloud sync (local wins, pushed)');
+          }
+        } else {
+          // Cloud empty — push local
+          const local = loadLocal();
+          pushToCloud(local);
+          console.log('[Stride] Settings: seeded cloud');
+        }
+      } catch(e) { console.log('[Stride] Settings sync error:', e.message); }
+      setSynced(true);
+    })();
+  }, []);
+
+  const save = (s) => {
+    const now = new Date().toISOString();
+    const merged = saveLocal({...s, updated: now});
+    pushToCloud(merged);
+  };
+
+  // Get targets for active phase (use custom if edited, else defaults)
+  const pt = settings.phaseTargets || PHASE_TARGETS_DEFAULTS;
+  const targets = pt[settings.phase] || pt[1] || PHASE_TARGETS_DEFAULTS[1];
+
+  return { ...settings, targets, phaseTargets: pt, save };
 }
 
 // INFO TOOLTIP CONTENT
@@ -1474,10 +1635,10 @@ function getDateData(dateNav, D) {
   // Dynamically compute compliance & flat stomach from macros
   const withScores = (d) => {
     const cal = d.cal||0, pro = d.pro||0, fib = d.fib||0;
-    const calScore = cal > 0 ? Math.min(100, (cal / 1350) * 100) : 0;
-    const proScore = pro > 0 ? Math.min(100, (pro / 140) * 100) : 0;
-    const fibScore = fib > 0 ? Math.min(100, (fib / 20) * 100) : 0;
-    const fibScoreStrict = fib > 0 ? Math.min(100, (fib / 35) * 100) : 0;
+    const calScore = cal > 0 ? Math.min(100, (cal / (settings.targets?.cal||1350)) * 100) : 0;
+    const proScore = pro > 0 ? Math.min(100, (pro / (settings.targets?.pro||140)) * 100) : 0;
+    const fibScore = fib > 0 ? Math.min(100, (fib / (settings.targets?.fiber||20)) * 100) : 0;
+    const fibScoreStrict = fib > 0 ? Math.min(100, (fib / (settings.targets?.fiber||35)) * 100) : 0;
     const comp = cal > 0 ? Math.round((calScore + proScore + fibScore) / 3) : 0;
     const flat = cal > 0 ? Math.round((calScore + proScore + fibScoreStrict) / 3) : 0;
     return {...d, comp, flat};
@@ -1617,7 +1778,7 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings,dateNav,setDateNav
       </AnimCard></div>);
 }
 
-function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav}) {
+function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
   const [foodTab, setFoodTab] = useState("log");
   const localVis = useAnimateOnMount(JSON.stringify(dateNav));
   const v = vis && localVis;
@@ -2281,172 +2442,385 @@ function ProgressTab({vis,isD,isT,D,setInfoModal,settings,gymSleep}) {
       </AnimCard></div>);
 }
 
-function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal}) {
+function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const [editGoal, setEditGoal] = useState(false);
   const [editProgram, setEditProgram] = useState(false);
-  const [gw, setGw] = useState(settings.goalWeight);
+  const [editPhase, setEditPhase] = useState(null);
+  const [editTraining, setEditTraining] = useState(null);
+  const [newExercise, setNewExercise] = useState('');
   const [gbf, setGbf] = useState(settings.goalBF);
   const [tw, setTw] = useState(settings.totalWeeks||14);
-  const [pw, setPw] = useState(settings.phaseWeeks||{1:{from:1,to:6},2:{from:7,to:9},3:{from:10,to:12},4:{from:13,to:14}});
+  const [wlr, setWlr] = useState(settings.weightLossRate||0.5);
+  const [pw, setPw] = useState(settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}});
+  const pt = settings.phaseTargets || PHASE_TARGETS_DEFAULTS;
+  const [draftTargets, setDraftTargets] = useState(JSON.parse(JSON.stringify(pt)));
+  const inputStyle={width:56,padding:'5px 6px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:13,fontFamily:'var(--mono)',textAlign:'center',outline:'none'};
+  const btnEdit = (active,onClick,label) => (<button onClick={onClick}
+    style={{padding:'6px 14px',borderRadius:8,border:active?'none':`1px solid ${C.mintMed}`,
+      background:active?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:'transparent',
+      color:active?(C.mode==='light'?'#fff':'#0A0C18'):C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>{label}</button>);
+  const btnCancel = (onClick) => (<button onClick={onClick}
+    style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,
+      color:C.text2,fontSize:11,fontWeight:600,cursor:'pointer'}}>Cancel</button>);
+  const phaseColors = [C.mint, C.cyan, C.purple];
   const phases=[
-    {n:1,l:"Fat Loss",wk:`Weeks ${pw[1]?.from||1}–${pw[1]?.to||6}`,goal:"Aggressive fat loss, protect muscle",cal:"1,300–1,500",pro:"130–160",carb:"40–70",fat:"40–55",sug:"< 20",fib:"20–30",steps:"8k–10k",train:"3x strength + rope"},
-    {n:2,l:"Lean Out",wk:`Weeks ${pw[2]?.from||7}–${pw[2]?.to||9}`,goal:"Continue fat loss, rebuild energy",cal:"1,600–1,800",pro:"130–150",carb:"80–130",fat:"45–65",sug:"< 30",fib:"25–35",steps:"8k–12k",train:"3–4x strength"},
-    {n:3,l:"Abs Reveal",wk:`Weeks ${pw[3]?.from||10}–${pw[3]?.to||12}`,goal:"Final tightening, visible abs",cal:"1,500–1,650",pro:"140–160",carb:"60–100",fat:"40–55",sug:"< 25",fib:"25–35",steps:"10k+",train:"4x strength + core"},
+    {n:1,l:pt[1]?.name||"Fat Loss",goal:"Aggressive fat loss, protect muscle"},
+    {n:2,l:pt[2]?.name||"Symmetry & Detail",goal:"Symmetry, detail & water flush"},
+    {n:3,l:pt[3]?.name||"Peak Shred",goal:'Camera-ready shred'},
   ];
-  const inputStyle={width:60,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:14,fontFamily:'var(--mono)',textAlign:'center',outline:'none'};
+  const roadmap = [
+    {phase:1,bf:"18.0%",focus:"Foundation & Base Muscle"},
+    {phase:2,bf:"15.0%",focus:"Symmetry, Detail & Water Flush"},
+    {phase:3,bf:`${settings.goalBF||13}.0%`,focus:'Peak "Camera-Ready" Shred'},
+  ];
+
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
+      {/* Goals */}
       <AnimCard delay={0} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Goals</Lbl>
-        <div style={{display:'flex',gap:16,alignItems:'center',flexWrap:'wrap'}}>
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <span style={{fontSize:11,color:C.text3}}>Target Weight:</span>
-            {editGoal?<input type="number" value={gw} onChange={e=>setGw(e.target.value)} style={inputStyle}/>
-              :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>{settings.goalWeight} kg</span>}
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:8}}>
-            <span style={{fontSize:11,color:C.text3}}>Target BF%:</span>
-            {editGoal?<input type="number" value={gbf} onChange={e=>setGbf(e.target.value)} style={inputStyle}/>
-              :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>~{settings.goalBF}%</span>}
-          </div>
-          <button onClick={()=>{if(editGoal){settings.save({goalWeight:parseFloat(gw)||68,goalBF:parseFloat(gbf)||15});}setEditGoal(!editGoal);}}
-            style={{padding:'6px 14px',borderRadius:8,border:editGoal?'none':`1px solid ${C.mintMed}`,
-              background:editGoal?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:'transparent',
-              color:editGoal?(C.mode==='light'?'#fff':'#0A0C18'):C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>{editGoal?'Save':'Edit'}</button>
-          {editGoal&&<button onClick={()=>{setGw(settings.goalWeight);setGbf(settings.goalBF);setEditGoal(false);}}
-            style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,
-              color:C.text2,fontSize:11,fontWeight:600,cursor:'pointer'}}>Cancel</button>}
+        {(() => {
+          // Goal weight = current lean mass / (1 - target BF%)
+          // lean mass = currentWeight * (1 - currentBF%)
+          // For simplicity: use startWeight and approximate current BF from weight loss
+          const currentW = D.lastW?.kg || settings.startWeight || 80.5;
+          const targetBF = (settings.goalBF||13)/100;
+          // Estimate current BF: assume startBF was ~24% at 80.5kg
+          const startBF = 0.24;
+          const leanMass = (settings.startWeight||80.5) * (1 - startBF);
+          const calculatedGoalW = Math.round((leanMass / (1 - targetBF))*10)/10;
+          return (
+          <div style={{display:'flex',gap:16,alignItems:'center',flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:11,color:C.text3}}>Target BF%:</span>
+              {editGoal?<input type="number" value={gbf} onChange={e=>setGbf(e.target.value)} style={inputStyle}/>
+                :<span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.mint}}>~{settings.goalBF}%</span>}
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:11,color:C.text3}}>Goal Weight:</span>
+              <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:C.cyan}}>{calculatedGoalW} kg</span>
+              <span style={{fontSize:9,color:C.text3,fontStyle:'italic'}}>(calculated)</span>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:11,color:C.text3}}>Loss rate:</span>
+              {editGoal?<input type="number" step="0.1" value={wlr} onChange={e=>setWlr(e.target.value)} style={inputStyle}/>
+                :<span style={{fontSize:14,fontWeight:700,fontFamily:'var(--mono)',color:C.text2}}>{settings.weightLossRate||0.5} kg/wk</span>}
+            </div>
+            {btnEdit(editGoal,()=>{if(editGoal){settings.save({goalBF:parseFloat(gbf)||13,weightLossRate:parseFloat(wlr)||0.5,goalWeight:calculatedGoalW});}setEditGoal(!editGoal);},editGoal?'Save':'Edit')}
+            {editGoal&&btnCancel(()=>{setGbf(settings.goalBF);setWlr(settings.weightLossRate||0.5);setEditGoal(false);})}
+          </div>);
+        })()}
+      </AnimCard>
+
+      {/* 3-Phase Roadmap */}
+      <AnimCard delay={0.02} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
+        <Lbl>3-Phase Roadmap</Lbl>
+        <div style={{display:'grid',gridTemplateColumns:isM?'1fr':'repeat(3,1fr)',gap:10}}>
+          {roadmap.map((r,i) => {
+            const isCurrent = settings.phase===r.phase;
+            return (<div key={r.phase} style={{padding:'14px 16px',borderRadius:14,background:isCurrent?`${phaseColors[i]}08`:C.subtle,
+              border:`1px solid ${isCurrent?phaseColors[i]:C.border}`}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+                <div style={{width:24,height:24,borderRadius:8,background:phaseColors[i]+'22',color:phaseColors[i],
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800}}>{r.phase}</div>
+                <span style={{fontSize:13,fontWeight:700,color:isCurrent?phaseColors[i]:C.text}}>Phase {r.phase}</span>
+                {isCurrent && <Tag color={phaseColors[i]}>Active</Tag>}
+              </div>
+              <div style={{fontSize:11,color:C.text3,marginBottom:4}}>Target BF: <span style={{color:C.text,fontWeight:700}}>{r.bf}</span></div>
+              <div style={{fontSize:11,color:C.text3}}>Focus: <span style={{color:C.text2,fontWeight:600}}>{r.focus}</span></div>
+            </div>);
+          })}
         </div>
       </AnimCard>
-      {/* Program Structure — visual timeline */}
+
+      {/* Program Structure */}
       <AnimCard delay={0.03} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
           <Lbl style={{marginBottom:0}}>Program Structure</Lbl>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
             <span style={{fontSize:10,color:C.text3}}>Now: <span style={{color:C.cyan,fontWeight:700}}>Week {D.currentWeek}</span></span>
-            {editProgram && <button onClick={()=>{setTw(settings.totalWeeks||14);setPw(settings.phaseWeeks||{1:{from:1,to:6},2:{from:7,to:9},3:{from:10,to:12},4:{from:13,to:14}});setEditProgram(false);}}
-              style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,
-                color:C.text2,fontSize:11,fontWeight:600,cursor:'pointer'}}>Cancel</button>}
-            <button onClick={()=>{if(editProgram){settings.save({totalWeeks:parseInt(tw)||14,phaseWeeks:pw});}setEditProgram(!editProgram);}}
-              style={{padding:'6px 14px',borderRadius:8,border:editProgram?'none':`1px solid ${C.mintMed}`,
-                background:editProgram?`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`:'transparent',
-                color:editProgram?(C.mode==='light'?'#fff':'#0A0C18'):C.mint,fontSize:11,fontWeight:700,cursor:'pointer'}}>{editProgram?'Save':'Edit'}</button>
+            {editProgram && btnCancel(()=>{setTw(settings.totalWeeks||14);setPw(settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}});setEditProgram(false);})}
+            {btnEdit(editProgram,()=>{if(editProgram){settings.save({totalWeeks:parseInt(tw)||14,phaseWeeks:pw});}setEditProgram(!editProgram);},editProgram?'Save':'Edit')}
           </div>
         </div>
-        {/* Visual phase timeline bar */}
         {!editProgram && <div>
           {isM ? (
-            /* Mobile: vertical stacked phases */
             <div style={{display:'flex',flexDirection:'column',gap:6,marginBottom:12}}>
               {phases.map((p,i) => {
-                const from = pw[p.n]?.from||1, to = pw[p.n]?.to||1;
-                const span = to - from + 1;
-                const total = parseInt(tw)||14;
-                const pct = (span/total)*100;
-                const isCurrent = D.currentWeek >= from && D.currentWeek <= to;
-                const colors = [C.mint, C.cyan, C.purple];
+                const from=pw[p.n]?.from||1,to=pw[p.n]?.to||1,span=to-from+1;
+                const isCurrent=D.currentWeek>=from&&D.currentWeek<=to;
                 return (<div key={p.n} style={{display:'flex',alignItems:'center',gap:10}}>
                   <div style={{flex:1,display:'flex',alignItems:'center',gap:8,padding:'8px 12px',borderRadius:10,
-                    background:isCurrent?`${colors[i]}15`:C.subtle,
-                    border:`1px solid ${isCurrent?colors[i]+'44':C.border}`}}>
-                    <div style={{width:6,height:6,borderRadius:'50%',background:colors[i],flexShrink:0}}/>
-                    <span style={{fontSize:12,fontWeight:700,color:isCurrent?colors[i]:C.text2}}>{p.l}</span>
+                    background:isCurrent?`${phaseColors[i]}15`:C.subtle,border:`1px solid ${isCurrent?phaseColors[i]+'44':C.border}`}}>
+                    <div style={{width:6,height:6,borderRadius:'50%',background:phaseColors[i],flexShrink:0}}/>
+                    <span style={{fontSize:12,fontWeight:700,color:isCurrent?phaseColors[i]:C.text2}}>{p.l}</span>
                     <span style={{fontSize:10,color:C.text3,marginLeft:'auto'}}>W{from}–{to}</span>
                     <span style={{fontSize:9,color:C.text3}}>({span}w)</span>
                   </div>
-                  {isCurrent && <Tag color={colors[i]}>Now</Tag>}
+                  {isCurrent && <Tag color={phaseColors[i]}>Now</Tag>}
                 </div>);
               })}
             </div>
           ) : (
-            /* Desktop/Tablet: horizontal bar */
-            <div style={{display:'flex',height:32,borderRadius:10,overflow:'hidden',marginBottom:12,border:`1px solid ${C.border}`}}>
-              {phases.map((p,i) => {
-                const from = pw[p.n]?.from||1, to = pw[p.n]?.to||1;
-                const span = to - from + 1;
-                const total = parseInt(tw)||14;
-                const pct = (span/total)*100;
-                const isCurrent = D.currentWeek >= from && D.currentWeek <= to;
-                const colors = [C.mint, C.cyan, C.purple];
-                return (<div key={p.n} style={{width:`${pct}%`,minWidth:40,background:isCurrent?`${colors[i]}22`:C.subtle,
-                  borderRight:i<phases.length-1?`1px solid ${C.border}`:'none',
-                  display:'flex',alignItems:'center',justifyContent:'center',gap:4,padding:'0 8px',position:'relative'}}>
-                  <span style={{fontSize:10,fontWeight:700,color:isCurrent?colors[i]:C.text3,whiteSpace:'nowrap'}}>{p.l}</span>
-                  <span style={{fontSize:8,color:C.text3,whiteSpace:'nowrap'}}>W{from}–{to}</span>
-                  {isCurrent && <div style={{position:'absolute',bottom:-2,left:`${((D.currentWeek-from)/(span))*100}%`,width:3,height:3,borderRadius:'50%',background:colors[i]}}/>}
-                </div>);
-              })}
+            <div style={{display:'flex',height:32,borderRadius:8,overflow:'hidden',marginBottom:12,background:C.track||'rgba(255,255,255,0.03)'}}>
+              {phases.map((p,i)=>{const from=pw[p.n]?.from||1,to=pw[p.n]?.to||1,span=to-from+1;
+                const total=parseInt(tw)||14;const pct=(span/total)*100;
+                const isCurrent=D.currentWeek>=from&&D.currentWeek<=to;
+                return(<div key={p.n} style={{width:`${pct}%`,background:isCurrent?phaseColors[i]+'33':phaseColors[i]+'11',
+                  display:'flex',alignItems:'center',justifyContent:'center',gap:4,
+                  borderRight:i<2?`1px solid ${C.border}`:'none'}}>
+                  <span style={{fontSize:10,fontWeight:700,color:isCurrent?phaseColors[i]:C.text3}}>{p.l}</span>
+                  <span style={{fontSize:9,color:C.text3}}>W{from}–{to}</span>
+                </div>);})}
             </div>
           )}
-          <div style={{fontSize:10,color:C.text3,textAlign:'center'}}>{tw || settings.totalWeeks || 14} weeks total</div>
+          <div style={{display:'flex',gap:12,alignItems:'center',flexWrap:'wrap'}}>
+            <span style={{fontSize:11,color:C.text3}}>Total: <span style={{fontWeight:700,color:C.text}}>{tw} weeks</span></span>
+          </div>
         </div>}
-        {/* Edit mode — cleaner inputs */}
-        {editProgram && <div style={{display:'flex',flexDirection:'column',gap:16}}>
-          <div style={{display:'flex',alignItems:'center',gap:12,padding:'14px 18px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
-            <span style={{fontSize:12,color:C.text2,fontWeight:600,whiteSpace:'nowrap'}}>Program Length</span>
-            <div style={{display:'flex',alignItems:'center',gap:8,marginLeft:'auto'}}>
-              <button onClick={()=>{const nv=Math.max(4,parseInt(tw)-1);setTw(nv);setPw(prev=>({...prev,3:{...prev[3],to:nv}}));}}
-                style={{width:32,height:32,borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:16,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>−</button>
-              <span style={{fontSize:22,fontWeight:800,fontFamily:'var(--mono)',color:C.mint,minWidth:40,textAlign:'center'}}>{tw}</span>
-              <button onClick={()=>{const nv=Math.min(52,parseInt(tw)+1);setTw(nv);setPw(prev=>({...prev,3:{...prev[3],to:nv}}));}}
-                style={{width:32,height:32,borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:16,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>+</button>
-              <span style={{fontSize:11,color:C.text3}}>weeks</span>
+        {editProgram && <div>
+          <div style={{display:'flex',gap:12,alignItems:'center',marginBottom:16,flexWrap:'wrap'}}>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:11,color:C.text3}}>Total weeks:</span>
+              <input type="number" value={tw} onChange={e=>{const v=parseInt(e.target.value)||14;setTw(v);
+                setPw(prev=>({...prev,3:{...prev[3],to:v}}));}} style={{...inputStyle,width:50}}/>
             </div>
           </div>
           <div style={{display:'grid',gridTemplateColumns:isD?'repeat(3,1fr)':'1fr',gap:10}}>
-            {phases.map((p,i) => {
-              const colors = [C.mint, C.cyan, C.purple];
-              const isActive = settings.phase===p.n;
-              return (
-                <div key={p.n} style={{padding:'16px 18px',borderRadius:14,background:C.subtle,
-                  border:`1px solid ${isActive?colors[i]:C.border}`,
-                  boxShadow:isActive?`0 0 0 1px ${colors[i]}22`:'none'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
-                    <div style={{width:24,height:24,borderRadius:8,background:colors[i]+'22',color:colors[i],
-                      display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800}}>{p.n}</div>
-                    <span style={{fontSize:13,fontWeight:700,color:isActive?colors[i]:C.text}}>{p.l}</span>
-                    {isActive && <Tag color={colors[i]}>Active</Tag>}
-                  </div>
-                  <div style={{display:'flex',alignItems:'center',gap:6}}>
-                    <span style={{fontSize:11,color:C.text3,fontWeight:600}}>Week</span>
-                    <div style={{display:'flex',alignItems:'center',gap:4}}>
-                      <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],from:Math.max(1,(prev[p.n]?.from||1)-1)}}))}
-                        style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
-                      <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:colors[i],minWidth:24,textAlign:'center'}}>{pw[p.n]?.from||1}</span>
-                      <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],from:Math.min(parseInt(tw),(prev[p.n]?.from||1)+1)}}))}
-                        style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
-                    </div>
-                    <span style={{fontSize:11,color:C.text3,fontWeight:600}}>to</span>
-                    <div style={{display:'flex',alignItems:'center',gap:4}}>
-                      <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],to:Math.max(1,(prev[p.n]?.to||1)-1)}}))}
-                        style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>‹</button>
-                      <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:colors[i],minWidth:24,textAlign:'center'}}>{pw[p.n]?.to||1}</span>
-                      <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],to:Math.min(parseInt(tw),(prev[p.n]?.to||1)+1)}}))}
-                        style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>›</button>
-                    </div>
-                    <span style={{fontSize:10,color:C.text3,marginLeft:'auto'}}>{(pw[p.n]?.to||1)-(pw[p.n]?.from||1)+1}w</span>
-                  </div>
+            {phases.map((p,i) => (
+              <div key={p.n} style={{padding:'16px 18px',borderRadius:14,background:C.subtle,border:`1px solid ${settings.phase===p.n?phaseColors[i]:C.border}`}}>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14}}>
+                  <div style={{width:24,height:24,borderRadius:8,background:phaseColors[i]+'22',color:phaseColors[i],
+                    display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:800}}>{p.n}</div>
+                  <span style={{fontSize:13,fontWeight:700,color:phaseColors[i]}}>{p.l}</span>
                 </div>
-              );
-            })}
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <span style={{fontSize:11,color:C.text3}}>Week</span>
+                  <div style={{display:'flex',alignItems:'center',gap:4}}>
+                    <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],from:Math.max(1,(prev[p.n]?.from||1)-1)}}))}
+                      style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8249;</button>
+                    <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:phaseColors[i],minWidth:24,textAlign:'center'}}>{pw[p.n]?.from||1}</span>
+                    <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],from:Math.min(parseInt(tw),(prev[p.n]?.from||1)+1)}}))}
+                      style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8250;</button>
+                  </div>
+                  <span style={{fontSize:11,color:C.text3}}>to</span>
+                  <div style={{display:'flex',alignItems:'center',gap:4}}>
+                    <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],to:Math.max(1,(prev[p.n]?.to||1)-1)}}))}
+                      style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8249;</button>
+                    <span style={{fontSize:16,fontWeight:800,fontFamily:'var(--mono)',color:phaseColors[i],minWidth:24,textAlign:'center'}}>{pw[p.n]?.to||1}</span>
+                    <button onClick={()=>setPw(prev=>({...prev,[p.n]:{...prev[p.n],to:Math.min(parseInt(tw),(prev[p.n]?.to||1)+1)}}))}
+                      style={{width:26,height:26,borderRadius:6,border:`1px solid ${C.border}`,background:'transparent',color:C.text3,fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>&#8250;</button>
+                  </div>
+                  <span style={{fontSize:10,color:C.text3,marginLeft:'auto'}}>{(pw[p.n]?.to||1)-(pw[p.n]?.from||1)+1}w</span>
+                </div>
+              </div>))}
           </div>
         </div>}
       </AnimCard>
-      {phases.map((p,pi)=>{const isActive=settings.phase===p.n;return(<AnimCard key={p.n} glow={isActive} delay={pi*0.08} style={{gridColumn:isD&&isActive?'1/4':isT&&isActive?'1/3':'1'}}>
-        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
-          <div style={{width:36,height:36,borderRadius:12,background:isActive?C.mint:'rgba(255,255,255,0.04)',color:isActive?C.bg:C.text2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,flexShrink:0}}>{p.n}</div>
-          <div><div style={{fontSize:15,fontWeight:800,color:isActive?C.mint:C.text}}>{p.l}</div><div style={{fontSize:11,color:C.text3}}>{p.wk}</div></div>
-          {isActive?<Tag color={C.mint} bg={C.mintSoft}>Active</Tag>
-            :<button onClick={()=>settings.save({phase:p.n})} style={{marginLeft:'auto',padding:'5px 12px',borderRadius:8,border:`1px solid ${C.border}`,background:'transparent',color:C.text2,fontSize:10,fontWeight:600,cursor:'pointer'}}>Activate</button>}</div>
-        <div style={{fontSize:12,color:C.text2,marginBottom:14}}>{p.goal}</div>
-        <div style={{display:'grid',gridTemplateColumns:isActive&&isD?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
-          {[{l:"Calories",v:p.cal,u:"kcal"},{l:"Protein",v:p.pro,u:"g"},{l:"Carbs",v:p.carb,u:"g"},{l:"Fat",v:p.fat,u:"g"},{l:"Sugar",v:p.sug,u:"g"},{l:"Fiber",v:p.fib,u:"g"},{l:"Steps",v:p.steps,u:"/day"},{l:"Training",v:p.train,u:""}].map(t=>(
-            <div key={t.l} style={{padding:'12px 12px',borderRadius:12,background:C.subtle,border:`1px solid ${C.border}`}}>
-              <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,marginBottom:3}}>{t.l}</div>
-              <div style={{fontSize:13,fontWeight:700,fontFamily:t.l==="Training"?'var(--sans)':'var(--mono)'}}>{t.v}{t.u&&<span style={{fontSize:9,color:C.text3,marginLeft:3}}>{t.u}</span>}</div></div>))}</div>
-      </AnimCard>)})}
-</div>);
+
+      {/* Phase Nutrition Cards — editable */}
+      {phases.map((p,pi)=>{
+        const isActive=settings.phase===p.n;
+        const t=draftTargets[p.n]||pt[p.n]||PHASE_TARGETS_DEFAULTS[p.n];
+        const isEditing=editPhase===p.n;
+        const macros=[
+          {k:'cal',l:"Calories",v:`${t.calMin||t.cal}–${t.calMax||t.cal}`,u:"kcal"},
+          {k:'pro',l:"Protein",v:`${t.proMin||t.pro}–${t.proMax||t.pro}`,u:"g"},
+          {k:'carb',l:"Carbs",v:`${t.carbMin||t.carb}–${t.carbMax||t.carb}`,u:"g"},
+          {k:'fat',l:"Fat",v:`${t.fatMin||t.fat}–${t.fatMax||t.fat}`,u:"g"},
+          {k:'sugar',l:"Sugar",v:`< ${t.sugar}`,u:"g"},
+          {k:'fiber',l:"Fiber",v:`${t.fiberMin||t.fiber}–${t.fiberMax||t.fiber}`,u:"g"},
+          {k:'steps',l:"Steps",v:t.steps>=10000?`${t.steps/1000}k+`:`${(t.steps/1000).toFixed(0)}k`,u:"/day"},
+        ];
+        const updateDraft = (field, val) => {
+          setDraftTargets(prev => {
+            const next = JSON.parse(JSON.stringify(prev));
+            if (!next[p.n]) next[p.n] = {...PHASE_TARGETS_DEFAULTS[p.n]};
+            next[p.n][field] = parseFloat(val)||0;
+            return next;
+          });
+        };
+        return(<AnimCard key={p.n} glow={isActive} delay={pi*0.08} style={{gridColumn:isD&&isActive?'1/4':isT&&isActive?'1/3':'1'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16,flexWrap:'wrap'}}>
+            <div style={{width:36,height:36,borderRadius:12,background:isActive?phaseColors[pi]:'rgba(255,255,255,0.04)',color:isActive?(C.mode==='light'?'#fff':C.bg):C.text2,display:'flex',alignItems:'center',justifyContent:'center',fontSize:15,fontWeight:900,flexShrink:0}}>{p.n}</div>
+            <div><div style={{fontSize:15,fontWeight:800,color:isActive?phaseColors[pi]:C.text}}>{p.l}</div>
+              <div style={{fontSize:11,color:C.text3}}>Weeks {pw[p.n]?.from||1}–{pw[p.n]?.to||1}</div></div>
+            <div style={{marginLeft:'auto',display:'flex',gap:6,alignItems:'center'}}>
+              {isActive?<Tag color={phaseColors[pi]} bg={C.mintSoft}>Active</Tag>
+                :<button onClick={()=>settings.save({phase:p.n})} style={{padding:'5px 12px',borderRadius:8,border:`1px solid ${C.border}`,background:'transparent',color:C.text2,fontSize:10,fontWeight:600,cursor:'pointer'}}>Activate</button>}
+              {isEditing&&btnCancel(()=>{setDraftTargets(JSON.parse(JSON.stringify(pt)));setEditPhase(null);})}
+              {btnEdit(isEditing,()=>{
+                if(isEditing){settings.save({phaseTargets:draftTargets});setEditPhase(null);}
+                else{setDraftTargets(JSON.parse(JSON.stringify(pt)));setEditPhase(p.n);}
+              },isEditing?'Save':'Edit')}
+            </div>
+          </div>
+          <div style={{fontSize:12,color:C.text2,marginBottom:14}}>{p.goal}</div>
+          <div style={{display:'grid',gridTemplateColumns:isActive&&isD?'repeat(4,1fr)':'repeat(2,1fr)',gap:8}}>
+            {macros.map(m=>(
+              <div key={m.l} style={{padding:'12px 12px',borderRadius:12,background:C.subtle,border:`1px solid ${C.border}`}}>
+                <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8,marginBottom:3}}>{m.l}</div>
+                {isEditing ? (
+                  <div style={{display:'flex',alignItems:'center',gap:4}}>
+                    <input type="number" value={t[m.k]||''} onChange={e=>updateDraft(m.k,e.target.value)}
+                      style={{...inputStyle,width:48,fontSize:12}}/>
+                    <span style={{fontSize:9,color:C.text3}}>{m.u}</span>
+                  </div>
+                ) : (
+                  <div style={{fontSize:13,fontWeight:700,fontFamily:'var(--mono)'}}>{m.v}<span style={{fontSize:9,color:C.text3,marginLeft:3}}>{m.u}</span></div>
+                )}
+              </div>
+            ))}
+          </div>
+        </AnimCard>);
+      })}
+
+      {/* Training — Daily Morning */}
+      <AnimCard delay={0.3} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
+        <Lbl>Daily Morning Training (25–30 min, Fasted)</Lbl>
+        <div style={{display:'grid',gridTemplateColumns:isM?'1fr':'repeat(3,1fr)',gap:10}}>
+          {[1,2,3].map(phase => {
+            const td = training||{};
+            const md = td.morning?.[phase] || TRAINING_DEFAULTS.morning[phase];
+            const isEdit = editTraining === `morning-${phase}`;
+            return (<div key={phase} style={{padding:'14px 16px',borderRadius:14,background:C.subtle,
+              border:`1px solid ${settings.phase===phase?phaseColors[phase-1]:C.border}`}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:10,flexWrap:'wrap'}}>
+                <div style={{width:20,height:20,borderRadius:6,background:phaseColors[phase-1]+'22',color:phaseColors[phase-1],
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:800}}>{phase}</div>
+                <span style={{fontSize:12,fontWeight:700,color:phaseColors[phase-1]}}>Phase {phase}</span>
+                {settings.phase===phase && <Tag color={phaseColors[phase-1]}>Active</Tag>}
+                <div style={{marginLeft:'auto',display:'flex',gap:4}}>
+                  {isEdit&&btnCancel(()=>setEditTraining(null))}
+                  {btnEdit(isEdit,()=>{if(isEdit){setEditTraining(null);}else{setEditTraining(`morning-${phase}`);}},isEdit?'Done':'Edit')}
+                </div>
+              </div>
+              <div style={{fontSize:10,color:C.text2,marginBottom:10,fontStyle:'italic'}}>{md.goal}</div>
+              {md.exercises?.map((ex,i)=>(
+                <div key={i} style={{display:'flex',gap:6,alignItems:'baseline',marginBottom:6,paddingBottom:6,
+                  borderBottom:i<md.exercises.length-1?`1px solid ${C.border}`:'none'}}>
+                  <span style={{fontSize:11,fontWeight:700,color:C.mint,minWidth:14,fontFamily:'var(--mono)'}}>{i+1}.</span>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',alignItems:'baseline',gap:6,flexWrap:'wrap'}}>
+                      <span style={{fontSize:12,fontWeight:700,color:C.text}}>{ex.name}</span>
+                      <span style={{fontSize:11,color:C.text3,fontFamily:'var(--mono)'}}>{ex.sets}x{ex.reps}</span>
+                    </div>
+                    {ex.rest && <span style={{fontSize:10,color:C.text3}}>Rest: {ex.rest}</span>}
+                    {ex.notes && <div style={{fontSize:10,color:C.text3,fontStyle:'italic',marginTop:2}}>{ex.notes}</div>}
+                  </div>
+                  {isEdit && <button onClick={()=>{
+                    const updated = {...md,exercises:md.exercises.filter((_,idx)=>idx!==i)};
+                    const trn = training||{};
+                    trn.save({morning:{...(trn.morning||TRAINING_DEFAULTS.morning),[phase]:updated}});
+                  }} style={{fontSize:14,color:C.red,background:'transparent',border:'none',cursor:'pointer',padding:'2px 6px'}}>✕</button>}
+                </div>
+              ))}
+              {isEdit && <div style={{marginTop:8,display:'flex',gap:6,flexWrap:'wrap'}}>
+                <select value="" onChange={e=>{if(e.target.value){
+                  const newEx = {name:e.target.value,sets:3,reps:"10",rest:"",notes:""};
+                  const updated = {...md,exercises:[...md.exercises,newEx]};
+                  const trn = training||{};
+                  trn.save({morning:{...(trn.morning||TRAINING_DEFAULTS.morning),[phase]:updated}});
+                }}}
+                  style={{flex:1,minWidth:120,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:11}}>
+                  <option value="">+ Add exercise...</option>
+                  {((training||{}).exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary).map(ex=>(<option key={ex} value={ex}>{ex}</option>))}
+                </select>
+                <div style={{display:'flex',gap:4}}>
+                  <input value={newExercise} onChange={e=>setNewExercise(e.target.value)} placeholder="New exercise"
+                    style={{...inputStyle,width:'auto',minWidth:100,textAlign:'left',fontSize:11}}/>
+                  <button onClick={()=>{if(newExercise.trim()){
+                    const trn = training||{};
+                    const lib = [...(trn.exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary),newExercise.trim()];
+                    const newEx = {name:newExercise.trim(),sets:3,reps:"10",rest:"",notes:""};
+                    const updated = {...md,exercises:[...md.exercises,newEx]};
+                    trn.save({exerciseLibrary:lib,morning:{...(trn.morning||TRAINING_DEFAULTS.morning),[phase]:updated}});
+                    setNewExercise('');
+                  }}} style={{padding:'6px 10px',borderRadius:8,border:`1px solid ${C.mintMed}`,background:'transparent',color:C.mint,fontSize:10,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>Add</button>
+                </div>
+              </div>}
+            </div>);
+          })}
+        </div>
+      </AnimCard>
+
+      {/* Training — Gym Workouts */}
+      <AnimCard delay={0.35} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
+        <Lbl>Gym / Strength Workouts (3x / week)</Lbl>
+        <div style={{fontSize:11,color:C.text3,marginBottom:12}}>45 sec rest between sets · 3-sec eccentric on every rep · Rotate A/B/A then B/A/B</div>
+        <div style={{display:'grid',gridTemplateColumns:isM?'1fr':'repeat(2,1fr)',gap:12}}>
+          {['A','B'].map(wk => {
+            const td = training||{};
+            const wd = td.gym?.[wk] || TRAINING_DEFAULTS.gym[wk];
+            const isEdit = editTraining === `gym-${wk}`;
+            return (<div key={wk} style={{padding:'16px 18px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12,flexWrap:'wrap'}}>
+                <div style={{width:28,height:28,borderRadius:8,background:`linear-gradient(135deg,${C.gradStart},${C.gradEnd})`,
+                  display:'flex',alignItems:'center',justifyContent:'center',fontSize:14,fontWeight:900,color:C.mode==='light'?'#fff':'#0A0C18'}}>
+                  {wk}</div>
+                <div style={{flex:1}}>
+                  <span style={{fontSize:14,fontWeight:700,color:C.text}}>{wd.name}</span>
+                  <div style={{fontSize:10,color:C.text3}}>Rest: {wd.rest}</div>
+                </div>
+                <div style={{display:'flex',gap:4}}>
+                  {isEdit&&btnCancel(()=>setEditTraining(null))}
+                  {btnEdit(isEdit,()=>{if(isEdit){setEditTraining(null);}else{setEditTraining(`gym-${wk}`);}},isEdit?'Done':'Edit')}
+                </div>
+              </div>
+              {wd.exercises?.map((ex,i)=>(
+                <div key={i} style={{display:'flex',gap:8,alignItems:'baseline',marginBottom:8,paddingBottom:8,
+                  borderBottom:i<wd.exercises.length-1?`1px solid ${C.border}`:'none'}}>
+                  <span style={{fontSize:11,fontWeight:700,color:C.mint,minWidth:18,fontFamily:'var(--mono)'}}>{i+1}.</span>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',alignItems:'baseline',gap:6,flexWrap:'wrap'}}>
+                      <span style={{fontSize:13,fontWeight:700,color:C.text}}>{ex.name}</span>
+                      <span style={{fontSize:11,color:C.text3,fontFamily:'var(--mono)'}}>{ex.sets}x{ex.reps}</span>
+                    </div>
+                    {ex.notes && <div style={{fontSize:10,color:C.text3,fontStyle:'italic',marginTop:2}}>{ex.notes}</div>}
+                  </div>
+                  {isEdit && <button onClick={()=>{
+                    const updated = {...wd,exercises:wd.exercises.filter((_,idx)=>idx!==i)};
+                    const trn = training||{};
+                    trn.save({gym:{...(trn.gym||TRAINING_DEFAULTS.gym),[wk]:updated}});
+                  }} style={{fontSize:14,color:C.red,background:'transparent',border:'none',cursor:'pointer',padding:'2px 6px'}}>✕</button>}
+                </div>
+              ))}
+              {isEdit && <div style={{marginTop:8,display:'flex',gap:6,flexWrap:'wrap'}}>
+                <select value="" onChange={e=>{if(e.target.value){
+                  const newEx = {name:e.target.value,sets:3,reps:"10",notes:""};
+                  const updated = {...wd,exercises:[...wd.exercises,newEx]};
+                  const trn = training||{};
+                  trn.save({gym:{...(trn.gym||TRAINING_DEFAULTS.gym),[wk]:updated}});
+                }}}
+                  style={{flex:1,minWidth:120,padding:'6px 8px',borderRadius:8,border:`1px solid ${C.border}`,background:C.subtle,color:C.text,fontSize:11}}>
+                  <option value="">+ Add exercise...</option>
+                  {((training||{}).exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary).map(ex=>(<option key={ex} value={ex}>{ex}</option>))}
+                </select>
+                <div style={{display:'flex',gap:4}}>
+                  <input value={newExercise} onChange={e=>setNewExercise(e.target.value)} placeholder="New exercise"
+                    style={{...inputStyle,width:'auto',minWidth:100,textAlign:'left',fontSize:11}}/>
+                  <button onClick={()=>{if(newExercise.trim()){
+                    const trn = training||{};
+                    const lib = [...(trn.exerciseLibrary||TRAINING_DEFAULTS.exerciseLibrary),newExercise.trim()];
+                    const newEx = {name:newExercise.trim(),sets:3,reps:"10",notes:""};
+                    const updated = {...wd,exercises:[...wd.exercises,newEx]};
+                    trn.save({exerciseLibrary:lib,gym:{...(trn.gym||TRAINING_DEFAULTS.gym),[wk]:updated}});
+                    setNewExercise('');
+                  }}} style={{padding:'6px 10px',borderRadius:8,border:`1px solid ${C.mintMed}`,background:'transparent',color:C.mint,fontSize:10,fontWeight:700,cursor:'pointer',whiteSpace:'nowrap'}}>Add</button>
+                </div>
+              </div>}
+            </div>);
+          })}
+        </div>
+        {settings.phase===3 && <div style={{marginTop:12,padding:'12px 16px',borderRadius:12,background:C.purple+'08',border:`1px solid ${C.purple}33`}}>
+          <div style={{fontSize:11,fontWeight:700,color:C.purple,marginBottom:6}}>Phase 3 Amendments</div>
+          <div style={{fontSize:11,color:C.text2,marginBottom:4}}>Finisher: {TRAINING_DEFAULTS.phase3Amendments.finisher}</div>
+          <div style={{fontSize:11,color:C.text2,marginBottom:4}}>Rest: {TRAINING_DEFAULTS.phase3Amendments.rest}</div>
+          <div style={{fontSize:11,color:C.text2}}>Focus: {TRAINING_DEFAULTS.phase3Amendments.focus}</div>
+        </div>}
+      </AnimCard>
+    </div>);
 }
 
 // LIFESTYLE TAB — Articles & media feed
@@ -2841,6 +3215,7 @@ export default function Stride() {
   const [ww, setWw] = useState(typeof window!=="undefined"?window.innerWidth:1200);
   const [navCollapsed, setNavCollapsed] = useState(false);
   const gymSleep = useGymSleep();
+  const training = useTraining();
   const settings = useSettings();
   const [toast, setToast] = useState({show:false,msg:''});
   const [moreOpen, setMoreOpen] = useState(false);
@@ -2925,7 +3300,7 @@ export default function Stride() {
 
     // Step 3: Transform and merge
     if (jsonData?.daily?.length > 0 && jsonData.daily.some(d => (d.calories||0) > 0)) {
-      const transformed = transformSyncData(jsonData, todayLive);
+      const transformed = transformSyncData(jsonData, todayLive, settings.targets);
       if (transformed && (transformed.DAILY_W7?.length > 0 || transformed.DAILY_ALL?.length > 0)) {
         setLiveData(transformed);
         console.log('[Stride] Data ready:', transformed.DAILY_W7?.length, 'W7 days, weight:', transformed.lastW?.kg);
@@ -3144,7 +3519,7 @@ export default function Stride() {
   const isM=ww<768, isT=ww>=768&&ww<1024, isD=ww>=1024;
   const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"lifestyle",icon:I.lifestyle,label:"Lifestyle"},{id:"targets",icon:I.target,label:"Targets"},{id:"coach",icon:I.sparkle,label:"AI Coach"}];
   const renderTab = () => {
-    const p = {vis,isD,isT,isM,D,gymSleep,settings,setInfoModal,dateNav,setDateNav};
+    const p = {vis,isD,isT,isM,D,gymSleep,settings,training,setInfoModal,dateNav,setDateNav};
     switch(tab) {
       case "overview": return <OverviewTab {...p}/>;
       case "nutrition": return <NutritionTab {...p}/>;
