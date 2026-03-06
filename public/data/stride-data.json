@@ -1,6 +1,6 @@
 {
   "meta": {
-    "lastSync": "2026-03-06T13:33:16.697717Z",
+    "lastSync": "2026-03-06T17:05:15.947142Z",
     "programStart": "2026-01-05",
     "currentWeek": 9,
     "currentPhase": 2,
@@ -144,12 +144,12 @@
     "pctLost": 0.0
   },
   "runningAverages": {
-    "calories": 1149,
-    "protein": 150,
+    "calories": 1159,
+    "protein": 152,
     "carbs": 60,
-    "fat": 34,
+    "fat": 35,
     "fiber": 21,
-    "sugar": 24
+    "sugar": 23
   },
   "weekly": [
     {
@@ -283,18 +283,18 @@
     {
       "week": 9,
       "phase": 2,
-      "cal": 1136,
-      "protein": 161,
-      "carbs": 43,
-      "fat": 35,
-      "fiber": 15,
-      "sugar": 16,
+      "cal": 1254,
+      "protein": 174,
+      "carbs": 51,
+      "fat": 38,
+      "fiber": 16,
+      "sugar": 15,
       "steps": null,
-      "compliance": 78,
-      "flatStomach": 76,
+      "compliance": 80,
+      "flatStomach": 79,
       "calFlag": "Low",
       "fiberFlag": "Low",
-      "daysLogged": 4
+      "daysLogged": 5
     }
   ],
   "daily": [
@@ -1424,17 +1424,17 @@
       "day": "Thu",
       "week": 9,
       "phase": 2,
-      "calories": 998,
-      "protein": 143,
-      "carbs": 31,
-      "fat": 32,
-      "fiber": 13,
+      "calories": 1378,
+      "protein": 185,
+      "carbs": 53,
+      "fat": 44,
+      "fiber": 16,
       "sugar": 13,
       "steps": null,
       "sleep": null,
       "gym": false,
-      "compliance": 74,
-      "flatStomach": 72,
+      "compliance": 82,
+      "flatStomach": 80,
       "calFlag": "Low",
       "fiberFlag": "Low"
     },
@@ -1443,18 +1443,18 @@
       "day": "Fri",
       "week": 9,
       "phase": 2,
-      "calories": 0,
-      "protein": 0,
-      "carbs": 0,
-      "fat": 0,
-      "fiber": 0,
-      "sugar": 0,
+      "calories": 1350,
+      "protein": 187,
+      "carbs": 59,
+      "fat": 40,
+      "fiber": 18,
+      "sugar": 15,
       "steps": null,
       "sleep": null,
       "gym": false,
-      "compliance": 0,
-      "flatStomach": 0,
-      "calFlag": "No data",
+      "compliance": 82,
+      "flatStomach": 81,
+      "calFlag": "Low",
       "fiberFlag": "Low"
     }
   ]
