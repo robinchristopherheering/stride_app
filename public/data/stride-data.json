@@ -1,6 +1,6 @@
 {
   "meta": {
-    "lastSync": "2026-03-18T21:02:00.429391Z",
+    "lastSync": "2026-03-19T03:25:03.033590Z",
     "programStart": "2026-01-05",
     "currentWeek": 11,
     "currentPhase": 2,
@@ -144,7 +144,7 @@
     "pctLost": 0.0
   },
   "runningAverages": {
-    "calories": 1181,
+    "calories": 1179,
     "protein": 157,
     "carbs": 58,
     "fat": 35,
@@ -315,18 +315,18 @@
     {
       "week": 11,
       "phase": 2,
-      "cal": 1346,
-      "protein": 190,
-      "carbs": 41,
-      "fat": 36,
-      "fiber": 13,
-      "sugar": 15,
+      "cal": 1268,
+      "protein": 174,
+      "carbs": 42,
+      "fat": 34,
+      "fiber": 14,
+      "sugar": 16,
       "steps": null,
-      "compliance": 75,
-      "flatStomach": 73,
+      "compliance": 76,
+      "flatStomach": 74,
       "calFlag": "Low",
       "fiberFlag": "Low",
-      "daysLogged": 3
+      "daysLogged": 4
     }
   ],
   "daily": [
@@ -1714,6 +1714,25 @@
       "gym": false,
       "compliance": 77,
       "flatStomach": 75,
+      "calFlag": "Low",
+      "fiberFlag": "Low"
+    },
+    {
+      "date": "2026-03-19",
+      "day": "Thu",
+      "week": 11,
+      "phase": 2,
+      "calories": 1034,
+      "protein": 127,
+      "carbs": 44,
+      "fat": 29,
+      "fiber": 19,
+      "sugar": 19,
+      "steps": null,
+      "sleep": null,
+      "gym": false,
+      "compliance": 79,
+      "flatStomach": 78,
       "calFlag": "Low",
       "fiberFlag": "Low"
     }
