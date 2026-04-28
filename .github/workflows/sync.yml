@@ -36,12 +36,26 @@ jobs:
           MFP_USERNAME: ${{ secrets.MFP_USERNAME }}
           MFP_COOKIES: ${{ secrets.MFP_COOKIES }}
         run: |
+          # Convert MFP_COOKIES secret (raw "name=value; ..." string) to Netscape cookie file
+          python3 - <<'PYEOF'
+          import os, tempfile
+          raw = os.environ.get("MFP_COOKIES", "")
+          lines = ["# Netscape HTTP Cookie File\n"]
+          for pair in raw.split("; "):
+              if "=" in pair:
+                  name, _, val = pair.partition("=")
+                  lines.append(f"www.myfitnesspal.com\tFALSE\t/\tTRUE\t1779965063\t{name.strip()}\t{val.strip()}\n")
+          with open("/tmp/mfp_cookies.txt", "w") as f:
+              f.writelines(lines)
+          print(f"Wrote {len(lines)-1} cookies to /tmp/mfp_cookies.txt")
+          PYEOF
+
           DAYS="${{ github.event.inputs.backfill_days }}"
           if [ -n "$DAYS" ] && [ "$DAYS" -gt 0 ]; then
             echo "Backfilling $DAYS days..."
-            python sync/sync_mfp.py --backfill "$DAYS"
+            python sync/sync_mfp.py --backfill "$DAYS" --cookie-file /tmp/mfp_cookies.txt
           else
-            python sync/sync_mfp.py
+            python sync/sync_mfp.py --cookie-file /tmp/mfp_cookies.txt
           fi
 
       - name: Commit and push data
