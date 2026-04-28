@@ -1,6 +1,6 @@
 {
   "meta": {
-    "lastSync": "2026-04-27T21:32:13.393032Z",
+    "lastSync": "2026-04-28T04:11:19.534354Z",
     "programStart": "2026-01-05",
     "currentWeek": 17,
     "currentPhase": 4,
@@ -2557,6 +2557,25 @@
     {
       "date": "2026-04-27",
       "day": "Mon",
+      "week": 17,
+      "phase": 4,
+      "calories": 0,
+      "protein": 0,
+      "carbs": 0,
+      "fat": 0,
+      "fiber": 0,
+      "sugar": 0,
+      "steps": null,
+      "sleep": null,
+      "gym": false,
+      "compliance": 0,
+      "flatStomach": 0,
+      "calFlag": "No data",
+      "fiberFlag": "Low"
+    },
+    {
+      "date": "2026-04-28",
+      "day": "Tue",
       "week": 17,
       "phase": 4,
       "calories": 0,
