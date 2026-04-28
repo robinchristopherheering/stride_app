@@ -11,6 +11,9 @@ on:
         required: false
         default: '0'
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: write
 
@@ -19,10 +22,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v5.6.0
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -53,9 +56,9 @@ jobs:
           DAYS="${{ github.event.inputs.backfill_days }}"
           if [ -n "$DAYS" ] && [ "$DAYS" -gt 0 ]; then
             echo "Backfilling $DAYS days..."
-            python sync/sync_mfp.py --backfill "$DAYS" --cookie-file /tmp/mfp_cookies.txt
+            python sync/sync_mfp.py --backfill "$DAYS" --cookie-file /tmp/mfp_cookies.txt --data-dir public/data
           else
-            python sync/sync_mfp.py --cookie-file /tmp/mfp_cookies.txt
+            python sync/sync_mfp.py --cookie-file /tmp/mfp_cookies.txt --data-dir public/data
           fi
 
       - name: Commit and push data
