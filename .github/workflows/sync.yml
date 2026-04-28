@@ -4,7 +4,12 @@ on:
   schedule:
     # Every 4 hours for near-real-time data
     - cron: '30 */4 * * *'
-  workflow_dispatch:  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      backfill_days:
+        description: 'Days to backfill (e.g. 36 to recover Mar 24 – Apr 28). Leave 0 for today only.'
+        required: false
+        default: '0'
 
 permissions:
   contents: write
@@ -30,7 +35,14 @@ jobs:
         env:
           MFP_USERNAME: ${{ secrets.MFP_USERNAME }}
           MFP_COOKIES: ${{ secrets.MFP_COOKIES }}
-        run: python sync/sync_mfp.py
+        run: |
+          DAYS="${{ github.event.inputs.backfill_days }}"
+          if [ -n "$DAYS" ] && [ "$DAYS" -gt 0 ]; then
+            echo "Backfilling $DAYS days..."
+            python sync/sync_mfp.py --backfill "$DAYS"
+          else
+            python sync/sync_mfp.py
+          fi
 
       - name: Commit and push data
         run: |
