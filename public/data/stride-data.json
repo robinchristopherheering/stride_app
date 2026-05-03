@@ -1,6 +1,6 @@
 {
   "meta": {
-    "lastSync": "2026-05-03T13:53:09.292515Z",
+    "lastSync": "2026-05-03T17:13:05.211053Z",
     "programStart": "2026-01-05",
     "currentWeek": 17,
     "currentPhase": 4,
@@ -411,7 +411,7 @@
     {
       "week": 17,
       "phase": 4,
-      "cal": 1349,
+      "cal": 1350,
       "protein": 215,
       "carbs": 62,
       "fat": 29,
@@ -2673,7 +2673,7 @@
       "day": "Sun",
       "week": 17,
       "phase": 4,
-      "calories": 1293,
+      "calories": 1295,
       "protein": 215,
       "carbs": 40,
       "fat": 35,
