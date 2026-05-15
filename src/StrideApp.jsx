@@ -1072,13 +1072,22 @@ function InfoModal({id, onClose}) {
 }
 
 function SyncToast({message, show}) {
-  if (!show) return null;
-  const isErr = message?.includes('error') || message?.includes('fail');
+  const [visible, setVisible] = useState(false);
+  const [rendered, setRendered] = useState(false);
+  useEffect(() => {
+    if (show) { setRendered(true); requestAnimationFrame(()=>requestAnimationFrame(()=>setVisible(true))); }
+    else { setVisible(false); const t=setTimeout(()=>setRendered(false),350); return()=>clearTimeout(t); }
+  }, [show]);
+  if (!rendered) return null;
+  const isErr = message?.includes('error')||message?.includes('fail');
   return (
-    <div style={{position:'fixed',top:20,left:'50%',transform:'translateX(-50%)',zIndex:9999,
+    <div style={{position:'fixed',bottom:24,left:'50%',zIndex:9999,pointerEvents:'none',whiteSpace:'nowrap',
+      transform:`translateX(-50%) translateY(${visible?0:16}px)`,
+      opacity:visible?1:0,transition:'opacity 300ms ease,transform 300ms ease',
       padding:'10px 20px',borderRadius:10,fontSize:13,fontWeight:600,
-      background:isErr?'rgba(255,60,60,0.9)':'rgba(40,200,80,0.9)',color:'#fff',
-      boxShadow:'0 4px 20px rgba(0,0,0,0.3)',animation:'fadeIn .3s',fontFamily:'var(--mono)'}}>
+      background:isErr?'rgba(220,60,60,0.95)':'rgba(30,30,40,0.92)',color:'#fff',
+      boxShadow:'0 4px 24px rgba(0,0,0,0.35)',fontFamily:'var(--mono)',
+      backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)'}}>
       {message}
     </div>
   );
@@ -1102,28 +1111,58 @@ function useAnimateOnMount(dep) {
   return vis;
 }
 
-// Animated number countup
+// Animated number countup — animates once on first appear, then transitions smoothly to new values
 function CountUp({ to, duration=800, prefix="", suffix="", decimals=0, color, style={} }) {
-  const [val, setVal] = useState(0);
   const ref = useRef(null);
-  const [started, setStarted] = useState(false);
+  const [displayed, setDisplayed] = useState(null); // null = not yet started
+  const prevTo = useRef(null);
+  const rafRef = useRef(null);
+
   useEffect(() => {
     const el = ref.current; if (!el) return;
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting && !started) { setStarted(true); obs.unobserve(el); } }, { threshold: 0.3 });
-    obs.observe(el); return () => obs.disconnect();
-  }, [started]);
+    const obs = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) {
+        obs.unobserve(el);
+        // First time visible — count up from 0
+        if (displayed === null) {
+          const start = performance.now();
+          const from = 0;
+          const tick = (now) => {
+            const p = Math.min((now - start) / duration, 1);
+            const ease = 1 - Math.pow(1 - p, 3);
+            setDisplayed(from + ease * (to - from));
+            if (p < 1) rafRef.current = requestAnimationFrame(tick);
+            else { setDisplayed(to); prevTo.current = to; }
+          };
+          rafRef.current = requestAnimationFrame(tick);
+        }
+      }
+    }, { threshold: 0.3 });
+    obs.observe(el);
+    return () => { obs.disconnect(); if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []); // only on mount
+
+  // When `to` changes after initial display — transition smoothly from current value
   useEffect(() => {
-    if (!started) return;
+    if (displayed === null) return; // not visible yet, will pick up correct value when it appears
+    if (prevTo.current === to) return; // no change
+    const from = prevTo.current ?? displayed;
+    prevTo.current = to;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     const start = performance.now();
     const tick = (now) => {
-      const p = Math.min((now - start) / duration, 1);
-      const ease = 1 - Math.pow(1 - p, 3); // easeOutCubic
-      setVal(ease * to);
-      if (p < 1) requestAnimationFrame(tick);
+      const p = Math.min((now - start) / 400, 1); // faster transition: 400ms
+      const ease = 1 - Math.pow(1 - p, 3);
+      setDisplayed(from + ease * (to - from));
+      if (p < 1) rafRef.current = requestAnimationFrame(tick);
+      else setDisplayed(to);
     };
-    requestAnimationFrame(tick);
-  }, [started, to, duration]);
-  return <span ref={ref} style={{fontFamily:'var(--mono)',fontWeight:800,color,...style}}>{prefix}{decimals?val.toFixed(decimals):Math.round(val)}{suffix}</span>;
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [to]);
+
+  const v = displayed ?? to;
+  return <span ref={ref} style={{fontFamily:'var(--mono)',fontWeight:800,color,...style}}>{prefix}{decimals?v.toFixed(decimals):Math.round(v)}{suffix}</span>;
 }
 
 // SCROLL-ANIMATED CARD
@@ -3328,7 +3367,7 @@ export default function Stride() {
   // CONFIGURATION — Set your Cloudflare Worker URL after deploying
   const PROXY_URL = 'https://stride-mfp-proxy.robinheering.workers.dev';
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (showNotification=false) => {
     setSyncing(true);
     let jsonData = null;
     let todayLive = null;
@@ -3374,7 +3413,7 @@ export default function Stride() {
       if (transformed && (transformed.DAILY_W7?.length > 0 || transformed.DAILY_ALL?.length > 0)) {
         setLiveData(transformed);
         console.log('[Stride] Data ready:', transformed.DAILY_W7?.length, 'W7 days, weight:', transformed.lastW?.kg);
-        showToast(`✓ Synced — ${transformed.lastW?.kg}kg · ${transformed.today?.cal||0} cal today`);
+        if (showNotification) showToast(`✓ Synced — ${transformed.lastW?.kg}kg · ${transformed.today?.cal||0} cal today`);
       }
     }
     setSyncing(false);
@@ -3441,7 +3480,7 @@ export default function Stride() {
       } catch (e) { /* token missing or invalid */ }
     }
     // Re-fetch data
-    await fetchData();
+    await fetchData(true);
     setSyncing(false);
   };
 
