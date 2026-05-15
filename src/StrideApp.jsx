@@ -3333,53 +3333,37 @@ export default function Stride() {
     let jsonData = null;
     let todayLive = null;
 
-    // Step 1: Load historical data from sync JSON
+    // Fetch JSON + all live proxy data IN PARALLEL — set state only once with final merged result
+    const base = window.location.pathname.replace(/\/$/,'');
+    const todayStr = localDateStr();
+    const [jsonResult, diaryResult, weightResult, stepsResult] = await Promise.allSettled([
+      fetch(`${base}/data/stride-data.json?t=${Date.now()}`).then(r => r.ok ? r.json() : null).catch(() => null),
+      PROXY_URL ? fetch(`${PROXY_URL}/api/diary?date=${todayStr}`).catch(() => null) : Promise.resolve(null),
+      PROXY_URL ? fetch(`${PROXY_URL}/api/weight`).catch(() => null) : Promise.resolve(null),
+      PROXY_URL ? fetch(`${PROXY_URL}/api/steps?date=${todayStr}`).catch(() => null) : Promise.resolve(null),
+    ]);
+
+    // Unpack JSON
+    jsonData = jsonResult.status === 'fulfilled' ? jsonResult.value : null;
+    if (jsonData?.meta?.lastSync) setLastSync(jsonData.meta.lastSync);
+    if (jsonData) console.log('[Stride] JSON:', Object.keys(jsonData?.daily||{}).length, 'days');
+
+    // Unpack live results
     try {
-      const base = window.location.pathname.replace(/\/$/,'');
-      const url = `${base}/data/stride-data.json?t=${Date.now()}`;
-      console.log('[Stride] Loading sync JSON...');
-      const resp = await fetch(url);
-      if (resp.ok) {
-        jsonData = await resp.json();
-        console.log('[Stride] JSON:', jsonData?.daily?.length || 0, 'days');
-        if (jsonData?.meta?.lastSync) setLastSync(jsonData.meta.lastSync);
+      const diaryResp = diaryResult.status === 'fulfilled' ? diaryResult.value : null;
+      const weightResp = weightResult.status === 'fulfilled' ? weightResult.value : null;
+      const stepsResp = stepsResult.status === 'fulfilled' ? stepsResult.value : null;
+      if (diaryResp?.ok) todayLive = await diaryResp.json();
+      if (stepsResp?.ok) { const sd = await stepsResp.json(); if (sd?.steps>0){todayLive=todayLive||{};todayLive.steps=sd.steps;} }
+      if (weightResp?.ok) { const wd = await weightResp.json(); if (wd?.entries?.length>0){todayLive=todayLive||{};todayLive._weightEntries=wd.entries;} }
+      if (todayLive) {
+        setLastSync(new Date().toISOString());
+        console.log('[Stride] Live:', todayLive.calories||0, 'cal,', todayLive.protein||0, 'g pro, steps:', todayLive.steps||0);
       }
-    } catch (e) { console.log('[Stride] JSON error:', e.message); }
+    } catch (e) { console.log('[Stride] Proxy error:', e.message); }
 
-    // Step 2: Fetch TODAY live from proxy (fast — 1-2 requests)
-    if (PROXY_URL) {
-      try {
-        const todayStr = localDateStr();
-        console.log('[Stride] Proxy: fetching today...');
-        const [todayResp, weightResp, stepsResp] = await Promise.all([
-          fetch(`${PROXY_URL}/api/diary?date=${todayStr}`).catch(() => null),
-          fetch(`${PROXY_URL}/api/weight`).catch(() => null),
-          fetch(`${PROXY_URL}/api/steps?date=${todayStr}`).catch(() => null),
-        ]);
-        if (todayResp?.ok) todayLive = await todayResp.json();
-        if (stepsResp?.ok) {
-          const sd = await stepsResp.json();
-          if (sd?.steps > 0) { todayLive = todayLive || {}; todayLive.steps = sd.steps; }
-        }
-        if (weightResp?.ok) {
-          const wd = await weightResp.json();
-          if (wd?.entries?.length > 0) {
-            todayLive = todayLive || {};
-            todayLive._weightEntries = wd.entries;
-          }
-        }
-        if (todayLive) {
-          setLastSync(new Date().toISOString());
-          console.log('[Stride] Today live:', todayLive.calories||0, 'cal,', todayLive.protein||0, 'g pro');
-          console.log('[Stride] Weight entries:', todayLive._weightEntries?.length || 0);
-          console.log('[Stride] Steps:', todayLive.steps || 0);
-        }
-      } catch (e) { console.log('[Stride] Proxy error:', e.message); showToast('⚠ Sync error: ' + e.message); }
-    }
-
-    // Step 3: Transform and merge
-    if (jsonData?.daily?.length > 0 && jsonData.daily.some(d => (d.calories||0) > 0)) {
-      // Read current phase targets from localStorage (avoids closure issues)
+    // Transform and set state ONCE — no intermediate renders
+    if (jsonData) {
       let activeTgt = PHASE_TARGETS_DEFAULTS[1];
       try {
         const s = JSON.parse(localStorage.getItem('stride_settings')||'{}');
