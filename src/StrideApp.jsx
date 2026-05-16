@@ -571,7 +571,11 @@ function computeInsights(data, dateNav) {
   // Find single highest steps day
   const bestDay = [...filteredDays].sort((a,b)=>(b.steps||0)-(a.steps||0))[0];
   const bestStepsDay = bestDay ? {day:bestDay.d||bestDay.day||"?", steps:bestDay.steps||0} : {day:"?",steps:0};
-  return { streak, velocity, proteinRate, mostActive, bestStepsDay };
+  const avgCal = filteredDays.length ? Math.round(filteredDays.reduce((s,d)=>s+(d.cal||d.calories||0),0)/filteredDays.length) : 0;
+  const avgPro = filteredDays.length ? Math.round(filteredDays.reduce((s,d)=>s+(d.pro||d.protein||0),0)/filteredDays.length) : 0;
+  const avgSteps = filteredDays.length ? Math.round(filteredDays.reduce((s,d)=>s+(d.steps||0),0)/filteredDays.length) : 0;
+  const avgSug = filteredDays.length ? Math.round(filteredDays.reduce((s,d)=>s+(d.sug||d.sugar||0),0)/filteredDays.length) : 0;
+  return { streak, velocity, proteinRate, mostActive, bestStepsDay, avgCal, avgPro, avgSteps, avgSug };
 }
 
 // GYM & SLEEP TRACKING (localStorage)
@@ -896,17 +900,17 @@ function GymSleepEditor({ days, gymSleep, currentWeek }) {
 const PHASE_TARGETS_DEFAULTS = {
   1: {name:"Fat Loss",cal:1400,calMin:1300,calMax:1500,pro:145,proMin:130,proMax:160,carb:55,carbMin:40,carbMax:70,fat:48,fatMin:40,fatMax:55,sugar:20,fiber:25,fiberMin:20,fiberMax:30,stepsMin:8000,steps:10000,fasting:"16:8",training:"3× strength + rope"},
   2: {name:"Symmetry & Detail",cal:1275,calMin:1200,calMax:1350,pro:170,proMin:170,proMax:190,carb:45,carbMin:35,carbMax:55,fat:38,fatMin:35,fatMax:40,sugar:25,fiber:35,fiberMin:30,fiberMax:35,stepsMin:10000,steps:12000,fasting:"Optional",training:"3× strength + rope"},
-  3: {name:"Peak Shred",cal:1175,calMin:1100,calMax:1250,pro:175,proMin:175,proMax:195,carb:20,carbMin:15,carbMax:30,fat:28,fatMin:25,fatMax:30,sugar:20,fiber:35,fiberMin:35,fiberMax:40,stepsMin:10000,steps:12000,fasting:"Optional",training:"3× strength + rope + finisher"},
+  3: {name:"Metabolic Rebuild",cal:1725,calMin:1600,calMax:1850,pro:200,proMin:200,proMax:210,carb:138,carbMin:110,carbMax:165,fat:43,fatMin:40,fatMax:45,sugar:30,fiber:33,fiberMin:30,fiberMax:35,stepsMin:8000,steps:10000,fasting:"Optional",training:"3× heavy strength (5–8 reps) · 2–3 min rest"},
 };
 
 function useSettings() {
   const KEY = 'stride_settings';
   const API = 'https://stride-mfp-proxy.robinheering.workers.dev/api/settings';
 
-  const defaults = {phase:1,goalWeight:68,goalBF:13,startWeight:80.5,startDate:"2026-01-05",
-    totalWeeks:14,weightLossRate:0.5,
-    phaseWeeks:{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}},
-    phaseHistory:[{phase:1,activatedOn:"2026-01-05"}],
+  const defaults = {phase:3,goalWeight:63,goalBF:10,startWeight:80.5,startDate:"2026-01-05",
+    totalWeeks:25,weightLossRate:0.5,
+    phaseWeeks:{1:{from:1,to:8},2:{from:9,to:18},3:{from:19,to:25}},
+    phaseHistory:[{phase:1,activatedOn:"2026-01-05"},{phase:2,activatedOn:"2026-03-03"},{phase:3,activatedOn:"2026-05-15"}],
     phaseTargets: JSON.parse(JSON.stringify(PHASE_TARGETS_DEFAULTS)),
   };
 
@@ -1737,85 +1741,191 @@ function OverviewTab({vis,isD,isT,isM,D,setInfoModal,settings,dateNav,setDateNav
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const d=getDateData(dateNav, D, settings);
   const isAvg=d._isRange;
-  const label=isAvg?`${d._count}d Average`:(d._dt||"Today");
-  // Recompute insights based on current dateNav filter
+  const label=isAvg?`${d._count}d Avg`:(d._dt||"Today");
   const ins = useMemo(() => computeInsights(D, dateNav), [D, dateNav]);
-  const checks=[
-    {task:`Protein ${settings.targets?.proMin||130}–${settings.targets?.proMax||160}g`,ok:d.pro>=(settings.targets?.proMin||130),val:`${d.pro}g`},
-    {task:`Calories ${(settings.targets?.calMin||1300).toLocaleString()}–${(settings.targets?.calMax||1500).toLocaleString()}${isAvg?' avg':''}`,ok:d.cal>=(settings.targets?.calMin||1300)&&d.cal<=(settings.targets?.calMax||1500),val:`${d.cal}`},
-    {task:`Steps ${((settings.targets?.stepsMin||settings.targets?.steps||8000)/1000).toFixed(0)}k–${((settings.targets?.steps||10000)/1000).toFixed(0)}k`,ok:d.steps>=(settings.targets?.stepsMin||settings.targets?.steps||8000),val:d.steps?.toLocaleString?.()},
-    {task:`Fiber ${settings.targets?.fiberMin||20}–${settings.targets?.fiberMax||30}g`,ok:d.fib>=(settings.targets?.fiberMin||20),val:`${d.fib}g`},
-    {task:`Sugar < ${settings.targets?.sugar||20}g`,ok:d.sug<=(settings.targets?.sugar||20),val:`${d.sug}g`},
-    {task:"Gym session",ok:isAvg?d.gym>=3:d.gym,val:isAvg?`${d.gym} days`:d.gym?"Done":"Rest"},
-    {task:"Sleep 7+ hrs",ok:d.sleep>=7,val:`${d.sleep}h`},
+  const tgt = settings.targets || {};
+
+  // Phase 3 day counter — starts May 16 2026
+  const phaseStart = new Date('2026-05-16');
+  const dayInPhase = Math.max(1, Math.floor((new Date() - phaseStart) / 86400000) + 1);
+  const milestones = [
+    {days:'1–14',label:'Metabolic Flush',desc:'Whoosh effect · ECW clearing',active:dayInPhase<=14,done:false},
+    {days:'15–29',label:'Skin Retraction',desc:'Gym weights +10–15% · Core definition',active:dayInPhase>14&&dayInPhase<=29,done:false},
+    {days:'30+',label:'Hardened Reveal',desc:'Paper-thin skin · +0.1kg/wk muscle',active:dayInPhase>29,done:false},
   ];
+  const activeMilestone = milestones.find(m=>m.active) || milestones[0];
+
+  // Checklist using active phase targets
+  const checks=[
+    {task:`Protein ${tgt.proMin||200}g+`,ok:d.pro>=(tgt.proMin||200),val:`${d.pro}g`,color:C.cyan},
+    {task:`Calories ${(tgt.calMin||1600).toLocaleString()}–${(tgt.calMax||1850).toLocaleString()}`,ok:d.cal>=(tgt.calMin||1600)&&d.cal<=(tgt.calMax||1850),val:`${d.cal}`,color:C.mint},
+    {task:`Steps ${((tgt.stepsMin||8000)/1000).toFixed(0)}k–${((tgt.steps||10000)/1000).toFixed(0)}k`,ok:d.steps>=(tgt.stepsMin||8000),val:d.steps?.toLocaleString?.(),color:C.blue},
+    {task:`Fiber ${tgt.fiberMin||30}g+`,ok:d.fib>=(tgt.fiberMin||30),val:`${d.fib}g`,color:C.purple},
+    {task:`Sugar < ${tgt.sugar||30}g`,ok:d.sug<=(tgt.sugar||30),val:`${d.sug}g`,color:C.orange},
+    {task:'Gym / heavy lift',ok:isAvg?d.gym>=3:d.gym,val:isAvg?`${d.gym} days`:d.gym?'Done':'Rest',color:C.mint},
+    {task:'Sleep 7+ hrs',ok:d.sleep>=7,val:`${d.sleep}h`,color:C.cyan},
+  ];
+  const checksOk = checks.filter(c=>c.ok).length;
+
+  // All 6 macros for today snapshot
+  const macros = [
+    {label:'Calories',val:d.cal,tgtStr:`${tgt.calMin||1600}–${tgt.calMax||1850}`,unit:'kcal',color:C.mint,
+      pct:Math.min(100,Math.max(0,(d.cal-(tgt.calMin||1600))/Math.max(1,(tgt.calMax||1850)-(tgt.calMin||1600))*100))},
+    {label:'Protein',val:d.pro,tgtStr:`${tgt.proMin||200}g+`,unit:'g',color:C.cyan,
+      pct:Math.min(100,d.pro/(tgt.proMax||210)*100)},
+    {label:'Carbs',val:d.carb,tgtStr:`${tgt.carbMin||110}–${tgt.carbMax||165}g`,unit:'g',color:C.blue,
+      pct:Math.min(100,d.carb/(tgt.carbMax||165)*100)},
+    {label:'Fat',val:d.fat,tgtStr:`${tgt.fatMin||40}–${tgt.fatMax||45}g`,unit:'g',color:C.purple,
+      pct:Math.min(100,d.fat/(tgt.fatMax||45)*100)},
+    {label:'Fiber',val:d.fib,tgtStr:`${tgt.fiberMin||30}g+`,unit:'g',color:C.gradStart,
+      pct:Math.min(100,d.fib/(tgt.fiberMax||35)*100)},
+    {label:'Sugar',val:d.sug,tgtStr:`< ${tgt.sugar||30}g`,unit:'g',color:C.orange,
+      pct:Math.min(100,d.sug/(tgt.sugar||30)*100)},
+  ];
+
+  // Key metrics — use selected period averages
+  const periodDays = isAvg ? d._count : 1;
+  const avgPro = isAvg ? ins.avgPro||d.pro : d.pro;
+  const avgCal = isAvg ? ins.avgCal||d.cal : d.cal;
+  const avgSteps = isAvg ? ins.avgSteps||d.steps : d.steps;
+  const avgSug = isAvg ? ins.avgSug||d.sug : d.sug;
+
   return (
     <div style={{display:'grid',gridTemplateColumns:cols,gap:isD?14:12}}>
+      {/* Date nav */}
       <div style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
-        <DateNav D={D} value={dateNav} onChange={setDateNav}/></div>
-      <AnimCard glow style={{gridColumn:isD?'1/4':isT?'1/3':'1',padding:isD?28:22}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:12}}>
-          <div>
-            <Lbl>Current Weight</Lbl>
-            <div style={{display:'flex',alignItems:'baseline',gap:6}}>
-              <CountUp to={D.lastW?.kg} decimals={1} style={{fontSize:isM?36:46,letterSpacing:-2,lineHeight:1}} color={C.text}/>
-              <span style={{fontSize:16,color:C.text2,fontWeight:600}}>kg</span></div>
-            <div style={{display:'flex',gap:8,marginTop:10,flexWrap:'wrap'}}>
-              <Tag color={C.mint}>{I.down} {D.lost} kg lost</Tag>
-              <Tag color={C.text2} bg="rgba(255,255,255,0.04)">{D.lostPct}% total</Tag></div></div>
-          <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-            {[{l:"Start",v:"80.5",s:"Jan 5"},{l:"Now",v:String(D.lastW?.kg),s:`Wk ${D.lastW?.week}`},{l:"Goal",v:String(settings.goalWeight),s:`~${settings.goalBF}% BF`}].map(m=>(
-              <div key={m.l} style={{textAlign:'center',padding:'10px 14px',borderRadius:14,background:m.l==="Now"?C.mintSoft:'rgba(255,255,255,0.02)',minWidth:72}}>
-                <div style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:1,marginBottom:3}}>{m.l}</div>
-                <div style={{fontSize:17,fontWeight:800,fontFamily:'var(--mono)',color:m.l==="Now"?C.mint:C.text}}>{m.v}</div>
-                <div style={{fontSize:9,color:C.text3,marginTop:2}}>{m.s}</div></div>))}</div></div>
-        <div style={{marginTop:16}}><WeightChart data={D.WEIGHTS} w={300} h={80} visible={v}/></div>
+        <DateNav D={D} value={dateNav} onChange={setDateNav}/>
+      </div>
+
+      {/* ROW 1: Weight · Score · Activity */}
+      <AnimCard glow delay={0} style={{padding:isD?'20px 22px':'16px 18px'}}>
+        <Lbl>Weight</Lbl>
+        <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:8}}>
+          <CountUp to={D.lastW?.kg} decimals={1} style={{fontSize:isM?32:38,letterSpacing:-1.5,lineHeight:1}} color={C.text}/>
+          <span style={{fontSize:14,color:C.text2,fontWeight:600}}>kg</span>
+          <Tag color={C.mint} style={{marginLeft:4}}>{I.down} {D.lost}kg lost</Tag>
+        </div>
+        <WeightChart data={D.WEIGHTS} w={200} h={52} visible={v}/>
+        <div style={{display:'flex',gap:6,marginTop:8}}>
+          {[{l:'Start',v:'80.5kg'},{l:'Now',v:`${D.lastW?.kg}kg`},{l:'Goal',v:`${settings.goalWeight||63}kg`}].map(m=>(
+            <div key={m.l} style={{flex:1,textAlign:'center',padding:'6px 4px',borderRadius:10,
+              background:m.l==='Now'?C.mintSoft:'transparent',border:m.l==='Now'?'none':`1px solid ${C.border}`}}>
+              <div style={{fontSize:8,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8}}>{m.l}</div>
+              <div style={{fontSize:12,fontWeight:800,fontFamily:'var(--mono)',color:m.l==='Now'?C.mint:C.text2}}>{m.v}</div>
+            </div>))}
+        </div>
       </AnimCard>
-      <div style={{gridColumn:isD?'1/4':isT?'1/3':'1',display:'grid',gridTemplateColumns:isM?'1fr':'repeat(3,1fr)',gap:isD?14:12}}>
-        <AnimCard delay={0.05} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:isD?'22px 16px':'18px 14px'}}>
-          <Lbl tip={TIPS.compliance} modalId="compliance" onModal={setInfoModal}>{label} Compliance</Lbl>
-          <Ring val={d.comp} sz={isD?86:74} sw={6} color={C.mint} visible={v}><CountUp to={d.comp} style={{fontSize:22}} color={C.text}/></Ring>
-          <div style={{width:'100%',height:1,background:C.border,margin:'4px 0'}}/>
-          <Arc val={d.cal} max={1500} label="Calories" unit="kcal" color={d.cal>=1200&&d.cal<=1500?C.mint:C.orange} sz={isD?108:92} visible={v}/>
-        </AnimCard>
-        <AnimCard delay={0.1} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:isD?'22px 16px':'18px 14px'}}>
-          <Lbl tip={TIPS.flatStomach} modalId="flatStomach" onModal={setInfoModal}>{label} Flat Stomach</Lbl>
-          <Ring val={d.flat} sz={isD?86:74} sw={6} color={C.cyan} visible={v}><CountUp to={d.flat} style={{fontSize:22}} color={C.cyan}/></Ring>
-          <div style={{width:'100%',height:1,background:C.border,margin:'4px 0'}}/>
-          <Arc val={d.steps} max={settings.targets?.steps||12000} label="Steps" color={d.steps>=(settings.targets?.stepsMin||settings.targets?.steps||8000)?C.mint:C.orange} sz={isD?108:92} visible={v}/>
-        </AnimCard>
-        <AnimCard delay={0.15} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,padding:isD?'22px 16px':'18px 14px'}}>
-          <Lbl modalId="protein" onModal={setInfoModal}>{label} Protein</Lbl>
-          <Ring val={Math.round(d.pro/160*100)} sz={isD?86:74} sw={6} color={d.pro>=130?C.mint:C.orange} visible={v}>
-            <span style={{fontSize:18,fontWeight:900,fontFamily:'var(--mono)'}}>{d.pro}<span style={{fontSize:10,fontWeight:600,color:C.text2}}>g</span></span></Ring>
-          <div style={{width:'100%',height:1,background:C.border,margin:'4px 0'}}/>
-          <Arc val={d.pro} max={160} label="of 160g target" unit="" color={d.pro>=130?C.mint:C.orange} sz={isD?108:92} visible={v}/>
-        </AnimCard></div>
-      <AnimCard delay={0.2} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
-        <Lbl>Quick Insights</Lbl>
-        <div style={{display:'grid',gridTemplateColumns:isM?'repeat(2,1fr)':'repeat(4,1fr)',gap:10}}>
-          {[{l:"Streak",v:ins.streak,suf:"d",sub:"≥70 compliance",c:C.mint,icon:I.fire},
-            {l:"Weight Pace",v:parseFloat(ins.velocity),suf:"kg/wk",pre:"-",sub:"Last 3 weeks",c:C.cyan,icon:I.down,dec:1},
-            {l:"Protein Hits",v:ins.proteinRate,suf:"%",sub:"Days ≥130g",c:ins.proteinRate>=70?C.mint:C.orange,icon:I.target},
-            {l:"Most Active",v:0,text:`${ins.bestStepsDay?.day}`,sub:`${(ins.bestStepsDay?.steps||0).toLocaleString()} steps`,c:C.blue,icon:I.shoe},
-          ].map((s,i)=>(<div key={i} style={{padding:'14px 12px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
-            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:6}}><div style={{color:s.c}}>{s.icon}</div>
-              <span style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8}}>{s.l}</span></div>
-            {s.text?<div style={{fontSize:18,fontWeight:800,fontFamily:'var(--mono)',color:s.c}}>{s.text}</div>
-              :<CountUp to={s.v} prefix={s.pre||""} suffix={s.suf||""} decimals={s.dec||0} style={{fontSize:18}} color={s.c}/>}
-            <div style={{fontSize:10,color:C.text3,marginTop:2}}>{s.sub}</div>
-          </div>))}</div>
+
+      <AnimCard delay={0.05} style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:8,padding:isD?'20px 16px':'16px 14px'}}>
+        <Lbl tip={TIPS.compliance} modalId="compliance" onModal={setInfoModal}>{label} Score</Lbl>
+        <Ring val={d.comp} sz={isD?88:76} sw={7} color={C.mint} visible={v}>
+          <CountUp to={d.comp} style={{fontSize:24}} color={C.text}/>
+        </Ring>
+        <div style={{fontSize:10,color:C.text3,textAlign:'center'}}>{checksOk}/{checks.length} targets hit</div>
+        <div style={{width:'100%',borderTop:`1px solid ${C.border}`,paddingTop:8,display:'flex',justifyContent:'center',gap:6,flexWrap:'wrap'}}>
+          <Tag color={ins.streak>0?C.mint:C.text3}>{I.fire} {ins.streak}d streak</Tag>
+          <Tag color={C.cyan}>{ins.proteinRate}% prot.</Tag>
+        </div>
       </AnimCard>
-      <AnimCard delay={0.25} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
-        <Lbl>{label} Checklist</Lbl>
-        <div style={{display:'grid',gridTemplateColumns:isD?'1fr 1fr':isT?'1fr 1fr':'1fr',gap:isD?'0 24px':'0'}}>
-        {checks.map((c,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:10,padding:'9px 0',borderBottom:`1px solid ${C.border}`,
-          opacity:v?1:0,transform:v?'translateX(0)':'translateX(-10px)',transition:`all .35s ease ${i*.04}s`}}>
-          <div style={{width:26,height:26,borderRadius:8,background:c.ok?C.mintSoft:C.redSoft,color:c.ok?C.mint:C.red,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{c.ok?I.check:I.x}</div>
-          <span style={{flex:1,fontSize:12,fontWeight:500,color:c.ok?C.text:C.text2}}>{c.task}</span>
-          <span style={{fontSize:12,fontWeight:700,fontFamily:'var(--mono)',color:c.ok?C.mint:C.red}}>{c.val}</span>
-        </div>))}</div>
-      </AnimCard></div>);
+
+      <AnimCard delay={0.1} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8,padding:isD?'20px 16px':'16px 14px'}}>
+        <Lbl tip={TIPS.flatStomach} modalId="flatStomach" onModal={setInfoModal}>Activity</Lbl>
+        <Arc val={d.steps} max={tgt.steps||10000} label="Steps" color={d.steps>=(tgt.stepsMin||8000)?C.mint:C.orange} sz={isD?88:76} visible={v}/>
+        <div style={{display:'flex',gap:6,marginTop:2,flexWrap:'wrap',justifyContent:'center'}}>
+          <Tag color={d.gym?C.mint:C.text3}>{d.gym?'💪 Gym done':'Rest day'}</Tag>
+          <Tag color={d.sleep>=7?C.cyan:C.orange}>{d.sleep}h sleep</Tag>
+        </div>
+      </AnimCard>
+
+      {/* ROW 2: Today's Macros — full width */}
+      <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1',padding:isD?'20px 22px':'16px 18px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}}>
+          <Lbl style={{marginBottom:0}}>{label} Nutrition</Lbl>
+          <Tag color={d.cal>=(tgt.calMin||1600)&&d.cal<=(tgt.calMax||1850)?C.mint:C.orange}>{d.cal} kcal</Tag>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:isM?'repeat(2,1fr)':'repeat(3,1fr)',gap:isM?8:12}}>
+          {macros.map(m=>(
+            <div key={m.label} style={{display:'flex',flexDirection:'column',gap:4}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+                <span style={{fontSize:10,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:.6}}>{m.label}</span>
+                <span style={{fontSize:14,fontWeight:800,fontFamily:'var(--mono)',color:m.color}}>
+                  {m.val}<span style={{fontSize:9,color:C.text3,marginLeft:2}}>{m.unit}</span>
+                </span>
+              </div>
+              <div style={{height:5,borderRadius:3,background:`rgba(255,255,255,0.06)`,overflow:'hidden'}}>
+                <div style={{height:'100%',width:`${m.pct}%`,borderRadius:3,background:m.color,
+                  transition:'width .6s ease',opacity:v?1:0}}/>
+              </div>
+              <div style={{fontSize:9,color:C.text3}}>Target: {m.tgtStr}</div>
+            </div>))}
+        </div>
+      </AnimCard>
+
+      {/* ROW 3: Daily Checklist — full width */}
+      <AnimCard delay={0.2} style={{gridColumn:isD?'1/4':isT?'1/3':'1',padding:isD?'20px 22px':'16px 18px'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+          <Lbl style={{marginBottom:0}}>{label} Checklist</Lbl>
+          <span style={{fontSize:11,fontWeight:700,color:checksOk===checks.length?C.mint:C.text3}}>{checksOk}/{checks.length}</span>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:isD?'1fr 1fr':isT?'1fr 1fr':'1fr',gap:'0 24px'}}>
+          {checks.map((c,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'7px 0',
+              borderBottom:`1px solid ${C.border}15`,
+              opacity:v?1:0,transform:v?'translateX(0)':'translateX(-8px)',transition:`all .3s ease ${i*.04}s`}}>
+              <div style={{width:22,height:22,borderRadius:7,flexShrink:0,
+                background:c.ok?C.mintSoft:'rgba(255,80,80,0.08)',
+                color:c.ok?C.mint:'#e55',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700}}>
+                {c.ok?'✓':'✗'}
+              </div>
+              <span style={{flex:1,fontSize:11,fontWeight:500,color:c.ok?C.text:C.text2}}>{c.task}</span>
+              <span style={{fontSize:12,fontWeight:700,fontFamily:'var(--mono)',color:c.ok?c.color:C.text3}}>{c.val}</span>
+            </div>))}
+        </div>
+      </AnimCard>
+
+      {/* ROW 4: Phase Milestone · Key Metrics */}
+      <AnimCard delay={0.25} style={{gridColumn:isD?'1/2':isT?'1/2':'1',padding:isD?'20px 22px':'16px 18px'}}>
+        <Lbl>Phase 3 · Day {dayInPhase}</Lbl>
+        <div style={{fontSize:12,fontWeight:700,color:C.gradStart,marginBottom:3}}>{activeMilestone.label}</div>
+        <div style={{fontSize:10,color:C.text2,marginBottom:12}}>{activeMilestone.desc}</div>
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {milestones.map((m,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:8}}>
+              <div style={{width:8,height:8,borderRadius:'50%',flexShrink:0,
+                background:m.active?C.gradStart:C.mint,
+                opacity:m.active?1:0.3,
+                boxShadow:m.active?`0 0 8px ${C.gradStart}`:'none'}}/>
+              <div style={{flex:1}}>
+                <span style={{fontSize:10,fontWeight:700,color:m.active?(C.mode==='light'?'#5B4DA0':C.gradStart):C.text3}}>{m.label}</span>
+                <span style={{fontSize:9,color:C.text3,marginLeft:6}}>Days {m.days}</span>
+              </div>
+              {m.active && <Tag color={C.gradStart}>Now</Tag>}
+            </div>))}
+        </div>
+      </AnimCard>
+
+      <AnimCard delay={0.3} style={{gridColumn:isD?'2/4':isT?'2/3':'1',padding:isD?'20px 22px':'16px 18px'}}>
+        <Lbl>Key Metrics <span style={{fontSize:9,fontWeight:500,color:C.text3,marginLeft:4}}>({label})</span></Lbl>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10}}>
+          {[
+            {l:'Body Fat',text:'6.6%',sub:`Target ${settings.goalBF||10}%`,c:C.mint,icon:I.trend},
+            {l:'Avg Protein',v:Math.round(avgPro),suf:'g',sub:`Target ${tgt.proMin||200}g+`,c:avgPro>=(tgt.proMin||200)?C.mint:C.orange,icon:I.target},
+            {l:'Avg Calories',v:Math.round(avgCal),suf:' kcal',sub:`${tgt.calMin||1600}–${tgt.calMax||1850}`,c:avgCal>=(tgt.calMin||1600)&&avgCal<=(tgt.calMax||1850)?C.cyan:C.orange,icon:I.fire},
+            {l:'Avg Steps',v:Math.round(avgSteps),suf:'',sub:`Target ${(tgt.stepsMin||8000).toLocaleString()}+`,c:avgSteps>=(tgt.stepsMin||8000)?C.blue:C.orange,icon:I.shoe},
+          ].map((s,i)=>(
+            <div key={i} style={{padding:'12px',borderRadius:14,background:C.subtle,border:`1px solid ${C.border}`}}>
+              <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:4}}>
+                <div style={{color:s.c}}>{s.icon}</div>
+                <span style={{fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.8}}>{s.l}</span>
+              </div>
+              {s.text
+                ? <div style={{fontSize:20,fontWeight:800,fontFamily:'var(--mono)',color:s.c}}>{s.text}</div>
+                : <div style={{fontSize:20,fontWeight:800,fontFamily:'var(--mono)',color:s.c}}>{s.v}{s.suf}</div>}
+              <div style={{fontSize:9,color:C.text3,marginTop:2}}>{s.sub}</div>
+            </div>))}
+        </div>
+      </AnimCard>
+    </div>);
 }
 
 function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
@@ -2105,16 +2215,26 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
           {(d._isRange ? (d._days||[]) : D.DAILY_W7).length===0 && <div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>No daily data for this period</div>}
         </div>
       </AnimCard>
-      <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1',overflowX:'auto'}}>
+      <AnimCard delay={0.15} style={{gridColumn:isD?'1/4':isT?'1/3':'1'}}>
         <Lbl>Weekly Nutrition Averages</Lbl>
-        <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
-          <thead><tr>{["Wk","Cal","Pro","Carb","Fat","Fib","Sug","Score"].map(h=>(
-            <th key={h} style={{padding:'10px 6px',color:C.text3,fontWeight:700,textAlign:'center',fontSize:10,letterSpacing:.5,borderBottom:`1px solid ${C.border}`}}>{h}</th>))}</tr></thead>
-          <tbody>{D.W_NUTR.map((w,ri)=>(<tr key={w.w} style={{borderBottom:`1px solid ${C.border}`,opacity:v?1:0,transform:v?'translateX(0)':'translateX(-8px)',transition:`all .35s ease ${ri*.06}s`}}>
-            <td style={{padding:'10px 6px',textAlign:'center',fontWeight:700,color:C.mint,fontFamily:'var(--mono)'}}>{w.w}</td>
-            {[w.cal,w.pro,w.carb,w.fat,w.fib,w.sug].map((v,i)=>(<td key={i} style={{padding:'10px 6px',textAlign:'center',fontFamily:'var(--mono)',fontWeight:600,color:C.text}}>{Math.round(v)}</td>))}
-            <td style={{padding:'10px 6px',textAlign:'center'}}><span style={{display:'inline-block',padding:'3px 8px',borderRadius:6,background:w.comp>=70?C.mintSoft:w.comp>=50?C.orangeSoft:C.redSoft,color:w.comp>=70?C.mint:w.comp>=50?C.orange:C.red,fontSize:11,fontWeight:700,fontFamily:'var(--mono)'}}>{w.comp}</span></td>
-          </tr>))}</tbody></table>
+        <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+          <table style={{borderCollapse:'collapse',fontSize:12,minWidth:560}}>
+            <thead><tr>
+              {["Wk","Calories","Protein","Carbs","Fat","Fiber","Sugar","Score"].map((h,i)=>(
+                <th key={h} style={{padding:'10px 8px',color:C.text3,fontWeight:700,textAlign:i===0?'left':'right',fontSize:10,letterSpacing:.5,borderBottom:`1px solid ${C.border}`,whiteSpace:'nowrap'}}>{h}</th>))}
+            </tr></thead>
+            <tbody>{D.W_NUTR.map((w,ri)=>(<tr key={w.w} style={{borderBottom:`1px solid ${C.border}08`,opacity:v?1:0,transform:v?'translateX(0)':'translateX(-8px)',transition:`all .35s ease ${ri*.06}s`}}>
+              <td style={{padding:'10px 8px',fontWeight:700,color:C.mint,fontFamily:'var(--mono)'}}>{w.w}</td>
+              {[{v:w.cal,u:'kcal',c:C.text},{v:w.pro,u:'g',c:C.cyan},{v:w.carb,u:'g',c:C.blue},{v:w.fat,u:'g',c:C.orange},{v:w.fib,u:'g',c:C.purple},{v:w.sug,u:'g',c:C.text2}].map((m,i)=>(
+                <td key={i} style={{padding:'10px 8px',textAlign:'right',fontFamily:'var(--mono)',fontWeight:600,color:m.c,whiteSpace:'nowrap'}}>
+                  {Math.round(m.v)}<span style={{fontSize:9,color:C.text3,marginLeft:2}}>{m.u}</span>
+                </td>))}
+              <td style={{padding:'10px 8px',textAlign:'right'}}>
+                <span style={{display:'inline-block',padding:'3px 8px',borderRadius:6,background:w.comp>=70?C.mintSoft:w.comp>=50?C.orangeSoft:C.redSoft,color:w.comp>=70?C.mint:w.comp>=50?C.orange:C.red,fontSize:11,fontWeight:700,fontFamily:'var(--mono)'}}>{w.comp}</span>
+              </td>
+            </tr>))}</tbody>
+          </table>
+        </div>
       </AnimCard></div>);
 }
 
@@ -2411,7 +2531,7 @@ function ProgressTab({vis,isD,isT,D,setInfoModal,settings,gymSleep}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const velocity=D.insights.velocity, remaining=parseFloat(D.startKg||80.5)-parseFloat(settings?.goalWeight||68)-parseFloat(D.lost||0);
   const weeksLeft=Math.ceil(Math.max(0,remaining)/parseFloat(velocity||0.8));
-  const totalWeeks=settings?.totalWeeks||14;
+  const totalWeeks=settings?.totalWeeks||25;
 
   // Compute weekly steps from all sources (same logic as ActivityTab)
   const weeklySteps = useMemo(() => {
@@ -2486,17 +2606,17 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
   const cols=isD?'repeat(3,1fr)':isT?'repeat(2,1fr)':'1fr';
   const pt = settings.phaseTargets || PHASE_TARGETS_DEFAULTS;
   const phaseColors = [C.gradStart, C.cyan, C.purple];
-  const pw = settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}};
-  const tw = settings.totalWeeks||14;
+  const pw = settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:18},3:{from:19,to:25}};
+  const tw = settings.totalWeeks||25;
   const phases=[
     {n:1,l:pt[1]?.name||"Fat Loss",goal:"Aggressive fat loss, protect muscle"},
     {n:2,l:pt[2]?.name||"Symmetry & Detail",goal:"Symmetry, detail & water flush"},
-    {n:3,l:pt[3]?.name||"Peak Shred",goal:'Camera-ready shred'},
+    {n:3,l:pt[3]?.name||"Metabolic Rebuild",goal:"Deactivate cortisol, flush ECW, restore skeletal muscle for paper-thin skin finish"},
   ];
   const roadmap = [
     {phase:1,bf:"18.0%",focus:"Foundation & Base Muscle"},
-    {phase:2,bf:"15.0%",focus:"Symmetry, Detail & Water Flush"},
-    {phase:3,bf:`${settings.goalBF||13}.0%`,focus:'Peak "Camera-Ready" Shred'},
+    {phase:2,bf:"10.0%",focus:"Symmetry, Detail & Water Flush"},
+    {phase:3,bf:`${settings.goalBF||10}.0%`,focus:'Metabolic Rebuild · Cortisol Flush · Skin Tightening'},
   ];
   const calcVelocity = D.insights?.velocity ? parseFloat(D.insights.velocity) : 0.5;
 
@@ -2686,12 +2806,6 @@ function TargetsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
             </div>);
           })}
         </div>
-        {settings.phase===3 && <div style={{marginTop:12,padding:'12px 16px',borderRadius:12,background:C.purple+'08',border:`1px solid ${C.purple}33`}}>
-          <div style={{fontSize:11,fontWeight:700,color:C.purple,marginBottom:6}}>Phase 3 Amendments</div>
-          <div style={{fontSize:11,color:C.text2,marginBottom:4}}>Finisher: {TRAINING_DEFAULTS.phase3Amendments.finisher}</div>
-          <div style={{fontSize:11,color:C.text2,marginBottom:4}}>Rest: {TRAINING_DEFAULTS.phase3Amendments.rest}</div>
-          <div style={{fontSize:11,color:C.text2}}>Focus: {TRAINING_DEFAULTS.phase3Amendments.focus}</div>
-        </div>}
       </AnimCard>
     </div>);
 }
@@ -2719,7 +2833,7 @@ function SettingsTab({vis,isD,isT,isM,D,settings,setInfoModal,training}) {
   const savePhase = () => { settings.save({phase:phaseDraft}); setPhaseDirty(false); };
 
   // Section 3: Program Structure
-  const [progDraft, setProgDraft] = useState({tw:settings.totalWeeks||14,pw:settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}}});
+  const [progDraft, setProgDraft] = useState({tw:settings.totalWeeks||25,pw:settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:18},3:{from:19,to:25}}});
   const [progDirty, setProgDirty] = useState(false);
   const saveProg = () => { settings.save({totalWeeks:parseInt(progDraft.tw)||14,phaseWeeks:progDraft.pw}); setProgDirty(false); };
   const cancelProg = () => { setProgDraft({tw:settings.totalWeeks||14,pw:settings.phaseWeeks||{1:{from:1,to:8},2:{from:9,to:12},3:{from:13,to:14}}}); setProgDirty(false); };
@@ -3626,7 +3740,7 @@ export default function Stride() {
   );
 
   const isM=ww<768, isT=ww>=768&&ww<1024, isD=ww>=1024;
-  const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"lifestyle",icon:I.lifestyle,label:"Lifestyle"},{id:"targets",icon:I.target,label:"Targets"},{id:"settings",icon:I.settings,label:"Settings"},{id:"coach",icon:I.sparkle,label:"AI Coach"}];
+  const NAV=[{id:"overview",icon:I.grid,label:"Overview"},{id:"targets",icon:I.target,label:"Targets"},{id:"nutrition",icon:I.fork,label:"Nutrition"},{id:"activity",icon:I.pulse,label:"Activity"},{id:"progress",icon:I.trend,label:"Progress"},{id:"lifestyle",icon:I.lifestyle,label:"Lifestyle"},{id:"coach",icon:I.sparkle,label:"AI Coach"},{id:"settings",icon:I.settings,label:"Settings"}];
   const renderTab = () => {
     const p = {vis,isD,isT,isM,D,gymSleep,settings,training,setInfoModal,dateNav,setDateNav};
     switch(tab) {
