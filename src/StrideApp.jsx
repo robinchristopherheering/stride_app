@@ -1949,13 +1949,30 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
   const allFoodLogs = useMemo(() => ({...D.FOOD_LOG, ...foodLogCache}), [D.FOOD_LOG, foodLogCache]);
 
   // Parse proxy diary response — handles multiple response shapes
+  const decodeHTML = (str) => {
+    if (!str) return str;
+    return str.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(n)).replace(/&[a-z]+;/g,' ').trim();
+  };
+
   const parseDiary = (data) => {
     const mk = ['breakfast','lunch','dinner','snack'];
+    const parseItem = (e) => ({
+      name: decodeHTML(e.food_entry_name||e.name||e.food_name||'Unknown'),
+      amount: decodeHTML(e.serving||e.amount||e.serving_size||''),
+      cal:  Math.round(parseFloat(e.calories||e.cal||0)),
+      pro:  Math.round(parseFloat(e.protein||e.pro||0)),
+      carb: Math.round(parseFloat(e.carbs||e.carb||e.carbohydrates||0)),
+      fat:  Math.round(parseFloat(e.fat||e.total_fat||0)),
+      fib:  Math.round(parseFloat(e.fiber||e.fib||e.dietary_fiber||0)),
+      sug:  Math.round(parseFloat(e.sugar||e.sug||e.sugars||0)),
+    });
     // Shape 1: {meals: {breakfast:[], ...}}
-    if (data.meals && mk.some(k => (data.meals[k]||[]).length > 0)) return data.meals;
-    // Shape 2: {breakfast:[], lunch:[], ...} at top level
+    if (data.meals && mk.some(k => (data.meals[k]||[]).length > 0)) {
+      const m = {}; mk.forEach(k => { if (data.meals[k]?.length) m[k] = data.meals[k].map(parseItem); }); return m;
+    }
+    // Shape 2: {breakfast:[], ...} at top level
     if (mk.some(k => (data[k]||[]).length > 0)) {
-      const m = {}; mk.forEach(k => { if (data[k]?.length > 0) m[k] = data[k]; }); return m;
+      const m = {}; mk.forEach(k => { if (data[k]?.length > 0) m[k] = data[k].map(parseItem); }); return m;
     }
     // Shape 3: {food_entries: [...]} flat list
     if (data.food_entries?.length > 0) {
@@ -1963,9 +1980,7 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
       data.food_entries.forEach(e => {
         const sl = (e.meal_name||e.meal||'snack').toLowerCase();
         const k = sl.includes('break')?'breakfast':sl.includes('lunch')?'lunch':sl.includes('din')?'dinner':'snack';
-        m[k].push({name:e.food_entry_name||e.name||'Unknown',amount:e.serving||e.amount||'',
-          cal:Math.round(parseFloat(e.calories||e.cal||0)),pro:Math.round(parseFloat(e.protein||e.pro||0)),
-          carb:Math.round(parseFloat(e.carbs||e.carb||0)),fat:Math.round(parseFloat(e.fat||0))});
+        m[k].push(parseItem(e));
       });
       if (mk.some(k => m[k].length > 0)) return m;
     }
@@ -2159,27 +2174,60 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
               <div style={{marginBottom:8}}>Loading food diary...</div>
               <div style={{width:20,height:20,border:`2px solid ${C.border}`,borderTopColor:C.mint,borderRadius:'50%',margin:'0 auto',animation:'spin 1s linear infinite'}}/>
             </div>
-          ) : dayMeals ? (<div style={{display:'flex',flexDirection:'column',gap:12}}>
+          ) : dayMeals ? (<div style={{display:'flex',flexDirection:'column',gap:16}}>
           {mealOrder.map(meal=>{const items=dayMeals[meal.key]; if(!items||!items.length)return null;
+            const mealTotals = items.reduce((a,f)=>({cal:a.cal+(f.cal||0),pro:a.pro+(f.pro||0),carb:a.carb+(f.carb||0),fat:a.fat+(f.fat||0),fib:a.fib+(f.fib||0),sug:a.sug+(f.sug||0)}),{cal:0,pro:0,carb:0,fat:0,fib:0,sug:0});
             return (<div key={meal.key}>
               <div style={{fontSize:10,fontWeight:700,color:C.text3,textTransform:'uppercase',letterSpacing:.8,marginBottom:6,display:'flex',alignItems:'center',gap:6}}>
                 <span>{meal.icon}</span>{meal.label}
-                <span style={{fontSize:9,fontWeight:500,color:C.text3,marginLeft:'auto'}}>{items.reduce((a,f)=>a+(f.cal||0),0)} cal</span></div>
-              {items.map((f,i)=>(<div key={i} style={{display:'flex',alignItems:'center',gap:12,padding:'8px 12px',borderRadius:12,background:C.subtle,marginBottom:4,
-                opacity:v?1:0,transform:v?'translateX(0)':'translateX(-6px)',transition:`all .3s ease ${i*.03}s`}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:12,fontWeight:600,color:C.text,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{f.name}</div>
-                  {f.amount&&<div style={{fontSize:9,color:C.text3,marginTop:1}}>{f.amount}</div>}</div>
-                <div style={{display:'flex',gap:isM?6:12,flexShrink:0}}>
-                  <div style={{textAlign:'center'}}><div style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{f.cal}</div><div style={{fontSize:7,color:C.text3}}>cal</div></div>
-                  <div style={{textAlign:'center'}}><div style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{f.pro}</div><div style={{fontSize:7,color:C.text3}}>pro</div></div>
-                  {!isM&&<div style={{textAlign:'center'}}><div style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.blue}}>{f.carb}</div><div style={{fontSize:7,color:C.text3}}>carb</div></div>}
-                  {!isM&&<div style={{textAlign:'center'}}><div style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.orange}}>{f.fat}</div><div style={{fontSize:7,color:C.text3}}>fat</div></div>}
-                </div></div>))}</div>);})}
-          <div style={{display:'flex',justifyContent:'flex-end',gap:14,padding:'8px 12px',borderTop:`1px solid ${C.border}`}}>
-            <span style={{fontSize:10,color:C.text3,fontWeight:600}}>Total:</span>
-            <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{['breakfast','lunch','snack','dinner'].flatMap(k=>dayMeals[k]||[]).reduce((a,f)=>a+(f.cal||0),0)} cal</span>
-            <span style={{fontSize:11,fontWeight:700,fontFamily:'var(--mono)',color:C.mint}}>{Math.round(['breakfast','lunch','snack','dinner'].flatMap(k=>dayMeals[k]||[]).reduce((a,f)=>a+(f.pro||0),0))}g pro</span></div>
+                <span style={{fontSize:9,color:C.text3,marginLeft:'auto'}}>{mealTotals.cal} cal · {mealTotals.pro}g pro</span>
+              </div>
+              <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',borderRadius:12,border:`1px solid ${C.border}`}}>
+                <table style={{borderCollapse:'collapse',width:'100%',minWidth:520}}>
+                  <thead><tr style={{borderBottom:`1px solid ${C.border}`}}>
+                    <th style={{padding:'6px 10px',textAlign:'left',fontSize:9,color:C.text3,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,minWidth:140}}>Food</th>
+                    {[['Cal','kcal',C.mint],['Pro','g',C.cyan],['Carb','g',C.blue],['Fat','g',C.orange],['Fiber','g',C.purple],['Sugar','g',C.gradStart]].map(([h,u,c])=>(
+                      <th key={h} style={{padding:'6px 8px',textAlign:'right',fontSize:9,color:c,fontWeight:700,textTransform:'uppercase',letterSpacing:.5,whiteSpace:'nowrap'}}>{h}<span style={{color:C.text3,fontWeight:400}}> {u}</span></th>))}
+                  </tr></thead>
+                  <tbody>
+                    {items.map((f,i)=>(
+                      <tr key={i} style={{borderBottom:i<items.length-1?`1px solid ${C.border}15`:'none',
+                        opacity:v?1:0,transition:`opacity .3s ease ${i*.03}s`}}>
+                        <td style={{padding:'7px 10px',fontSize:11,fontWeight:600,color:C.text}}>
+                          <div style={{whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',maxWidth:180}}>{f.name}</div>
+                          {f.amount&&<div style={{fontSize:9,color:C.text3,marginTop:1}}>{f.amount}</div>}
+                        </td>
+                        {[f.cal,f.pro,f.carb,f.fat,f.fib,f.sug].map((val,j)=>(
+                          <td key={j} style={{padding:'7px 8px',textAlign:'right',fontSize:11,fontWeight:700,fontFamily:'var(--mono)',
+                            color:[C.mint,C.cyan,C.blue,C.orange,C.purple,C.gradStart][j]}}>{val??'–'}</td>))}
+                      </tr>))}
+                    <tr style={{borderTop:`1px solid ${C.border}`,background:`${C.subtle}`}}>
+                      <td style={{padding:'7px 10px',fontSize:10,fontWeight:700,color:C.text3}}>Subtotal</td>
+                      {[mealTotals.cal,mealTotals.pro,mealTotals.carb,mealTotals.fat,mealTotals.fib,mealTotals.sug].map((val,j)=>(
+                        <td key={j} style={{padding:'7px 8px',textAlign:'right',fontSize:11,fontWeight:800,fontFamily:'var(--mono)',
+                          color:[C.mint,C.cyan,C.blue,C.orange,C.purple,C.gradStart][j]}}>{Math.round(val)}</td>))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>);})}
+          {/* Grand totals */}
+          {(() => {
+            const all = ['breakfast','lunch','snack','dinner'].flatMap(k=>dayMeals[k]||[]);
+            const tot = all.reduce((a,f)=>({cal:a.cal+(f.cal||0),pro:a.pro+(f.pro||0),carb:a.carb+(f.carb||0),fat:a.fat+(f.fat||0),fib:a.fib+(f.fib||0),sug:a.sug+(f.sug||0)}),{cal:0,pro:0,carb:0,fat:0,fib:0,sug:0});
+            return (
+              <div style={{overflowX:'auto',WebkitOverflowScrolling:'touch',borderRadius:12,border:`1px solid ${C.mintMed}`,background:C.mintSoft}}>
+                <table style={{borderCollapse:'collapse',width:'100%',minWidth:520}}>
+                  <tbody><tr>
+                    <td style={{padding:'10px 12px',fontSize:11,fontWeight:800,color:C.mint}}>TOTAL</td>
+                    {[[tot.cal,'kcal',C.mint],[tot.pro,'g',C.cyan],[tot.carb,'g',C.blue],[tot.fat,'g',C.orange],[tot.fib,'g',C.purple],[tot.sug,'g',C.gradStart]].map(([val,u,c],j)=>(
+                      <td key={j} style={{padding:'10px 8px',textAlign:'right',fontFamily:'var(--mono)',fontWeight:800,color:c,whiteSpace:'nowrap'}}>
+                        {Math.round(val)}<span style={{fontSize:9,color:C.text3,marginLeft:2,fontWeight:400}}>{u}</span>
+                      </td>))}
+                  </tr></tbody>
+                </table>
+              </div>);
+          })()}
         </div>) : (<div style={{padding:20,textAlign:'center',color:C.text3,fontSize:12}}>
           {loadingFood ? (
             <div>
