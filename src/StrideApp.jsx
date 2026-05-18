@@ -1963,8 +1963,8 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
       pro:  Math.round(parseFloat(e.protein||e.pro||0)),
       carb: Math.round(parseFloat(e.carbs||e.carb||e.carbohydrates||0)),
       fat:  Math.round(parseFloat(e.fat||e.total_fat||0)),
-      fib:  Math.round(parseFloat(e.fiber||e.fib||e.dietary_fiber||0)),
-      sug:  Math.round(parseFloat(e.sugar||e.sug||e.sugars||0)),
+      fib:  parseFloat((parseFloat(e.fiber||e.fib||e.dietary_fiber||0)).toFixed(1)),
+      sug:  parseFloat((parseFloat(e.sugar||e.sug||e.sugars||0)).toFixed(1)),
     });
     // Shape 1: {meals: {breakfast:[], ...}}
     if (data.meals && mk.some(k => (data.meals[k]||[]).length > 0)) {
@@ -2199,13 +2199,17 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
                         </td>
                         {[f.cal,f.pro,f.carb,f.fat,f.fib,f.sug].map((val,j)=>(
                           <td key={j} style={{padding:'7px 8px',textAlign:'right',fontSize:11,fontWeight:700,fontFamily:'var(--mono)',
-                            color:[C.mint,C.cyan,C.blue,C.orange,C.purple,C.gradStart][j]}}>{val??'–'}</td>))}
+                            color:[C.mint,C.cyan,C.blue,C.orange,C.purple,C.gradStart][j]}}>
+                            {val==null?'–':val>0&&val<1?parseFloat(val).toFixed(1):Math.round(val)}
+                          </td>))}
                       </tr>))}
                     <tr style={{borderTop:`1px solid ${C.border}`,background:`${C.subtle}`}}>
                       <td style={{padding:'7px 10px',fontSize:10,fontWeight:700,color:C.text3}}>Subtotal</td>
                       {[mealTotals.cal,mealTotals.pro,mealTotals.carb,mealTotals.fat,mealTotals.fib,mealTotals.sug].map((val,j)=>(
                         <td key={j} style={{padding:'7px 8px',textAlign:'right',fontSize:11,fontWeight:800,fontFamily:'var(--mono)',
-                          color:[C.mint,C.cyan,C.blue,C.orange,C.purple,C.gradStart][j]}}>{Math.round(val)}</td>))}
+                          color:[C.mint,C.cyan,C.blue,C.orange,C.purple,C.gradStart][j]}}>
+                          {val>0&&val<1?parseFloat(val).toFixed(1):Math.round(val)}
+                        </td>))}
                     </tr>
                   </tbody>
                 </table>
@@ -2222,7 +2226,7 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
                     <td style={{padding:'10px 12px',fontSize:11,fontWeight:800,color:C.mint}}>TOTAL</td>
                     {[[tot.cal,'kcal',C.mint],[tot.pro,'g',C.cyan],[tot.carb,'g',C.blue],[tot.fat,'g',C.orange],[tot.fib,'g',C.purple],[tot.sug,'g',C.gradStart]].map(([val,u,c],j)=>(
                       <td key={j} style={{padding:'10px 8px',textAlign:'right',fontFamily:'var(--mono)',fontWeight:800,color:c,whiteSpace:'nowrap'}}>
-                        {Math.round(val)}<span style={{fontSize:9,color:C.text3,marginLeft:2,fontWeight:400}}>{u}</span>
+                        {val>0&&val<1?parseFloat(val).toFixed(1):Math.round(val)}<span style={{fontSize:9,color:C.text3,marginLeft:2,fontWeight:400}}>{u}</span>
                       </td>))}
                   </tr></tbody>
                 </table>
