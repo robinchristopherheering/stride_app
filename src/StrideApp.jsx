@@ -2200,7 +2200,7 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
                         {[f.cal,f.pro,f.carb,f.fat,f.fib,f.sug].map((val,j)=>(
                           <td key={j} style={{padding:'7px 8px',textAlign:'right',fontSize:11,fontWeight:700,fontFamily:'var(--mono)',
                             color:[C.mint,C.cyan,C.blue,C.orange,C.purple,C.gradStart][j]}}>
-                            {val==null?'–':val>0&&val<1?parseFloat(val).toFixed(1):Math.round(val)}
+                            {val==null?'–':j>=4?(val>0?parseFloat(val).toFixed(1):'0'):Math.round(val)}
                           </td>))}
                       </tr>))}
                     <tr style={{borderTop:`1px solid ${C.border}`,background:`${C.subtle}`}}>
@@ -2208,7 +2208,7 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
                       {[mealTotals.cal,mealTotals.pro,mealTotals.carb,mealTotals.fat,mealTotals.fib,mealTotals.sug].map((val,j)=>(
                         <td key={j} style={{padding:'7px 8px',textAlign:'right',fontSize:11,fontWeight:800,fontFamily:'var(--mono)',
                           color:[C.mint,C.cyan,C.blue,C.orange,C.purple,C.gradStart][j]}}>
-                          {val>0&&val<1?parseFloat(val).toFixed(1):Math.round(val)}
+                          {j>=4?(val>0?parseFloat(val).toFixed(1):'0'):Math.round(val)}
                         </td>))}
                     </tr>
                   </tbody>
@@ -2226,7 +2226,7 @@ function NutritionTab({vis,isD,isT,isM,D,dateNav,setDateNav,settings}) {
                     <td style={{padding:'10px 12px',fontSize:11,fontWeight:800,color:C.mint}}>TOTAL</td>
                     {[[tot.cal,'kcal',C.mint],[tot.pro,'g',C.cyan],[tot.carb,'g',C.blue],[tot.fat,'g',C.orange],[tot.fib,'g',C.purple],[tot.sug,'g',C.gradStart]].map(([val,u,c],j)=>(
                       <td key={j} style={{padding:'10px 8px',textAlign:'right',fontFamily:'var(--mono)',fontWeight:800,color:c,whiteSpace:'nowrap'}}>
-                        {val>0&&val<1?parseFloat(val).toFixed(1):Math.round(val)}<span style={{fontSize:9,color:C.text3,marginLeft:2,fontWeight:400}}>{u}</span>
+                        {j>=4?(val>0?parseFloat(val).toFixed(1):'0'):Math.round(val)}<span style={{fontSize:9,color:C.text3,marginLeft:2,fontWeight:400}}>{u}</span>
                       </td>))}
                   </tr></tbody>
                 </table>
