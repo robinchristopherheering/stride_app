@@ -41,16 +41,19 @@ jobs:
         run: |
           # Convert MFP_COOKIES secret (raw "name=value; ..." string) to Netscape cookie file
           python3 - <<'PYEOF'
-          import os, tempfile
+          import os
           raw = os.environ.get("MFP_COOKIES", "")
-          lines = ["# Netscape HTTP Cookie File\n"]
+          # Netscape format REQUIRES this exact first line (with the magic string)
+          lines = ["# Netscape HTTP Cookie File\n", "# http://curl.haxx.se/rfc/cookie_spec.html\n", "# This is a generated file!  Do not edit.\n", "\n"]
           for pair in raw.split("; "):
+              pair = pair.strip()
               if "=" in pair:
                   name, _, val = pair.partition("=")
-                  lines.append(f"www.myfitnesspal.com\tFALSE\t/\tTRUE\t1779965063\t{name.strip()}\t{val.strip()}\n")
+                  # Format: domain, flag, path, secure, expiry, name, value (TAB-separated)
+                  lines.append(f".myfitnesspal.com\tTRUE\t/\tTRUE\t1783091500\t{name.strip()}\t{val.strip()}\n")
           with open("/tmp/mfp_cookies.txt", "w") as f:
               f.writelines(lines)
-          print(f"Wrote {len(lines)-1} cookies to /tmp/mfp_cookies.txt")
+          print(f"Wrote {len(lines)-4} cookies to /tmp/mfp_cookies.txt")
           PYEOF
 
           DAYS="${{ github.event.inputs.backfill_days }}"
