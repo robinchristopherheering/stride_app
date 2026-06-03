@@ -1,575 +1,683 @@
 #!/usr/bin/env python3
 """
-Stride MFP Sync — Pulls nutrition, weight, steps & exercise data from MyFitnessPal
-Runs via GitHub Actions cron at 03:30 UTC (04:30 CET) daily
-Outputs: public/data/stride-data.json
+Stride MFP Sync — Fetches diary data from MyFitnessPal using session cookies.
+Outputs a JSON file consumed by the Stride frontend.
+
+Usage:
+    python mfp_sync.py                    # Sync yesterday's data
+    python mfp_sync.py --date 2026-02-19  # Sync specific date
+    python mfp_sync.py --backfill 45      # Backfill last 45 days
 """
 
-import json
-import os
-import sys
-import http.cookiejar
-from datetime import date, timedelta, datetime
+import json, os, sys, re, time, argparse
+from datetime import datetime, timedelta, date
 from pathlib import Path
+from http.cookiejar import MozillaCookieJar
+import urllib.request, urllib.error
 
-# --- Configuration ---
+# ─── CONFIG ──────────────────────────────────────────────────────────────────
 MFP_USERNAME = os.environ.get("MFP_USERNAME", "robincheering186")
-PROGRAM_START = date(2026, 1, 5)  # Week 1 starts here
-START_WEIGHT = 80.5
-TARGET_WEIGHT = 68.0
+COOKIE_FILE = os.environ.get("MFP_COOKIE_FILE", "cookies.txt")
+DATA_DIR = Path(os.environ.get("DATA_DIR", "public/data"))
+PROGRAM_START = date(2026, 1, 5)  # Week 1 Day 1
 
-# Phase definitions
-PHASES = {
-    1: {"label": "Phase 1 – Fat Loss", "weeks": "1–7",
-        "cal": [1300, 1500], "protein": [130, 160], "carbs": [40, 70],
-        "fat": [40, 55], "sugar": [0, 20], "fiber": [20, 30], "steps": [8000, 10000]},
-    2: {"label": "Phase 2 – Lean Out", "weeks": "8–11",
-        "cal": [1600, 1800], "protein": [130, 150], "carbs": [80, 130],
-        "fat": [45, 65], "sugar": [0, 30], "fiber": [25, 35], "steps": [8000, 12000]},
-    3: {"label": "Phase 3 – Abs Reveal", "weeks": "12–14",
-        "cal": [1500, 1650], "protein": [140, 160], "carbs": [60, 100],
-        "fat": [40, 55], "sugar": [0, 25], "fiber": [25, 35], "steps": [10000, 10000]},
-    4: {"label": "Phase 4 – Maintenance", "weeks": "13–14+",
-        "cal": [1900, 2200], "protein": [130, 150], "carbs": [150, 220],
-        "fat": [55, 75], "sugar": [0, 40], "fiber": [30, 40], "steps": [8000, 10000]},
+# Phase targets: { phase_num: { nutrient: (low, high) } }
+PHASE_TARGETS = {
+    1: {  # Weeks 1–7
+        "cal": (1300, 1500), "protein": (130, 160), "carbs": (40, 70),
+        "fat": (40, 55), "sugar": (0, 20), "fiber": (20, 30),
+        "steps": (8000, 10000),
+    },
+    2: {  # Weeks 8–11
+        "cal": (1600, 1800), "protein": (130, 150), "carbs": (80, 130),
+        "fat": (45, 65), "sugar": (0, 30), "fiber": (25, 35),
+        "steps": (8000, 12000),
+    },
+    3: {  # Weeks 12–14
+        "cal": (1500, 1650), "protein": (140, 160), "carbs": (60, 100),
+        "fat": (40, 55), "sugar": (0, 25), "fiber": (25, 35),
+        "steps": (10000, 10000),
+    },
+    4: {  # Weeks 13–14+ (maintenance)
+        "cal": (1900, 2200), "protein": (130, 150), "carbs": (150, 220),
+        "fat": (55, 75), "sugar": (0, 40), "fiber": (30, 40),
+        "steps": (8000, 10000),
+    },
+}
+
+# Scoring weights (empirically fitted to tracker data)
+SCORE_WEIGHTS = {
+    "cal": 0.25, "protein": 0.30, "carbs": 0.05,
+    "fat": 0.10, "sugar": 0.05, "fiber": 0.25,
 }
 
 
-def get_phase(week):
+# ─── HELPERS ─────────────────────────────────────────────────────────────────
+
+def get_week_number(d: date) -> int:
+    """Week number in the 14-week program (1-indexed)."""
+    delta = (d - PROGRAM_START).days
+    return max(1, delta // 7 + 1)
+
+def get_phase(week: int) -> int:
     if week <= 7: return 1
     if week <= 11: return 2
     if week <= 14: return 3
     return 4
 
+def get_day_name(d: date) -> str:
+    return d.strftime("%a")
 
-def get_week_number(d):
-    """Returns 1-indexed week number from program start."""
-    delta = (d - PROGRAM_START).days
-    return max(1, delta // 7 + 1)
+def score_nutrient(val: float, lo: float, hi: float) -> float:
+    """Score 0–100 based on proximity to target range."""
+    if lo <= val <= hi:
+        return 100.0
+    elif val < lo:
+        return max(0.0, val / lo * 100) if lo > 0 else 100.0
+    else:
+        return max(0.0, 100 - (val - hi) / hi * 100) if hi > 0 else 0.0
 
+def compute_compliance(nutrients: dict, targets: dict) -> float:
+    """Weighted compliance score 0–100."""
+    total = 0.0
+    for key, weight in SCORE_WEIGHTS.items():
+        lo, hi = targets.get(key, (0, 0))
+        val = nutrients.get(key, 0)
+        total += score_nutrient(val, lo, hi) * weight
+    return round(min(100, max(0, total)))
 
-def get_week_start(week_num):
-    """Returns the Monday that starts the given week."""
-    return PROGRAM_START + timedelta(days=(week_num - 1) * 7)
+def compute_flat_stomach(nutrients: dict, targets: dict) -> float:
+    """Flat stomach score: compliance penalized by bloat factors (sugar, carbs, fiber excess)."""
+    base = compute_compliance(nutrients, targets)
+    sugar = nutrients.get("sugar", 0)
+    carbs = nutrients.get("carbs", 0)
+    fiber = nutrients.get("fiber", 0)
+    sugar_target = targets.get("sugar", (0, 20))[1]
+    carbs_target_hi = targets.get("carbs", (40, 70))[1]
+    fiber_target_hi = targets.get("fiber", (20, 30))[1]
 
-
-def compute_compliance_score(cal, protein, carbs, fat, fiber, sugar, phase_num):
-    """
-    Computes daily compliance score (0-100) based on how well macros hit phase targets.
-    Each macro contributes a weighted score based on how close it is to the target range.
-    """
-    t = PHASES[phase_num]
-    score = 0
-    weights = {"cal": 25, "protein": 25, "carbs": 10, "fat": 10, "fiber": 15, "sugar": 15}
-
-    def range_score(val, lo, hi, weight):
-        if val is None or val == 0:
-            return 0
-        if lo <= val <= hi:
-            return weight  # Perfect
-        elif val < lo:
-            ratio = val / lo if lo > 0 else 0
-            return weight * max(0, ratio)
-        else:  # over
-            overshoot = (val - hi) / hi if hi > 0 else 1
-            return weight * max(0, 1 - overshoot)
-
-    score += range_score(cal, t["cal"][0], t["cal"][1], weights["cal"])
-    score += range_score(protein, t["protein"][0], t["protein"][1], weights["protein"])
-    score += range_score(carbs, t["carbs"][0], t["carbs"][1], weights["carbs"])
-    score += range_score(fat, t["fat"][0], t["fat"][1], weights["fat"])
-    score += range_score(fiber, t["fiber"][0], t["fiber"][1], weights["fiber"])
-    # Sugar: lower is better, target is 0 to max
-    score += range_score(sugar, t["sugar"][0], t["sugar"][1], weights["sugar"])
-
-    return round(min(100, max(0, score)))
-
-
-def compute_flat_stomach_score(compliance, fiber, sugar, phase_num):
-    """
-    Flat stomach score = compliance adjusted downward for low fiber and high sugar.
-    Fiber and sugar directly impact bloating/digestion.
-    """
-    t = PHASES[phase_num]
+    # Penalties for bloat-inducing excess
     penalty = 0
-    # Penalty for low fiber
-    if fiber is not None and fiber < t["fiber"][0]:
-        shortfall = (t["fiber"][0] - fiber) / t["fiber"][0]
-        penalty += shortfall * 5
-    # Penalty for high sugar
-    if sugar is not None and sugar > t["sugar"][1]:
-        excess = (sugar - t["sugar"][1]) / t["sugar"][1] if t["sugar"][1] > 0 else 1
-        penalty += excess * 5
-    return round(max(0, compliance - penalty))
+    if sugar > sugar_target:
+        penalty += min(5, (sugar - sugar_target) / 10)
+    if carbs > carbs_target_hi:
+        penalty += min(4, (carbs - carbs_target_hi) / 20)
+    if fiber > fiber_target_hi * 1.5:
+        penalty += min(3, (fiber - fiber_target_hi * 1.5) / 10)
+
+    return round(min(100, max(0, base - penalty)))
 
 
-def cal_flag(cal, phase_num):
-    t = PHASES[phase_num]
-    if cal is None or cal == 0:
-        return "No data"
-    if cal < t["cal"][0]:
-        return "Low"
-    elif cal > t["cal"][1]:
-        return "Over target"
-    return "On target"
+# ─── MFP SCRAPER ─────────────────────────────────────────────────────────────
 
+class MFPClient:
+    """Fetches data from MyFitnessPal using session cookies."""
 
-def fiber_flag(fiber, phase_num):
-    t = PHASES[phase_num]
-    if fiber is None:
-        return "No data"
-    if fiber < t["fiber"][0]:
-        return "Low"
-    return "On target"
+    BASE_URL = "https://www.myfitnesspal.com"
 
+    def __init__(self, cookie_file: str):
+        self.cookie_jar = MozillaCookieJar(cookie_file)
+        self.cookie_jar.load(ignore_discard=True, ignore_expires=True)
+        self.opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(self.cookie_jar)
+        )
+        self.opener.addheaders = [
+            ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"),
+            ("Accept", "application/json, text/html, */*"),
+            ("Accept-Language", "en-US,en;q=0.9"),
+            ("Referer", "https://www.myfitnesspal.com/food/diary"),
+        ]
 
-def load_cookies_from_env():
-    """Load Netscape cookie file content from environment variable."""
-    cookie_content = os.environ.get("MFP_COOKIES", "")
-    if not cookie_content:
-        # Try loading from local file for development
-        cookie_file = Path(__file__).parent / "cookies.txt"
-        if cookie_file.exists():
-            cookie_content = cookie_file.read_text()
-        else:
-            print("ERROR: No MFP_COOKIES env var and no local cookies.txt found")
-            sys.exit(1)
-
-    # Write to temp file for cookiejar
-    tmp_path = Path("/tmp/mfp_cookies.txt")
-    tmp_path.write_text(cookie_content)
-
-    cj = http.cookiejar.MozillaCookieJar(str(tmp_path))
-    cj.load(ignore_discard=True, ignore_expires=True)
-    return cj
-
-
-def fetch_mfp_data(cookie_jar):
-    """
-    Fetch diary data from MFP using the python-myfitnesspal library with cookie auth.
-    Falls back to web scraping if the library isn't available.
-    """
-    try:
-        import myfitnesspal
-        client = myfitnesspal.Client(cookiejar=cookie_jar)
-        print(f"✓ Authenticated as MFP user")
-        return client
-    except ImportError:
-        print("python-myfitnesspal not installed, using web scraping fallback")
-        return None
-    except Exception as e:
-        print(f"MFP client error: {e}")
-        return None
-
-
-def scrape_mfp_web(cookie_jar, username, target_date):
-    """
-    Direct web scraping fallback — fetches the printable diary page.
-    Returns dict with calories, protein, carbs, fat, fiber, sugar or None.
-    """
-    import urllib.request
-    date_str = target_date.strftime("%Y-%m-%d")
-    url = f"https://www.myfitnesspal.com/food/diary/{username}?date={date_str}"
-
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
-    opener.addheaders = [
-        ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"),
-        ("Accept", "text/html,application/xhtml+xml"),
-    ]
-
-    try:
-        resp = opener.open(url, timeout=30)
-        html = resp.read().decode("utf-8", errors="replace")
-        return parse_diary_html(html)
-    except Exception as e:
-        print(f"  Web scrape failed for {date_str}: {e}")
-        return None
-
-
-def parse_diary_html(html):
-    """Extract totals row from MFP diary HTML page."""
-    import re
-    # Look for the totals row — MFP uses specific CSS classes
-    # This is a simplified parser; may need adjustment if MFP changes layout
-    totals = {}
-
-    # Try to find total-line values
-    total_pattern = r'total["\s].*?(\d[\d,]*)\s*(?:cal|kcal)'
-    cal_match = re.search(r'Totals.*?(\d[\d,]*)', html, re.IGNORECASE | re.DOTALL)
-    if cal_match:
-        totals["calories"] = int(cal_match.group(1).replace(",", ""))
-
-    return totals if totals else None
-
-
-def pull_day_data_library(client, target_date):
-    """Pull a single day's data using the python-myfitnesspal library."""
-    try:
-        day = client.get_date(target_date.year, target_date.month, target_date.day)
-
-        totals = day.totals
-        if not totals:
-            return None
-
-        nutrition = {
-            "calories": round(totals.get("calories", 0) or 0),
-            "protein": round(totals.get("protein", 0) or 0),
-            "carbs": round(totals.get("total carbohydrate", 0) or totals.get("carbohydrates", 0) or 0),
-            "fat": round(totals.get("total fat", 0) or totals.get("fat", 0) or 0),
-            "fiber": round(totals.get("fiber", 0) or 0),
-            "sugar": round(totals.get("sugar", 0) or 0),
-        }
-
-        # Get exercises
-        exercises = []
-        gym_session = False
+    def _get(self, url: str) -> str:
+        """Make authenticated GET request."""
         try:
-            for exercise_group in day.exercises:
-                for entry in exercise_group.get_as_list():
-                    exercises.append({
-                        "name": entry.get("name", ""),
-                        "calories": entry.get("nutrition_information", {}).get("calories burned", 0),
-                        "minutes": entry.get("nutrition_information", {}).get("minutes", 0),
-                    })
-                    # Detect gym/strength sessions
-                    name_lower = entry.get("name", "").lower()
-                    if any(kw in name_lower for kw in ["strength", "weight", "press", "squat", "deadlift", "row", "curl", "bench"]):
-                        gym_session = True
-        except Exception:
+            req = urllib.request.Request(url)
+            with self.opener.open(req, timeout=30) as resp:
+                return resp.read().decode("utf-8")
+        except urllib.error.HTTPError as e:
+            print(f"  HTTP {e.code} for {url}", file=sys.stderr)
+            return ""
+        except Exception as e:
+            print(f"  Error fetching {url}: {e}", file=sys.stderr)
+            return ""
+
+    def get_diary(self, d: date) -> dict:
+        """Fetch nutrition diary for a given date. Returns nutrient totals."""
+        date_str = d.strftime("%Y-%m-%d")
+        url = f"{self.BASE_URL}/food/diary/{MFP_USERNAME}?date={date_str}"
+        html = self._get(url)
+        if not html:
+            return {}
+
+        nutrients = self._parse_diary_html(html)
+        return nutrients
+
+    def _parse_diary_html(self, html: str) -> dict:
+        """Extract nutrient totals from MFP diary page HTML."""
+        result = {}
+
+        # MFP diary page has a totals row with class "total"
+        # The columns are: Calories, Fat, Carbs, Protein, (optional more)
+        # Try the structured data first (JSON-LD or data attributes)
+
+        # Method 1: Look for the "Totals" row in the food diary table
+        # MFP uses a table with id="diary-table" or similar
+        totals_pattern = re.compile(
+            r'<tr[^>]*class="[^"]*total[^"]*"[^>]*>(.*?)</tr>',
+            re.DOTALL | re.IGNORECASE
+        )
+        totals_match = totals_pattern.search(html)
+        if totals_match:
+            row_html = totals_match.group(1)
+            nums = re.findall(r'>[\s]*([\d,]+)[\s]*<', row_html)
+            nums = [int(n.replace(",", "")) for n in nums if n.strip()]
+            # Standard MFP order: Calories, Fat, Carbs, Protein
+            # But sometimes: Calories, Fat, Carbs, Fiber, Protein
+            if len(nums) >= 4:
+                result["cal"] = nums[0]
+                result["fat"] = nums[1]
+                result["carbs"] = nums[2]
+                result["protein"] = nums[3]
+            if len(nums) >= 7:
+                result["sugar"] = nums[4] if len(nums) > 4 else 0
+                result["fiber"] = nums[5] if len(nums) > 5 else 0
+
+        # Method 2: Try the API-style JSON in the page (Next.js __NEXT_DATA__)
+        next_data_match = re.search(
+            r'<script[^>]*id="__NEXT_DATA__"[^>]*>(.*?)</script>',
+            html, re.DOTALL
+        )
+        if next_data_match:
+            try:
+                page_data = json.loads(next_data_match.group(1))
+                diary_data = self._extract_from_next_data(page_data)
+                if diary_data:
+                    result.update(diary_data)
+            except json.JSONDecodeError:
+                pass
+
+        # Method 3: Look for nutrient values in inline JSON/script blocks
+        if not result:
+            # MFP sometimes embeds diary data as JSON
+            json_blocks = re.findall(r'\{[^{}]*"calories"[^{}]*\}', html, re.IGNORECASE)
+            for block in json_blocks:
+                try:
+                    obj = json.loads(block)
+                    if "calories" in obj:
+                        result["cal"] = int(obj.get("calories", 0))
+                        result["protein"] = int(obj.get("protein", 0))
+                        result["carbs"] = int(obj.get("carbs", obj.get("total_carbohydrates", 0)))
+                        result["fat"] = int(obj.get("fat", obj.get("total_fat", 0)))
+                        result["fiber"] = int(obj.get("fiber", 0))
+                        result["sugar"] = int(obj.get("sugar", 0))
+                        break
+                except (json.JSONDecodeError, TypeError):
+                    continue
+
+        return result
+
+    def _extract_from_next_data(self, data: dict) -> dict:
+        """Walk __NEXT_DATA__ to find diary nutrition totals."""
+        result = {}
+        try:
+            # Navigate the nested structure
+            props = data.get("props", {}).get("pageProps", {})
+            diary_entries = props.get("diaryEntries", props.get("diary", {}))
+
+            if isinstance(diary_entries, dict):
+                totals = diary_entries.get("nutritionalTotals",
+                         diary_entries.get("totals",
+                         diary_entries.get("nutritional_contents", {})))
+                if totals:
+                    result["cal"] = int(totals.get("calories", totals.get("energy", {}).get("value", 0)))
+                    result["protein"] = int(totals.get("protein", 0))
+                    result["carbs"] = int(totals.get("carbohydrates", totals.get("carbs", 0)))
+                    result["fat"] = int(totals.get("fat", 0))
+                    result["fiber"] = int(totals.get("fiber", 0))
+                    result["sugar"] = int(totals.get("sugar", 0))
+
+            # Also try to get exercise/steps from the page
+            if "exerciseDiary" in props:
+                exercises = props["exerciseDiary"]
+                if isinstance(exercises, list):
+                    for ex in exercises:
+                        name = str(ex.get("name", "")).lower()
+                        if "step" in name or "walk" in name:
+                            result["steps"] = int(ex.get("quantity", ex.get("calories", 0)))
+        except (KeyError, TypeError, ValueError):
             pass
 
-        return {**nutrition, "exercises": exercises, "gym": gym_session}
+        return result
 
-    except Exception as e:
-        print(f"  Library pull failed for {target_date}: {e}")
-        return None
+    def get_exercise(self, d: date) -> dict:
+        """Fetch exercise data for a given date. Returns steps, exercise info."""
+        date_str = d.strftime("%Y-%m-%d")
+        url = f"{self.BASE_URL}/exercise/diary/{MFP_USERNAME}?date={date_str}"
+        html = self._get(url)
+        if not html:
+            return {}
 
-
-def pull_steps_from_report(client, lower, upper):
-    """
-    Try to get step data from MFP reports.
-    Steps synced from iOS appear as exercise entries or in the report.
-    """
-    steps_by_date = {}
-    try:
-        # Try the 'Exercise' category report for steps
-        report = client.get_report(
-            report_name='Net Calories',
-            report_category='Nutrition',
-            lower_bound=lower,
-            upper_bound=upper
-        )
-        # This gives net calories, not steps directly
-    except Exception:
-        pass
-
-    # Alternative: parse exercise entries for step-based activities
-    # MFP shows steps as a separate exercise line when synced from iOS
-    return steps_by_date
-
-
-def pull_steps_from_exercises(client, target_date):
-    """
-    Extract step count from exercise entries.
-    When iOS Health syncs to MFP, steps often appear as an exercise entry
-    like 'Walking' with a calorie value. We can also scrape the Progress page.
-    """
-    try:
-        day = client.get_date(target_date.year, target_date.month, target_date.day)
-        total_steps = 0
-        for exercise_group in day.exercises:
-            for entry in exercise_group.get_as_list():
-                name = entry.get("name", "").lower()
-                # Steps from iOS typically show as walking entries
-                # This is imperfect — we'll also try web scraping the progress page
-                if "step" in name or "walking" in name:
-                    # Estimate: roughly 1 step per 0.04 cal for walking at moderate pace
-                    # This is very rough — better to scrape the progress page
-                    pass
-        return None  # Return None to signal we should use web approach
-    except Exception:
-        return None
-
-
-def scrape_steps_from_progress(cookie_jar, username, target_date):
-    """
-    Scrape step count from MFP's food diary page or progress page.
-    Steps from iOS Health sync show on the exercise diary.
-    """
-    import urllib.request
-    import re
-
-    date_str = target_date.strftime("%Y-%m-%d")
-
-    # Try the exercise diary page which shows step-synced data
-    url = f"https://www.myfitnesspal.com/exercise/diary/{username}?date={date_str}"
-    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cookie_jar))
-    opener.addheaders = [
-        ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"),
-    ]
-
-    try:
-        resp = opener.open(url, timeout=30)
-        html = resp.read().decode("utf-8", errors="replace")
-
-        # Look for step count in the page
+        result = {}
+        # Look for step count — MFP shows iOS steps as "Walking" exercise
         step_patterns = [
-            r'(\d[\d,]+)\s*steps?',
-            r'steps?[:\s]*(\d[\d,]+)',
-            r'"steps"\s*:\s*(\d+)',
+            re.compile(r'(\d[\d,]*)\s*steps?', re.IGNORECASE),
+            re.compile(r'Walking.*?(\d[\d,]+)', re.IGNORECASE),
         ]
-        for pattern in step_patterns:
-            match = re.search(pattern, html, re.IGNORECASE)
-            if match:
-                return int(match.group(1).replace(",", ""))
-    except Exception as e:
-        print(f"  Steps scrape failed for {date_str}: {e}")
+        for pat in step_patterns:
+            m = pat.search(html)
+            if m:
+                result["steps"] = int(m.group(1).replace(",", ""))
+                break
 
-    return None
+        return result
+
+    def get_weight(self, d: date) -> float | None:
+        """Fetch weight measurement for a date. Returns weight in kg or None."""
+        # MFP weight is on the progress page
+        date_str = d.strftime("%Y-%m-%d")
+        url = f"{self.BASE_URL}/account/check-in?date={date_str}"
+        html = self._get(url)
+        if not html:
+            return None
+
+        # Look for weight value
+        weight_patterns = [
+            re.compile(r'"weight"[:\s]*"?([\d.]+)"?\s*(?:kg)?', re.IGNORECASE),
+            re.compile(r'([\d.]+)\s*kg', re.IGNORECASE),
+        ]
+        for pat in weight_patterns:
+            m = pat.search(html)
+            if m:
+                w = float(m.group(1))
+                if 40 < w < 150:  # Sanity check
+                    return w
+        return None
 
 
-def build_output(all_days, weight_data):
-    """Build the final JSON structure for the Stride frontend."""
-    today = date.today()
-    current_week = get_week_number(today)
-    current_phase = get_phase(current_week)
+# ─── ALTERNATIVE: API-based approach ─────────────────────────────────────────
 
-    # --- Daily data ---
-    daily = []
-    for d_date, data in sorted(all_days.items()):
-        week = get_week_number(d_date)
+class MFPAPIClient:
+    """Uses MFP internal API endpoints (found via network inspection)."""
+
+    API_BASE = "https://www.myfitnesspal.com/api"
+
+    def __init__(self, cookie_file: str):
+        self.cookie_jar = MozillaCookieJar(cookie_file)
+        self.cookie_jar.load(ignore_discard=True, ignore_expires=True)
+        self.opener = urllib.request.build_opener(
+            urllib.request.HTTPCookieProcessor(self.cookie_jar)
+        )
+        self.opener.addheaders = [
+            ("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"),
+            ("Accept", "application/json"),
+            ("Accept-Language", "en-US,en;q=0.9"),
+            ("Referer", "https://www.myfitnesspal.com/food/diary"),
+            ("X-Requested-With", "XMLHttpRequest"),
+        ]
+
+    def _get_json(self, url: str) -> dict:
+        try:
+            req = urllib.request.Request(url)
+            with self.opener.open(req, timeout=30) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except Exception as e:
+            print(f"  API error: {e}", file=sys.stderr)
+            return {}
+
+    def get_diary(self, d: date) -> dict:
+        """Fetch food diary via MFP internal API."""
+        date_str = d.strftime("%Y-%m-%d")
+
+        # Try the internal food diary API
+        endpoints = [
+            f"{self.API_BASE}/food/diary/{MFP_USERNAME}.json?date={date_str}",
+            f"{self.API_BASE}/nutrition?date={date_str}&username={MFP_USERNAME}",
+            f"https://www.myfitnesspal.com/food/diary/{MFP_USERNAME}.json?date={date_str}",
+        ]
+
+        for url in endpoints:
+            data = self._get_json(url)
+            if data:
+                return self._parse_api_diary(data)
+
+        return {}
+
+    def _parse_api_diary(self, data: dict) -> dict:
+        """Parse JSON response from MFP diary API."""
+        result = {}
+        try:
+            # Different API formats
+            if "diary_entries" in data:
+                totals = {"cal": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0, "sugar": 0}
+                for entry in data["diary_entries"]:
+                    nc = entry.get("nutritional_contents", {})
+                    totals["cal"] += nc.get("calories", nc.get("energy", {}).get("value", 0))
+                    totals["protein"] += nc.get("protein", 0)
+                    totals["carbs"] += nc.get("carbohydrates", nc.get("carbs", 0))
+                    totals["fat"] += nc.get("fat", 0)
+                    totals["fiber"] += nc.get("fiber", 0)
+                    totals["sugar"] += nc.get("sugar", 0)
+                result = {k: int(v) for k, v in totals.items()}
+
+            elif "food_entries" in data:
+                totals = {"cal": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0, "sugar": 0}
+                for entry in data["food_entries"]:
+                    totals["cal"] += entry.get("calories", 0)
+                    totals["protein"] += entry.get("protein", 0)
+                    totals["carbs"] += entry.get("carbs", entry.get("total_carbohydrates", 0))
+                    totals["fat"] += entry.get("fat", entry.get("total_fat", 0))
+                    totals["fiber"] += entry.get("fiber", 0)
+                    totals["sugar"] += entry.get("sugar", 0)
+                result = {k: int(v) for k, v in totals.items()}
+
+            elif "total" in data:
+                t = data["total"]
+                result = {
+                    "cal": int(t.get("calories", 0)),
+                    "protein": int(t.get("protein", 0)),
+                    "carbs": int(t.get("carbohydrates", t.get("carbs", 0))),
+                    "fat": int(t.get("fat", 0)),
+                    "fiber": int(t.get("fiber", 0)),
+                    "sugar": int(t.get("sugar", 0)),
+                }
+        except (KeyError, TypeError, ValueError):
+            pass
+
+        return result
+
+
+# ─── DATA STORE ──────────────────────────────────────────────────────────────
+
+class DataStore:
+    """JSON file–based data store for Stride."""
+
+    def __init__(self, data_dir: Path):
+        self.data_dir = data_dir
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.data_file = self.data_dir / "stride-data.json"
+        self.data = self._load()
+
+    def _load(self) -> dict:
+        if self.data_file.exists():
+            with open(self.data_file) as f:
+                return json.load(f)
+        return {
+            "meta": {
+                "username": MFP_USERNAME,
+                "program_start": PROGRAM_START.isoformat(),
+                "last_sync": None,
+                "start_weight": 80.5,
+                "target_weight": 68.0,
+            },
+            "daily": {},   # "2026-01-05": { nutrients, scores, activity }
+            "weekly": {},  # "1": { averages, scores }
+            "weight": {},  # "2026-01-05": 80.5
+        }
+
+    def save(self):
+        with open(self.data_file, "w") as f:
+            json.dump(self.data, f, indent=2, default=str)
+
+    def upsert_day(self, d: date, nutrients: dict, steps: int = 0,
+                   weight: float = None, sleep: float = None, gym: bool = None):
+        date_str = d.isoformat()
+        week = get_week_number(d)
         phase = get_phase(week)
-        day_of_week = d_date.strftime("%a")
+        targets = PHASE_TARGETS[phase]
 
-        cal = data.get("calories", 0) or 0
-        protein = data.get("protein", 0) or 0
-        carbs = data.get("carbs", 0) or 0
-        fat = data.get("fat", 0) or 0
-        fiber = data.get("fiber", 0) or 0
-        sugar = data.get("sugar", 0) or 0
-        steps = data.get("steps")
-        sleep = data.get("sleep")
-        gym = data.get("gym", False)
+        # DATA PROTECTION: never overwrite an existing day that has real calorie
+        # data with an empty/zero pull (e.g. when cookies expire mid-run)
+        existing = self.data["daily"].get(date_str, {})
+        existing_cal = existing.get("nutrients", {}).get("cal", 0)
+        new_cal = nutrients.get("cal", 0) if nutrients else 0
+        if existing_cal > 0 and new_cal == 0:
+            print(f"    ⚠️  PROTECTED {date_str}: keeping existing data ({existing_cal} cal), "
+                  f"refusing to overwrite with empty pull")
+            return
 
-        compliance = compute_compliance_score(cal, protein, carbs, fat, fiber, sugar, phase)
-        flat_stomach = compute_flat_stomach_score(compliance, fiber, sugar, phase)
-
-        daily.append({
-            "date": d_date.isoformat(),
-            "day": day_of_week,
+        day_data = self.data["daily"].get(date_str, {})
+        day_data.update({
+            "date": date_str,
             "week": week,
             "phase": phase,
-            "calories": cal,
-            "protein": protein,
-            "carbs": carbs,
-            "fat": fat,
-            "fiber": fiber,
-            "sugar": sugar,
-            "steps": steps,
-            "sleep": sleep,
-            "gym": gym,
-            "compliance": compliance,
-            "flatStomach": flat_stomach,
-            "calFlag": cal_flag(cal, phase),
-            "fiberFlag": fiber_flag(fiber, phase),
+            "day": get_day_name(d),
+            "nutrients": nutrients,
+            "steps": steps or day_data.get("steps", 0),
+            "sleep": sleep if sleep is not None else day_data.get("sleep"),
+            "gym": gym if gym is not None else day_data.get("gym"),
+            "compliance": compute_compliance(nutrients, targets) if nutrients.get("cal") else 0,
+            "flat_stomach": compute_flat_stomach(nutrients, targets) if nutrients.get("cal") else 0,
+            "cal_flag": self._cal_flag(nutrients.get("cal", 0), targets["cal"]),
+            "fiber_flag": "On target" if nutrients.get("fiber", 0) >= targets["fiber"][0] else "Low",
         })
 
-    # --- Weekly aggregates ---
-    weeks = {}
-    for d in daily:
-        w = d["week"]
-        if w not in weeks:
-            weeks[w] = []
-        weeks[w].append(d)
+        self.data["daily"][date_str] = day_data
 
-    weekly = []
-    for w_num in sorted(weeks.keys()):
-        days = weeks[w_num]
-        logged_days = [d for d in days if d["calories"] > 0]
-        n = len(logged_days) or 1
+        if weight is not None:
+            self.data["weight"][date_str] = weight
 
-        avg_cal = sum(d["calories"] for d in logged_days) / n
-        avg_protein = sum(d["protein"] for d in logged_days) / n
-        avg_carbs = sum(d["carbs"] for d in logged_days) / n
-        avg_fat = sum(d["fat"] for d in logged_days) / n
-        avg_fiber = sum(d["fiber"] for d in logged_days) / n
-        avg_sugar = sum(d["sugar"] for d in logged_days) / n
+        # Recompute weekly averages for this week
+        self._recompute_weekly(week)
 
-        step_days = [d for d in days if d["steps"] is not None and d["steps"] > 0]
-        avg_steps = sum(d["steps"] for d in step_days) / len(step_days) if step_days else None
+    def _cal_flag(self, cal: int, target: tuple) -> str:
+        lo, hi = target
+        if cal < lo: return "Low"
+        if cal > hi: return "Over target"
+        return "On target"
 
-        avg_compliance = sum(d["compliance"] for d in logged_days) / n
-        avg_flat = sum(d["flatStomach"] for d in logged_days) / n
+    def _recompute_weekly(self, week: int):
+        """Recompute weekly averages from daily data."""
+        week_days = [v for v in self.data["daily"].values()
+                     if v["week"] == week and v.get("nutrients", {}).get("cal")]
+        if not week_days:
+            return
 
-        phase = get_phase(w_num)
+        n = len(week_days)
+        avgs = {}
+        for key in ["cal", "protein", "carbs", "fat", "fiber", "sugar"]:
+            vals = [d["nutrients"].get(key, 0) for d in week_days]
+            avgs[key] = round(sum(vals) / n, 1)
 
-        weekly.append({
-            "week": w_num,
+        step_vals = [d.get("steps", 0) for d in week_days if d.get("steps")]
+        avg_steps = round(sum(step_vals) / len(step_vals), 1) if step_vals else 0
+
+        sleep_vals = [d.get("sleep", 0) for d in week_days if d.get("sleep")]
+        avg_sleep = round(sum(sleep_vals) / len(sleep_vals), 1) if sleep_vals else 0
+
+        comp_vals = [d.get("compliance", 0) for d in week_days]
+        flat_vals = [d.get("flat_stomach", 0) for d in week_days]
+
+        phase = get_phase(week)
+        targets = PHASE_TARGETS[phase]
+
+        self.data["weekly"][str(week)] = {
+            "week": week,
             "phase": phase,
-            "cal": round(avg_cal),
-            "protein": round(avg_protein),
-            "carbs": round(avg_carbs),
-            "fat": round(avg_fat),
-            "fiber": round(avg_fiber),
-            "sugar": round(avg_sugar),
-            "steps": round(avg_steps) if avg_steps else None,
-            "compliance": round(avg_compliance),
-            "flatStomach": round(avg_flat),
-            "calFlag": cal_flag(avg_cal, phase),
-            "fiberFlag": fiber_flag(avg_fiber, phase),
-            "daysLogged": len(logged_days),
-        })
+            "days_logged": n,
+            "avg_nutrients": avgs,
+            "avg_steps": avg_steps,
+            "avg_sleep": avg_sleep,
+            "avg_compliance": round(sum(comp_vals) / n, 1),
+            "avg_flat_stomach": round(sum(flat_vals) / n, 1),
+            "cal_flag": self._cal_flag(avgs["cal"], targets["cal"]),
+            "fiber_flag": "On target" if avgs["fiber"] >= targets["fiber"][0] else "Low",
+            "gym_days": sum(1 for d in week_days if d.get("gym")),
+        }
 
-    # --- Weight timeline ---
-    weight_timeline = []
-    for w_date, w_val in sorted(weight_data.items()):
-        weight_timeline.append({
-            "date": w_date.isoformat(),
-            "weight": round(w_val, 1),
-            "week": get_week_number(w_date),
-        })
+    def finalize(self):
+        """Compute derived data for the frontend."""
+        self.data["meta"]["last_sync"] = datetime.now().isoformat()
 
-    # --- Running averages (all logged days) ---
-    all_logged = [d for d in daily if d["calories"] > 0]
-    n_all = len(all_logged) or 1
-    running_avgs = {
-        "calories": round(sum(d["calories"] for d in all_logged) / n_all),
-        "protein": round(sum(d["protein"] for d in all_logged) / n_all),
-        "carbs": round(sum(d["carbs"] for d in all_logged) / n_all),
-        "fat": round(sum(d["fat"] for d in all_logged) / n_all),
-        "fiber": round(sum(d["fiber"] for d in all_logged) / n_all),
-        "sugar": round(sum(d["sugar"] for d in all_logged) / n_all),
-    }
+        # Compute all-time running averages
+        all_days = [v for v in self.data["daily"].values()
+                    if v.get("nutrients", {}).get("cal")]
+        if all_days:
+            n = len(all_days)
+            self.data["meta"]["running_averages"] = {}
+            for key in ["cal", "protein", "carbs", "fat", "fiber", "sugar"]:
+                vals = [d["nutrients"].get(key, 0) for d in all_days]
+                self.data["meta"]["running_averages"][key] = round(sum(vals) / n, 1)
 
-    # --- Latest weight info ---
-    latest_weight = weight_timeline[-1] if weight_timeline else {"weight": START_WEIGHT, "week": 0}
-    total_lost = round(START_WEIGHT - latest_weight["weight"], 1)
-    pct_lost = round((total_lost / START_WEIGHT) * 100, 1)
+        # Weight timeline
+        weights = sorted(self.data["weight"].items())
+        if weights:
+            self.data["meta"]["current_weight"] = weights[-1][1]
+            self.data["meta"]["total_lost"] = round(
+                self.data["meta"]["start_weight"] - weights[-1][1], 1)
 
-    return {
-        "meta": {
-            "lastSync": datetime.utcnow().isoformat() + "Z",
-            "programStart": PROGRAM_START.isoformat(),
-            "currentWeek": current_week,
-            "currentPhase": current_phase,
-            "startWeight": START_WEIGHT,
-            "targetWeight": TARGET_WEIGHT,
-        },
-        "phases": {str(k): v for k, v in PHASES.items()},
-        "weight": {
-            "timeline": weight_timeline,
-            "current": latest_weight["weight"],
-            "totalLost": total_lost,
-            "pctLost": pct_lost,
-        },
-        "runningAverages": running_avgs,
-        "weekly": weekly,
-        "daily": daily,
-    }
+        # Current week
+        today = date.today()
+        self.data["meta"]["current_week"] = get_week_number(today)
+        self.data["meta"]["current_phase"] = get_phase(get_week_number(today))
+
+
+# ─── MAIN SYNC LOGIC ────────────────────────────────────────────────────────
+
+def sync_date(client, store: DataStore, d: date, verbose: bool = True):
+    """Sync a single date from MFP to the data store."""
+    date_str = d.isoformat()
+    if verbose:
+        print(f"  Syncing {date_str} (Week {get_week_number(d)}, {get_day_name(d)})...")
+
+    # Fetch nutrition
+    nutrients = client.get_diary(d)
+    if not nutrients or not nutrients.get("cal"):
+        if verbose:
+            print(f"    No diary data for {date_str}")
+        return False
+
+    # Fetch steps from exercise diary
+    exercise = client.get_exercise(d)
+    steps = exercise.get("steps", 0)
+
+    # Fetch weight
+    weight = client.get_weight(d)
+
+    if verbose:
+        cal = nutrients.get("cal", 0)
+        prot = nutrients.get("protein", 0)
+        print(f"    Cal: {cal} | Protein: {prot}g | Steps: {steps} | Weight: {weight}")
+
+    store.upsert_day(d, nutrients, steps=steps, weight=weight)
+    return True
 
 
 def main():
-    print("🏃 Stride MFP Sync starting...")
-    print(f"   Program start: {PROGRAM_START}")
-    print(f"   Username: {MFP_USERNAME}")
+    parser = argparse.ArgumentParser(description="Stride MFP Data Sync")
+    parser.add_argument("--date", type=str, help="Sync specific date (YYYY-MM-DD)")
+    parser.add_argument("--backfill", type=int, help="Backfill N days from today")
+    parser.add_argument("--cookie-file", type=str, default=COOKIE_FILE,
+                        help="Path to Netscape cookie file")
+    parser.add_argument("--data-dir", type=str, default=str(DATA_DIR),
+                        help="Output directory for JSON data")
+    parser.add_argument("--quiet", action="store_true", help="Minimal output")
+    args = parser.parse_args()
 
-    # Load cookies
-    cookie_jar = load_cookies_from_env()
-    print(f"✓ Loaded {len(cookie_jar)} cookies")
+    data_dir = Path(args.data_dir)
+    verbose = not args.quiet
 
-    # Init MFP client
-    client = fetch_mfp_data(cookie_jar)
+    if verbose:
+        print("═══ Stride MFP Sync ═══")
 
-    # Determine date range to sync
-    today = date.today()
-    # Sync from program start to yesterday (today may be incomplete)
-    sync_end = today - timedelta(days=1)
-    sync_start = PROGRAM_START
+    # Initialize MFP client — try API first, fall back to HTML scraping
+    # If MFP_COOKIES env var contains raw cookie content (from GitHub Actions secret),
+    # write it to a temp file so MozillaCookieJar can read it
+    import tempfile, os as _os
+    raw_cookies = _os.environ.get("MFP_COOKIES", "")
+    if raw_cookies and not _os.path.isfile(args.cookie_file):
+        if raw_cookies.startswith("# Netscape"):
+            # Already in Netscape format — write as-is
+            tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+            tmp.write(raw_cookies)
+            tmp.close()
+            args.cookie_file = tmp.name
+        elif "session-token" in raw_cookies or "remember_me" in raw_cookies:
+            # Raw cookie string (name=value; name=value) — convert to Netscape format
+            tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
+            tmp.write("# Netscape HTTP Cookie File\n")
+            for pair in raw_cookies.split("; "):
+                if "=" in pair:
+                    name, _, val = pair.partition("=")
+                    tmp.write(f"www.myfitnesspal.com\tFALSE\t/\tTRUE\t1779965063\t{name.strip()}\t{val.strip()}\n")
+            tmp.close()
+            args.cookie_file = tmp.name
+        if verbose:
+            print(f"Wrote MFP_COOKIES env var to temp file: {args.cookie_file}")
 
-    # If we have existing data, only sync recent days (last 7) for speed
-    output_path = Path(__file__).parent.parent / "public" / "data" / "stride-data.json"
-    existing_daily = {}
-    if output_path.exists():
+    if verbose:
+        print(f"Loading cookies from: {args.cookie_file}")
+
+    try:
+        client = MFPAPIClient(args.cookie_file)
+        # Test with a quick request
+        test = client.get_diary(date.today() - timedelta(days=1))
+        if not test:
+            if verbose:
+                print("API client returned empty, trying HTML scraper...")
+            client = MFPClient(args.cookie_file)
+    except Exception:
+        client = MFPClient(args.cookie_file)
+
+    store = DataStore(data_dir)
+
+    # AUTH GUARD: verify cookies work before doing anything that could save.
+    # Probe a recent date that should have data. If nothing comes back AND the
+    # store already has historical data, the cookies are almost certainly expired —
+    # abort without saving so we never overwrite good data with empties.
+    probe_days = [date.today() - timedelta(days=i) for i in range(1, 6)]
+    auth_ok = False
+    for pd in probe_days:
         try:
-            existing = json.loads(output_path.read_text())
-            for d in existing.get("daily", []):
-                existing_daily[date.fromisoformat(d["date"])] = d
-            # Only re-sync last 7 days + any missing days
-            if existing_daily:
-                sync_start = max(PROGRAM_START, today - timedelta(days=7))
-                print(f"   Incremental sync from {sync_start}")
+            probe = client.get_diary(pd)
+            if probe and probe.get("cal", 0) > 0:
+                auth_ok = True
+                break
         except Exception:
-            pass
+            continue
 
-    all_days = {}
+    existing_days_with_data = sum(
+        1 for v in store.data.get("daily", {}).values()
+        if v.get("nutrients", {}).get("cal", 0) > 0
+    )
 
-    # Restore existing data for days we're not re-syncing
-    for d_date, d_data in existing_daily.items():
-        if d_date < sync_start:
-            all_days[d_date] = d_data
+    if not auth_ok and existing_days_with_data > 0:
+        print("=" * 60)
+        print("❌ AUTH CHECK FAILED — no diary data returned for last 5 days,")
+        print(f"   but store already has {existing_days_with_data} days of real data.")
+        print("   Cookies are likely EXPIRED. Aborting WITHOUT saving to protect")
+        print("   existing data. Refresh MFP_COOKIES and re-run.")
+        print("=" * 60)
+        sys.exit(1)
 
-    # Fetch new data
-    current = sync_start
-    while current <= sync_end:
-        print(f"  Syncing {current}...", end=" ")
+    if not auth_ok:
+        print("⚠️  Warning: auth probe found no recent data (store is empty, "
+              "so proceeding — this may be a fresh setup).")
 
-        day_data = None
-        if client:
-            day_data = pull_day_data_library(client, current)
+    if args.date:
+        d = date.fromisoformat(args.date)
+        sync_date(client, store, d, verbose)
+    elif args.backfill:
+        today = date.today()
+        for i in range(args.backfill, 0, -1):
+            d = today - timedelta(days=i)
+            if d >= PROGRAM_START:
+                sync_date(client, store, d, verbose)
+                time.sleep(1.5)  # Rate limiting
+    else:
+        # Default: sync yesterday
+        yesterday = date.today() - timedelta(days=1)
+        sync_date(client, store, yesterday, verbose)
 
-        if day_data is None:
-            day_data = scrape_mfp_web(cookie_jar, MFP_USERNAME, current)
+    store.finalize()
+    store.save()
 
-        if day_data and day_data.get("calories", 0) > 0:
-            # Try to get steps
-            steps = scrape_steps_from_progress(cookie_jar, MFP_USERNAME, current)
-            day_data["steps"] = steps
-
-            # Preserve manually entered sleep data from existing records
-            if current in existing_daily and existing_daily[current].get("sleep"):
-                day_data["sleep"] = existing_daily[current]["sleep"]
-
-            all_days[current] = day_data
-            print(f"✓ {day_data.get('calories', 0)} kcal, {day_data.get('protein', 0)}g protein")
-        else:
-            # Keep existing data if available
-            if current in existing_daily:
-                all_days[current] = existing_daily[current]
-                print("(kept existing)")
-            else:
-                all_days[current] = {"calories": 0, "protein": 0, "carbs": 0, "fat": 0, "fiber": 0, "sugar": 0}
-                print("(no data)")
-
-        current += timedelta(days=1)
-
-    # Fetch weight measurements
-    print("\n  Fetching weight data...")
-    weight_data = {}
-    if client:
-        try:
-            measurements = client.get_measurements("Weight", lower_bound=PROGRAM_START, upper_bound=today)
-            weight_data = {k: v for k, v in measurements.items()}
-            print(f"  ✓ Got {len(weight_data)} weight entries")
-        except Exception as e:
-            print(f"  Weight fetch failed: {e}")
-
-    # If no weight data from API, try to restore from existing
-    if not weight_data and output_path.exists():
-        try:
-            existing = json.loads(output_path.read_text())
-            for w in existing.get("weight", {}).get("timeline", []):
-                weight_data[date.fromisoformat(w["date"])] = w["weight"]
-            print(f"  Restored {len(weight_data)} weight entries from cache")
-        except Exception:
-            pass
-
-    # Build output
-    output = build_output(all_days, weight_data)
-
-    # Write JSON
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(output, indent=2, default=str))
-    print(f"\n✅ Wrote {output_path} ({len(output['daily'])} days, {len(output['weekly'])} weeks)")
+    if verbose:
+        daily_count = len([d for d in store.data["daily"].values()
+                          if d.get("nutrients", {}).get("cal")])
+        print(f"\n✓ Synced. {daily_count} days with data.")
+        print(f"  Data saved to: {store.data_file}")
 
 
 if __name__ == "__main__":
