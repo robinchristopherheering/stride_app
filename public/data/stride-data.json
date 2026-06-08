@@ -1,8 +1,8 @@
 {
   "meta": {
-    "lastSync": "2026-06-07T21:42:52.924494Z",
+    "lastSync": "2026-06-08T05:10:34.733647Z",
     "programStart": "2026-01-05",
-    "currentWeek": 22,
+    "currentWeek": 23,
     "currentPhase": 3,
     "startWeight": 80.5,
     "targetWeight": 63.0
@@ -112,9 +112,9 @@
     "pctLost": 0.0
   },
   "runningAverages": {
-    "calories": 1353,
+    "calories": 1359,
     "protein": 182,
-    "carbs": 78,
+    "carbs": 79,
     "fat": 35,
     "fiber": 22,
     "sugar": 26
@@ -471,6 +471,22 @@
       "calFlag": "Over target",
       "fiberFlag": "On target",
       "daysLogged": 7
+    },
+    {
+      "week": 23,
+      "phase": 3,
+      "cal": 2143,
+      "protein": 163,
+      "carbs": 259,
+      "fat": 50,
+      "fiber": 25,
+      "sugar": 30,
+      "steps": null,
+      "compliance": 82,
+      "flatStomach": 81,
+      "calFlag": "Over target",
+      "fiberFlag": "Low",
+      "daysLogged": 1
     }
   ],
   "daily": [
@@ -3399,6 +3415,25 @@
       "flatStomach": 88,
       "calFlag": "Over target",
       "fiberFlag": "On target"
+    },
+    {
+      "date": "2026-06-08",
+      "day": "Mon",
+      "week": 23,
+      "phase": 3,
+      "calories": 2143,
+      "protein": 163,
+      "carbs": 259,
+      "fat": 50,
+      "fiber": 25.0,
+      "sugar": 30,
+      "steps": null,
+      "sleep": null,
+      "gym": false,
+      "compliance": 82,
+      "flatStomach": 81,
+      "calFlag": "Over target",
+      "fiberFlag": "Low"
     }
   ]
 }
