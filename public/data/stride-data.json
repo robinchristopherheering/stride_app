@@ -1,6 +1,6 @@
 {
   "meta": {
-    "lastSync": "2026-06-10T11:51:08.092351Z",
+    "lastSync": "2026-06-10T16:12:47.983768Z",
     "programStart": "2026-01-05",
     "currentWeek": 23,
     "currentPhase": 3,
@@ -475,8 +475,8 @@
     {
       "week": 23,
       "phase": 3,
-      "cal": 2203,
-      "protein": 181,
+      "cal": 2205,
+      "protein": 182,
       "carbs": 246,
       "fat": 56,
       "fiber": 30,
@@ -3459,11 +3459,11 @@
       "day": "Wed",
       "week": 23,
       "phase": 3,
-      "calories": 2222,
-      "protein": 169,
+      "calories": 2228,
+      "protein": 170,
       "carbs": 259,
       "fat": 59,
-      "fiber": 30.8,
+      "fiber": 31.4,
       "sugar": 45,
       "steps": null,
       "sleep": null,
