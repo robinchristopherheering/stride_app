@@ -1,6 +1,6 @@
 {
   "meta": {
-    "lastSync": "2026-09-20T05:06:42.866357Z",
+    "lastSync": "2026-09-20T13:08:02.335760Z",
     "programStart": "2026-01-05",
     "currentWeek": 37,
     "currentPhase": 3,
@@ -112,12 +112,12 @@
     "pctLost": 0.0
   },
   "runningAverages": {
-    "calories": 1475,
-    "protein": 184,
+    "calories": 1477,
+    "protein": 183,
     "carbs": 106,
     "fat": 35,
     "fiber": 22,
-    "sugar": 28
+    "sugar": 29
   },
   "weekly": [
     {
@@ -603,18 +603,18 @@
     {
       "week": 37,
       "phase": 3,
-      "cal": 1864,
-      "protein": 188,
-      "carbs": 199,
-      "fat": 35,
-      "fiber": 24,
-      "sugar": 32,
+      "cal": 1869,
+      "protein": 185,
+      "carbs": 200,
+      "fat": 36,
+      "fiber": 21,
+      "sugar": 36,
       "steps": null,
-      "compliance": 87,
-      "flatStomach": 85,
+      "compliance": 84,
+      "flatStomach": 81,
       "calFlag": "Over target",
       "fiberFlag": "Low",
-      "daysLogged": 6
+      "daysLogged": 7
     }
   ],
   "daily": [
@@ -4252,17 +4252,17 @@
       "day": "Tue",
       "week": 37,
       "phase": 3,
-      "calories": 1955,
-      "protein": 192,
-      "carbs": 205,
-      "fat": 42,
-      "fiber": 23.1,
+      "calories": 1957,
+      "protein": 190,
+      "carbs": 203,
+      "fat": 43,
+      "fiber": 0,
       "sugar": 29,
       "steps": null,
       "sleep": null,
       "gym": false,
-      "compliance": 92,
-      "flatStomach": 91,
+      "compliance": 80,
+      "flatStomach": 75,
       "calFlag": "Over target",
       "fiberFlag": "Low"
     },
@@ -4340,6 +4340,25 @@
       "compliance": 88,
       "flatStomach": 87,
       "calFlag": "On target",
+      "fiberFlag": "Low"
+    },
+    {
+      "date": "2026-09-20",
+      "day": "Sun",
+      "week": 37,
+      "phase": 3,
+      "calories": 1896,
+      "protein": 170,
+      "carbs": 212,
+      "fat": 38,
+      "fiber": 24.5,
+      "sugar": 61,
+      "steps": null,
+      "sleep": null,
+      "gym": false,
+      "compliance": 75,
+      "flatStomach": 69,
+      "calFlag": "Over target",
       "fiberFlag": "Low"
     }
   ]
